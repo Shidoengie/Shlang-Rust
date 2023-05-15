@@ -1,0 +1,28 @@
+
+use std::*;
+use std::io::Write;
+use std::io;
+mod Token;
+mod Lexer;
+use Lexer::*;
+fn input(message:&str) -> String {
+    print!("{message} ");
+    io::stdout().flush().unwrap();
+    let mut result = String::new();
+    io::stdin().read_line(&mut result)
+    .expect("didnt receive input:");
+    return String::from(result.trim());
+}
+fn main() {
+    loop {
+        let source = input(">: ");
+        let mut scan = Scanner::new(source);
+        let tkStream = scan.scanTokens();
+        for item in tkStream {
+            println!("{item:?}");
+        }
+        
+    }
+    let idk = "a";
+    println!("Hello, world!");
+}

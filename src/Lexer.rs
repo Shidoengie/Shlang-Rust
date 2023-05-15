@@ -4,8 +4,10 @@ use crate::Token::*;
 #[derive(Debug,Clone)]
 pub struct Scanner<'a> {
     chars: Chars<'a>,
-    tokenStream: Vec<Token>
-    
+    tokenStream: Vec<Token>,
+    source: String,
+    isAtend:bool,
+    size:usize
 }
 impl<'a> Scanner<'a> {
 
@@ -22,104 +24,132 @@ fn addToken(&mut self,kind:TokenType,span:(usize,usize)){
     let tok = Token::new(kind,span);
     self.tokenStream.push(tok);
 }
+fn currentIndx(&self)->usize{
+    self.size-self.chars.clone().count()
+}
+
 fn num(&mut self,last:char) {
-    let mut indx = self.current;
-    loop {
-        
-        if !(lastDigit.is_digit(10) || lastDigit == '.'){break;}
-    }
-    self.addToken(TokenType::NUM);
+    println!("TODO");
 }
 fn str(&mut self) {
+    let start = self.currentIndx();
     let mut last = self.advance();
-    let mut endStr = String::new();
     loop {
-        endStr.push(last);
-        if(self.isAtEnd()){
-            panic!("Unterminated String")
+        
+        match last {
+            Some('"') => break,
+            None =>{
+                self.isAtend = true;
+                break;
+            }
+            _ => {
+                last = self.advance();
+                continue;
+            }
         }
-        last = self.advance();
-        if last == '"'{break;}
+        
     }
-    self.addToken(TokenType::STR);
+    
+    let stop = self.currentIndx()-1.max(0);
+    self.addToken(TokenType::STR,(start,stop));
+}
+fn pushAdvance(&mut self,kind:TokenType,range:(usize,usize)){
+    self.advance();
+    self.addToken(kind,range);
 }
 fn getToken(&mut self){
+    let start = self.currentIndx();
     let last = self.advance();
-    match last {
-        '.'=> self.addToken(TokenType::DOT),
-        ','=> self.addToken(TokenType::COMMA),
-        '{'=> self.addToken(TokenType::LBRACE),
-        '}'=> self.addToken(TokenType::RBRACE),
-        '('=> self.addToken(TokenType::LPAREN),
-        ')'=> self.addToken(TokenType::RPAREN),
-        '['=> self.addToken(TokenType::LBRACK),
-        ']'=> self.addToken(TokenType::RBRACK),
-        '-'=> self.addToken(TokenType::MINUS),
-        '+'=> self.addToken(TokenType::PLUS),
-        '*'=> self.addToken(TokenType::STAR),
-        '/'=> self.addToken(TokenType::SLASH),
-        '%'=> self.addToken(TokenType::MODULO),
-        ':'=> self.addToken(TokenType::COLON),
+    let range = (start,self.currentIndx());
+    if last.is_none(){
+        self.isAtend = true;
+        return;
+    }
+    let current = last.unwrap();
+    match last.unwrap() {
+        '.'=> self.addToken(TokenType::DOT,range),
+        ','=> self.addToken(TokenType::COMMA,range),
+        '{'=> self.addToken(TokenType::LBRACE,range),
+        '}'=> self.addToken(TokenType::RBRACE,range),
+        '('=> self.addToken(TokenType::LPAREN,range),
+        ')'=> self.addToken(TokenType::RPAREN,range),
+        '['=> self.addToken(TokenType::LBRACK,range),
+        ']'=> self.addToken(TokenType::RBRACK,range),
+        '-'=> self.addToken(TokenType::MINUS,range),
+        '+'=> self.addToken(TokenType::PLUS,range),
+        '*'=> self.addToken(TokenType::STAR,range),
+        '/'=> self.addToken(TokenType::SLASH,range),
+        '%'=> self.addToken(TokenType::MODULO,range),
+        ':'=> self.addToken(TokenType::COLON,range),
         ';'=> {},
         '"'=> self.str(),
         '<'=>{
             if self.currentHas('=') {
-                self.addToken(TokenType::LESSER_EQUAL);
+                self.pushAdvance(TokenType::LESSER_EQUAL,(start,self.currentIndx()));
             }
             else {
-                self.addToken(TokenType::LESSER)
+                self.addToken(TokenType::LESSER,range)
             }
         },
         '>'=>{
             if self.currentHas('=') {
-                self.addToken(TokenType::GREATER_EQUAL);
+                
+                self.pushAdvance(TokenType::GREATER_EQUAL,(start,self.currentIndx()));
             }
             else {
-                self.addToken(TokenType::GREATER)
+                self.addToken(TokenType::GREATER,range)
             }
         },
         '!'=>{
             if self.currentHas('=') {
-                self.addToken(TokenType::ISDIFERENT);
+                self.pushAdvance(TokenType::ISDIFERENT,(start,self.currentIndx()));
             }
             else {
-                self.addToken(TokenType::BANG)
+                self.addToken(TokenType::BANG,range)
             }
         },
         '='=>{
             if self.currentHas('=') {
-                self.addToken(TokenType::ISEQUAL);
+                self.advance();
+                self.addToken(TokenType::ISEQUAL,(start,self.currentIndx()));
             }
             else {
-                self.addToken(TokenType::EQUAL)
+                self.addToken(TokenType::EQUAL,range)
             }
         },
         ' ' => {},
         '\t' => {},
         '\r' => {},
         _ => {
-            if last.is_digit(10) {
-                self.num(last);
+            
+            if current.is_digit(10) {
+                self.num(current);
             }
-            else if last.is_alphanumeric() {
+            else if current.is_alphanumeric() {
                 println!("not implemented");
             }
             else{
-                panic!("Unexpected char: {last}");
+                panic!("Unexpected char: {current}");
             }
         },
     }
 }
 pub fn scanTokens(&mut self) -> Vec<Token>{
-    while !self.isAtEnd() {
+    while !self.isAtend {
         self.getToken();
     }
-    self.addToken(TokenType::EOFL);
+    self.addToken(TokenType::EOFL,(self.size,self.size));
     return self.tokenStream.clone();
 }
 pub fn new(src:&'a str)->Self{
     
-    Scanner { chars: src.chars(), tokenStream:[].to_vec()}
+    return Scanner { 
+        chars: src.chars(), 
+        tokenStream:[].to_vec(), 
+        source:String::from(src),
+        isAtend:false,
+        size:src.chars().count()
+    };
 }
 
 }

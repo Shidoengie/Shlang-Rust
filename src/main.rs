@@ -16,10 +16,12 @@ fn input(message:&str) -> String {
 fn main() {
     loop {
         let source = input(">: ");
-        let mut scan = Scanner::new(source);
+        let mut scan = Scanner::new(&source);
         let tkStream = scan.scanTokens();
         for item in tkStream {
             println!("{item:?}");
+            let span = &source[item.span.0..item.span.1];
+            println!("{span}")
         }
         
     }

@@ -42,8 +42,8 @@ pub enum TokenType {
 }
 #[derive(Debug,Clone)]
 pub struct Token {
-    kind:TokenType,
-    span:(usize,usize)
+    pub kind:TokenType,
+    pub span:(usize,usize)
 }
 impl Token {
     pub fn new(kind:TokenType,span:(usize,usize)) -> Token{

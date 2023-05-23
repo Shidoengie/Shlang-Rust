@@ -1,5 +1,5 @@
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq, Eq)]
 pub enum TokenType {
     STR,
     NUM,
@@ -40,7 +40,7 @@ pub enum TokenType {
     FALSE,
     TRUE,
 }
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq, Eq)]
 pub struct Token {
     pub kind:TokenType,
     pub span:(usize,usize)

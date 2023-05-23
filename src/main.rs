@@ -4,6 +4,8 @@ use std::io::Write;
 use std::io;
 mod Token;
 mod Lexer;
+mod AstNodes;
+mod Parser;
 use Lexer::*;
 fn input(message:&str) -> String {
     print!("{message} ");
@@ -14,17 +16,18 @@ fn input(message:&str) -> String {
     return String::from(result.trim());
 }
 fn main() {
-    loop {
-        let source = input(">: ");
-        let mut scan = Scanner::new(&source);
-        let tkStream = scan.scanTokens();
-        for item in tkStream {
-            println!("{item:?}");
-            let span = &source[item.span.0..item.span.1];
-            println!("{span}")
-        }
-        
-    }
+    
     let idk = "a";
     println!("Hello, world!");
 }
+fn rpl(){ loop {
+    
+    let source = input(">: ");
+    let mut scan = Scanner::new(&source);
+    let tkStream = scan.scanTokens();
+    for item in tkStream {
+        println!("{item:?}");
+        let span = &source[item.span.0..item.span.1];
+        println!("{span}")
+    }    
+}}

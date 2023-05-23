@@ -29,7 +29,11 @@ fn currentIndx(&self)->usize{
 }
 
 fn num(&mut self,last:char) {
-    println!("TODO");
+    println!("{last}");
+    let mut digit:Option<char>;
+    loop {
+        
+    }
 }
 fn str(&mut self) {
     let start = self.currentIndx();

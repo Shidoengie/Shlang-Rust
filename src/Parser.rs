@@ -1,29 +1,25 @@
+use std::iter::Peekable;
+
+use crate::AstNodes;
 use crate::Token::*;
 use crate::AstNodes::*;
-struct Parser {
-    stream: Vec<Token>,
+struct Parser<I> 
+where
+    I: Iterator<Item = Token>,
+{
+    tokens: Peekable<I>,
     current: usize,
 }
 
-impl Parser {
-    fn peek_next(&mut self) -> Token {
-        self.stream[self.current + 1]
-    }
-    fn peek(&mut self) -> Token {
-        self.stream[self.current]
-    }
-    fn expect(&mut self, what: Token) -> bool {
-        self.peek_next() == what
-    }
-    fn next(&mut self) -> Token {
-        self.current += 1;
-        self.stream[self.current]
-    }
+impl<I: Iterator<Item = Token>> Parser<I> {
+    
     
     pub fn parse(&self) -> Node {
         
+        return Node::fromVal(Value::NoneType);
     }
     fn new(stream: Vec<Token>)->Self{
-        Parser{stream:stream,current:0}
+        
+        Parser{tokens:stream.into_iter().peekable(),current:0}
     }
 }

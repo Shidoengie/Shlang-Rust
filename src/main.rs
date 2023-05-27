@@ -5,7 +5,7 @@ use std::io;
 mod Token;
 mod Lexer;
 mod AstNodes;
-mod Parser;
+
 use Lexer::*;
 fn input(message:&str) -> String {
     print!("{message} ");
@@ -19,15 +19,25 @@ fn main() {
     
     let idk = "a";
     println!("Hello, world!");
+    rpl();
 }
-fn rpl(){ loop {
+
+fn rpl(){ 
     
     let source = input(">: ");
     let mut scan = Scanner::new(&source);
-    let tkStream = scan.scanTokens();
-    for item in tkStream {
-        println!("{item:?}");
-        let span = &source[item.span.0..item.span.1];
-        println!("{span}")
-    }    
-}}
+    loop {
+        let item = scan.next();
+        match item.clone() {
+            Some(tok) => {
+                println!("{tok:?}");
+                let span = &source[tok.span.0..tok.span.1];
+                println!("{span:?}");
+
+            },
+            None => {
+                rpl();
+            }
+        }
+    }
+}

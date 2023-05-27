@@ -58,8 +58,12 @@ pub enum Node {
     Declaration(Declaration),
     Assignment(Assignment),
     Variable(Variable),
-    Call(Call),
-    
+    Call(Call),    
+}
+impl Node {
+    pub fn fromVal(val:Value)->Self{
+        Node::Value(Box::new(val))
+    }
 }
 type NodeStream = Vec<Node>;
 type NodeRef = Box<Node>;

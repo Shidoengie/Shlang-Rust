@@ -10,7 +10,6 @@ pub struct Scanner<'a> {
 impl<'a> Scanner<'a> {
 
 fn peek(&self) -> Option<char> { self.chars.clone().next() }
-
 fn advance(&mut self) -> Option<char> { self.chars.next() }
 fn currentHas(&mut self, expected: char) -> bool {
     match self.peek().as_mut(){
@@ -31,7 +30,7 @@ fn num(&mut self)->Token{
             break;
         }
         let val = current.unwrap();
-        if !val.is_numeric(){
+        if !val.is_numeric() && val != '.'{
             return Token::new(TokenType::NUM, (start-1,self.currentIndx()-1));
         }
         current = self.advance();

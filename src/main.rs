@@ -5,7 +5,7 @@ use std::io;
 mod Token;
 mod Lexer;
 mod AstNodes;
-
+mod Parser;
 use Lexer::*;
 fn input(message:&str) -> String {
     print!("{message} ");

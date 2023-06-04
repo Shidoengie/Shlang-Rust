@@ -10,6 +10,11 @@ pub struct Scanner<'a> {
 impl<'a> Scanner<'a> {
 
 fn peek(&self) -> Option<char> { self.chars.clone().next() }
+fn peek_next(&self) -> Option<char> { 
+    let mut cloned = self.chars.clone();
+    cloned.next();
+    cloned.next()
+}
 fn advance(&mut self) -> Option<char> { self.chars.next() }
 fn currentHas(&mut self, expected: char) -> bool {
     match self.peek().as_mut(){
@@ -23,7 +28,7 @@ fn currentIndx(&self)->usize{
 
 fn num(&mut self)->Token{
     let start = self.currentIndx();
-    let mut current = self.advance();
+    let mut current = self.peek();
     loop {
         
         if current.is_none(){
@@ -31,16 +36,16 @@ fn num(&mut self)->Token{
         }
         let val = current.unwrap();
         if !val.is_numeric() && val != '.'{
-            return Token::new(TokenType::NUM, (start-1,self.currentIndx()-1));
+            break;
         }
-        current = self.advance();
+        current = self.peek_next();
+        self.advance();
     }
     return Token::new(TokenType::NUM, (start-1,self.currentIndx()));
 }
 fn ident(&mut self)->Token{
     let start = self.currentIndx()-1;
-    let mut current = self.advance();
-    let mut sub = 0;
+    let mut current = self.peek();
     loop {
         
         if current.is_none(){
@@ -48,12 +53,12 @@ fn ident(&mut self)->Token{
         }
         let val = current.unwrap();
         if !val.is_alphanumeric(){
-            sub = 1;
             break;
         }
-        current = self.advance();
+        current = self.peek_next();
+        self.advance();
     }
-    let stop = self.currentIndx()-sub;
+    let stop = self.currentIndx();
     let span = &self.source[start..stop];
     let keyword = Token::mapKeyword(span.to_string());
     if keyword.is_none(){
@@ -91,6 +96,7 @@ pub fn next(&mut self) -> Option<Token> {
     let last = self.advance();
     let range = (start,self.currentIndx());
     if last.is_none(){
+        
         return None;
     }
     let current = last.unwrap();
@@ -171,6 +177,7 @@ pub fn new(src:&'a str)->Self{
         source:String::from(src),
         size:src.chars().count()
     };
+
 }
 
 }

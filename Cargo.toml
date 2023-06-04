@@ -1,5 +1,5 @@
 [package]
-name = "Shlang-rust"
+name = "Shlang"
 version = "0.1.0"
 edition = "2021"
 

@@ -37,7 +37,6 @@ pub enum TokenType {
     LOOP,
     WHILE,
     BREAK,
-    EOFL,
     FALSE,
     TRUE,
     VAR

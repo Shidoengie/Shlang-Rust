@@ -1,12 +1,12 @@
 
 use std::collections::*;
 use std::rc::Rc;
-#[derive(Clone)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum Control {
     Return(Node),
     Break
 }
-#[derive(Clone)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum Value{
     NoneType,
     Control(Control),
@@ -16,18 +16,23 @@ pub enum Value{
     Function(Function),
     BuiltinFunc(BuiltinFunc)
 }
-#[derive(Clone)]
-struct Function {
+impl Value{
+    pub fn as_node(&self)->Node{
+        Node::Value(Box::new(self.clone()))
+    }
+}
+#[derive(Clone,Debug,PartialEq)]
+pub struct Function {
     block:Box<Block>,
     args:Vec<String>
 }
-#[derive(Clone)]
-struct BuiltinFunc{
+#[derive(Clone,Debug,PartialEq)]
+pub struct BuiltinFunc{
     funcPointer:fn(Vec<Value>) -> Value,
     argSize:i16
 }
 type ValueStream = Vec<Value>;
-#[derive(Clone)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum BinaryOp {
     ADD,
     SUBTRACT,
@@ -43,13 +48,13 @@ pub enum BinaryOp {
     GREATER_EQUAL,
     LESSER_EQUAL,
 }
-#[derive(Clone)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum UnaryOp{
     NEGATIVE,
 	POSITIVE,
 	NOT,
 }
-#[derive(Clone)]
+#[derive(Clone,Debug,PartialEq)]
 pub enum Node {
     Value(Box<Value>),
     Block(Block),
@@ -58,69 +63,104 @@ pub enum Node {
     Declaration(Declaration),
     Assignment(Assignment),
     Variable(Variable),
-    Call(Call),    
+    Call(Call),
+    BranchNode(BranchNode),
+    LoopNode(LoopNode),
+    WhileNode(WhileNode),    
 }
+
 impl Node {
-    pub fn fromVal(val:Value)->Self{
+    pub fn declaration(var_name:String,value:Node)-> Self {
+        return Node::Declaration(Declaration{
+            var_name,
+            value:Box::new(value)
+        });
+    }
+    pub fn block(body:NodeStream)-> Self {
+        return Node::Block(Block { body});
+    }
+    pub fn from(val:Value)->Self{
         Node::Value(Box::new(val))
     }
+    
 }
-type NodeStream = Vec<Node>;
-type NodeRef = Box<Node>;
-#[derive(Clone)]
-struct Block {
-    body:NodeStream
+pub type NodeStream = Vec<Node>;
+pub type NodeRef = Box<Node>;
+#[derive(Clone,Debug,PartialEq)]
+pub struct Block {
+    pub body:NodeStream
 }
-type BlockRef = Box<Block>;
-#[derive(Clone)]
-struct BinaryNode {
-    Type:BinaryOp,
-    left:NodeRef,
-    right:NodeRef
+pub type BlockRef = Box<Block>;
+#[derive(Clone,Debug,PartialEq)]
+pub struct BinaryNode {
+    pub Type:BinaryOp,
+    pub left:NodeRef,
+    pub right:NodeRef
 }
-#[derive(Clone)]
-struct UnaryNode {
-    Type:UnaryOp,
-    object:NodeRef,
+impl BinaryNode {
+    pub fn as_node(&self)->Node{
+        Node::BinaryNode(self.clone())
+    }
 }
-#[derive(Clone)]
-struct Declaration{
-    var_name:String,
-    value:NodeRef
+#[derive(Clone,Debug,PartialEq)]
+pub struct UnaryNode {
+    pub Type:UnaryOp,
+    pub object:NodeRef,
 }
-#[derive(Clone)]
-struct Assignment{
-    var_name:String,
-    value:NodeRef
+impl UnaryNode {
+    pub fn as_node(&self)->Node{
+        Node::UnaryNode(self.clone())
+    }
 }
-#[derive(Clone)]
-struct Variable{
-    name:String
+#[derive(Clone,Debug,PartialEq)]
+pub struct Declaration{
+    pub var_name:String,
+    pub value:NodeRef
 }
-#[derive(Clone)]
-struct Call{
-    callee:Variable,
-    args:Rc<NodeStream>,
+impl Declaration {
+    fn new(var_name:String,v: impl Into<NodeRef>) -> Self { 
+        Self{var_name, value:v.into()} 
+    }
 }
-#[derive(Clone)]
-struct BranchNode{
-    condition:NodeRef,
-    if_block:BlockRef,
-    else_block:NodeRef
+#[derive(Clone,Debug,PartialEq)]
+pub struct Assignment{
+    pub var_name:String,
+    pub value:NodeRef
 }
-#[derive(Clone)]
-struct LoopNode{
-    proc:BlockRef,
+impl Assignment {
+    fn new(var_name:String,v: impl Into<NodeRef>) -> Self { 
+        Self{var_name, value:v.into()} 
+    }
 }
-#[derive(Clone)]
-struct WhileNode{
-    condition:NodeRef,
-    proc:BlockRef,
+#[derive(Clone,Debug,PartialEq)]
+pub struct Variable{
+    pub name:String
 }
-#[derive(Clone)]
-struct Scope {
-    parent:Option<Box<Scope>>,
-    var_map:HashMap<String,Value>
+
+#[derive(Clone,Debug,PartialEq)]
+pub struct Call{
+    pub callee:Variable,
+    pub args:Box<NodeStream>,
+}
+#[derive(Clone,Debug,PartialEq)]
+pub struct BranchNode{
+    pub condition:NodeRef,
+    pub if_block:BlockRef,
+    pub else_block:Option<BlockRef>
+}
+#[derive(Clone,Debug,PartialEq)]
+pub struct LoopNode{
+    pub proc:BlockRef,
+}
+#[derive(Clone,Debug,PartialEq)]
+pub struct WhileNode{
+    pub condition:NodeRef,
+    pub proc:BlockRef,
+}
+#[derive(Clone,Debug,PartialEq)]
+pub struct Scope {
+    pub parent:Option<Box<Scope>>,
+    pub var_map:HashMap<String,Value>
 }
 impl Scope {
 pub fn get_var(&self,var_name:String) -> Option<Value>{

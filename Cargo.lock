@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "Shlang-rust"
+name = "Shlang"
 version = "0.1.0"

@@ -25,12 +25,9 @@ fn main() {
 }
 
 fn rpl() {
-    loop {
-        let source = input(">: ");
-        let mut scan = Scanner::new(&source);
-        let mut parser = Parser::new(source.as_str());
-        
-        println!("{:#?}",parser.batch_parse());
-    }
+    let source = input(">: ");
+    let mut scan = Scanner::new(&source);
+    let mut parser = Parser::new(source.as_str());
+    println!("{:#?}",parser.batch_parse());
 }
 

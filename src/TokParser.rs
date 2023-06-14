@@ -1,9 +1,11 @@
+
 use std::iter::Peekable;
 
 use crate::AstNodes;
 use crate::Token::*;
 use crate::AstNodes::*;
 use crate::Scanner;
+use std::string;
 use AstNodes::*;
 #[derive(Clone)]
 pub struct TokenIter<'input> {
@@ -51,10 +53,22 @@ fn peek(&mut self) -> Option<Token>{
         _ =>{None}
     }
 }
+fn peek_kind(&mut self) -> Option<TokenType>{
+    match self.tokens.peek() {
+        Some(tok) => {
+            Some(tok.kind.clone())
+        },
+        _ =>{None}
+    }
+}
 fn peek_next(&mut self) -> Option<Token>{
     let mut cloned = self.clone();
     cloned.next();
-    cloned.next()
+    return cloned.next();
+}
+fn peek_advance(&mut self) -> Option<Token>{
+    self.next();
+    return self.peek();
 }
 fn is(&mut self,kind:TokenType) -> bool{
     match self.peek() {
@@ -97,44 +111,84 @@ fn parse_vardef(&mut self)->Node{
             self.next();
             return Node::declaration(
                 var_name, 
-                Value::NoneType.as_node()
+                Value::NoneType.into()
 
             )
         },
         TokenType::EQUAL =>{
             self.next();
-            self.parse_expr()
+            return self.parse_expr();
         },
         _ =>{
             panic!("Invalid Expression");
         }
     }
 }
-fn match_expr(&mut self,value:TokenType)->Node { 
-    let mut left:Node;
-    match value {
+fn unary_minus(&mut self)-> Node{
+    
+    todo!()
+}
+fn simple_parse(&mut self,peeked:Option<Token>)->Node {
+    let mut value:Token;
+    match peeked {
+        Some(val)=> value = val,
+        None => todo!()
+    }
+    match value.kind {
         TokenType::STR => {
-            let peeked = self.peek();
-            Value::Str(self.text(peeked.unwrap())).as_node()
+            return Value::Str(self.text(value)).into();
+        },
+        TokenType::NUM => {
+            return Value::Num((self.text(value).parse().unwrap())).into();
+        },
+        TokenType::FALSE=>{
+            return Value::Bool(false).into();
+        },
+        TokenType::TRUE=>{
+            return Value::Bool(true).into();
+        },
+        TokenType::IDENTIFIER=>{
+            return Variable {name: self.text(value)}.into();
         },
         _=>{
             todo!()
         }
-    
-    }
-}   
-
-fn parse_expr(&mut self)->Node{
-    match self.peek() {
-        Some(val) => {
-            todo!()
-        }
-        _=>{
-            todo!()
-        }
-    }
+    };
 }
-
+fn parse_expr(&mut self)->Node{
+    let advanced = self.next();
+    let left = self.simple_parse(advanced);
+    let peeked = self.peek();
+    let mut token:Token;
+    match peeked {
+        Some(tok)=>{
+            token = tok;
+        },
+        _=>{
+            return left;
+        }
+    }
+    
+    match token.kind {
+        
+        TokenType::PLUS=>{
+            return BinaryNode{
+                kind:BinaryOp::ADD,
+                left:Box::new(left),
+                right:Box::new(self.parse_expr())
+            }.into();
+        },
+        TokenType::MINUS=>{
+            return BinaryNode{
+                kind:BinaryOp::SUBTRACT,
+                left:Box::new(left),
+                right:Box::new(self.parse_expr())
+            }.into();
+        },
+        _=>todo!()
+    }
+    todo!()
+}   
 pub fn parse_top(&mut self) -> Option<Node> {
     let peeked = self.peek();
     let mut token:Token;

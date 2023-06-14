@@ -16,11 +16,6 @@ pub enum Value{
     Function(Function),
     BuiltinFunc(BuiltinFunc)
 }
-impl Value{
-    pub fn as_node(&self)->Node{
-        Node::Value(Box::new(self.clone()))
-    }
-}
 #[derive(Clone,Debug,PartialEq)]
 pub struct Function {
     block:Box<Block>,
@@ -32,28 +27,7 @@ pub struct BuiltinFunc{
     argSize:i16
 }
 type ValueStream = Vec<Value>;
-#[derive(Clone,Debug,PartialEq)]
-pub enum BinaryOp {
-    ADD,
-    SUBTRACT,
-    DIVIDE,
-    MULTIPLY,
-    MODULO,
-    AND,
-    OR,
-    ISEQUAL,
-    ISDIFERENT,
-    GREATER,
-    LESSER,
-    GREATER_EQUAL,
-    LESSER_EQUAL,
-}
-#[derive(Clone,Debug,PartialEq)]
-pub enum UnaryOp{
-    NEGATIVE,
-	POSITIVE,
-	NOT,
-}
+
 #[derive(Clone,Debug,PartialEq)]
 pub enum Node {
     Value(Box<Value>),
@@ -79,11 +53,29 @@ impl Node {
     pub fn block(body:NodeStream)-> Self {
         return Node::Block(Block { body});
     }
-    pub fn from(val:Value)->Self{
-        Node::Value(Box::new(val))
-    }
-    
 }
+impl From<Function> for Value {
+    fn from(x: Function) -> Self {
+      Value::Function(x)
+    }
+}
+impl From<Value> for Node {
+    fn from(x: Value) -> Self {
+      Node::Value(Box::new(x))
+    }
+}
+macro_rules! nodes_from {
+    ($($name:ident)*) => {
+        $(
+            impl ::core::convert::From<$name> for Node {
+                fn from(node: $name) -> Self {
+                    Self::$name(node)
+                }
+            }
+        )*
+    }
+}
+nodes_from! { UnaryNode BinaryNode Call Variable Assignment Declaration BranchNode WhileNode LoopNode Block}
 pub type NodeStream = Vec<Node>;
 pub type NodeRef = Box<Node>;
 #[derive(Clone,Debug,PartialEq)]
@@ -92,25 +84,37 @@ pub struct Block {
 }
 pub type BlockRef = Box<Block>;
 #[derive(Clone,Debug,PartialEq)]
+pub enum BinaryOp {
+    ADD,
+    SUBTRACT,
+    DIVIDE,
+    MULTIPLY,
+    MODULO,
+    AND,
+    OR,
+    ISEQUAL,
+    ISDIFERENT,
+    GREATER,
+    LESSER,
+    GREATER_EQUAL,
+    LESSER_EQUAL,
+}
+#[derive(Clone,Debug,PartialEq)]
 pub struct BinaryNode {
-    pub Type:BinaryOp,
+    pub kind:BinaryOp,
     pub left:NodeRef,
     pub right:NodeRef
 }
-impl BinaryNode {
-    pub fn as_node(&self)->Node{
-        Node::BinaryNode(self.clone())
-    }
+#[derive(Clone,Debug,PartialEq)]
+pub enum UnaryOp{
+    NEGATIVE,
+	POSITIVE,
+	NOT,
 }
 #[derive(Clone,Debug,PartialEq)]
 pub struct UnaryNode {
-    pub Type:UnaryOp,
+    pub kind:UnaryOp,
     pub object:NodeRef,
-}
-impl UnaryNode {
-    pub fn as_node(&self)->Node{
-        Node::UnaryNode(self.clone())
-    }
 }
 #[derive(Clone,Debug,PartialEq)]
 pub struct Declaration{
@@ -136,7 +140,6 @@ impl Assignment {
 pub struct Variable{
     pub name:String
 }
-
 #[derive(Clone,Debug,PartialEq)]
 pub struct Call{
     pub callee:Variable,

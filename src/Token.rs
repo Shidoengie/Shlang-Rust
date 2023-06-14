@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-#[derive(Debug,Clone,PartialEq, Eq)]
+#[derive(Debug,Clone,PartialEq, Eq,Hash)]
 pub enum TokenType {
     STR,
     NUM,
@@ -25,8 +25,11 @@ pub enum TokenType {
     COLON,
     BANG,
     MODULO,
-    ISEQUAL,
-    ISDIFERENT,
+    DOUBLE_EQUAL,
+    BANG_EQUAL,
+    AND,
+    NOT,
+    OR,
     PRINT,
     INPUT,
     IF,
@@ -66,10 +69,14 @@ pub fn mapKeyword(text:String)->Option<TokenType>{
         ("func",TokenType::FUNC),
         ("return",TokenType::RETURN),
         ("loop",TokenType::LOOP),
-        ("loop",TokenType::WHILE),
+        ("while",TokenType::WHILE),
         ("break",TokenType::BREAK),
-        ("var",TokenType::VAR)
+        ("var",TokenType::VAR),
+        ("and",TokenType::AND),
+        ("not",TokenType::NOT),
+        ("or",TokenType::OR)
     ]);
     keywordMap.get(text.as_str()).cloned()
+
 }
 }

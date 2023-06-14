@@ -1,0 +1,68 @@
+Token [
+    STR,
+    NUM,
+    IDENTIFIER,
+    EOL,
+    PLUS,
+    MINUS,
+    STAR,
+    SLASH,
+    LPAREN,
+    RPAREN,
+    LBRACE,
+    RBRACE,
+    LBRACK,
+    RBRACK,
+    EQUAL,
+    DOT,
+    LESSER,
+    GREATER,
+    GREATER_EQUAL,
+    LESSER_EQUAL,
+    COMMA,
+    COLON,
+    BANG,
+    MODULO,
+    DOUBLE_EQUAL,
+    BANG_EQUAL,
+    AND,
+    NOT,
+    OR,
+    PRINT,
+    INPUT,
+    IF,
+    ELSE,
+    ELIF,
+    FUNC,
+    RETURN,
+    LOOP,
+    WHILE,
+    BREAK,
+    FALSE,
+    TRUE,
+    VAR
+]
+Expression [
+    Literal,BinaryOp,Block,Variable
+
+]
+Block {LBRACK,..Expression..,RBRACK}
+BinaryOp { Expression,Operator,Expression }
+Grouping { Token.LPAREN,Expression,Token.RPAREN }
+Variable [
+    {Token.VAR,Literal,EOL},
+    {Token.Var,Literal,Token.EQUAL,Expression,Token.EOL}
+]
+Literal [ Token.TRUE,Token.FALSE,Token.STR,Token.NUM]
+Operator [
+    Token.AND,
+    Token.OR,
+    Token.NOT,
+    Token.PLUS,
+    Token.MINUS,
+    Token.STAR,
+    Token.DOUBLE_EQUAL
+    Token.BANG_EQUAL,
+    Token.DOT,
+    Token.MODULO,
+]

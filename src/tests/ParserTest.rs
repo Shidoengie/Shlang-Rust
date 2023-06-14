@@ -7,12 +7,12 @@ use std::*;
 #[test]
 fn single_var_decl(){
 
-    let test_block = vec![Node::declaration("a".to_string(), Value::NoneType.as_node())];
+    let test_block = vec![Node::declaration("a".to_string(), Value::NoneType.into())];
     assert_eq!(parse_text("var a;"),Node::block(test_block));
 }
 #[test]
 pub fn multi_var_decl() {
-    let test_block = vec![Node::declaration("a".to_string(), Value::NoneType.as_node()),Node::declaration("a".to_string(), Value::NoneType.as_node())];
+    let test_block = vec![Node::declaration("a".to_string(), Value::NoneType.into()),Node::declaration("a".to_string(), Value::NoneType.into())];
     assert_eq!(parse_text("var a; var a;"),Node::block(test_block));
 }
 fn parse_file(path:&str)->Node{

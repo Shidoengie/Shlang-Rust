@@ -136,7 +136,7 @@ pub fn next(&mut self) -> Option<Token> {
         },
         '!'=>{
             if self.currentHas('=') {
-                Some(self.pushAdvance(TokenType::ISDIFERENT,(start,self.currentIndx())))
+                Some(self.pushAdvance(TokenType::BANG_EQUAL,(start,self.currentIndx())))
             }
             else {
                 Some(Token::new(TokenType::BANG,range))
@@ -145,7 +145,7 @@ pub fn next(&mut self) -> Option<Token> {
         '='=>{
             if self.currentHas('=') {
                 self.advance();
-                Some(Token::new(TokenType::ISEQUAL,(start,self.currentIndx())))
+                Some(Token::new(TokenType::DOUBLE_EQUAL,(start,self.currentIndx())))
             }
             else {
                 Some(Token::new(TokenType::EQUAL,range))

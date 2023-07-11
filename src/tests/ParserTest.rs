@@ -48,6 +48,10 @@ pub fn expression_operators(){
 pub fn parse_paren(){
     assert_debug_snapshot!(parse_text("var a = (1+2+b);"));
 }
+#[test]
+pub fn parse_nested_paren(){
+    assert_debug_snapshot!(parse_text("var a = ((1+2)+(1+2));"));
+}
 fn parse_file(path: &str) -> Node {
     let test_file_contents =
         fs::read_to_string(path).expect("LogRocket: Should have been able to read the file");

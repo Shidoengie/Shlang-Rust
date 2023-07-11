@@ -1,0 +1,150 @@
+---
+source: src/tests/ParserTest.rs
+expression: "parse_text(\"var a = 1*2+2-2/2%5 and 10 or 10!=1==2<4<=3>0>=3;\")"
+---
+Block(
+    Block {
+        body: [
+            Declaration(
+                Declaration {
+                    var_name: "a",
+                    value: BinaryNode(
+                        BinaryNode {
+                            kind: MULTIPLY,
+                            left: Value(
+                                Num(
+                                    1.0,
+                                ),
+                            ),
+                            right: BinaryNode(
+                                BinaryNode {
+                                    kind: ADD,
+                                    left: Value(
+                                        Num(
+                                            2.0,
+                                        ),
+                                    ),
+                                    right: BinaryNode(
+                                        BinaryNode {
+                                            kind: SUBTRACT,
+                                            left: Value(
+                                                Num(
+                                                    2.0,
+                                                ),
+                                            ),
+                                            right: BinaryNode(
+                                                BinaryNode {
+                                                    kind: DIVIDE,
+                                                    left: Value(
+                                                        Num(
+                                                            2.0,
+                                                        ),
+                                                    ),
+                                                    right: BinaryNode(
+                                                        BinaryNode {
+                                                            kind: MODULO,
+                                                            left: Value(
+                                                                Num(
+                                                                    2.0,
+                                                                ),
+                                                            ),
+                                                            right: BinaryNode(
+                                                                BinaryNode {
+                                                                    kind: AND,
+                                                                    left: Value(
+                                                                        Num(
+                                                                            5.0,
+                                                                        ),
+                                                                    ),
+                                                                    right: BinaryNode(
+                                                                        BinaryNode {
+                                                                            kind: OR,
+                                                                            left: Value(
+                                                                                Num(
+                                                                                    10.0,
+                                                                                ),
+                                                                            ),
+                                                                            right: BinaryNode(
+                                                                                BinaryNode {
+                                                                                    kind: ISDIFERENT,
+                                                                                    left: Value(
+                                                                                        Num(
+                                                                                            10.0,
+                                                                                        ),
+                                                                                    ),
+                                                                                    right: BinaryNode(
+                                                                                        BinaryNode {
+                                                                                            kind: ISEQUAL,
+                                                                                            left: Value(
+                                                                                                Num(
+                                                                                                    1.0,
+                                                                                                ),
+                                                                                            ),
+                                                                                            right: BinaryNode(
+                                                                                                BinaryNode {
+                                                                                                    kind: LESSER,
+                                                                                                    left: Value(
+                                                                                                        Num(
+                                                                                                            2.0,
+                                                                                                        ),
+                                                                                                    ),
+                                                                                                    right: BinaryNode(
+                                                                                                        BinaryNode {
+                                                                                                            kind: LESSER_EQUAL,
+                                                                                                            left: Value(
+                                                                                                                Num(
+                                                                                                                    4.0,
+                                                                                                                ),
+                                                                                                            ),
+                                                                                                            right: BinaryNode(
+                                                                                                                BinaryNode {
+                                                                                                                    kind: GREATER,
+                                                                                                                    left: Value(
+                                                                                                                        Num(
+                                                                                                                            3.0,
+                                                                                                                        ),
+                                                                                                                    ),
+                                                                                                                    right: BinaryNode(
+                                                                                                                        BinaryNode {
+                                                                                                                            kind: GREATER_EQUAL,
+                                                                                                                            left: Value(
+                                                                                                                                Num(
+                                                                                                                                    0.0,
+                                                                                                                                ),
+                                                                                                                            ),
+                                                                                                                            right: Value(
+                                                                                                                                Num(
+                                                                                                                                    3.0,
+                                                                                                                                ),
+                                                                                                                            ),
+                                                                                                                        },
+                                                                                                                    ),
+                                                                                                                },
+                                                                                                            ),
+                                                                                                        },
+                                                                                                    ),
+                                                                                                },
+                                                                                            ),
+                                                                                        },
+                                                                                    ),
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                            ),
+                                                        },
+                                                    ),
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                },
+                            ),
+                        },
+                    ),
+                },
+            ),
+        ],
+    },
+)

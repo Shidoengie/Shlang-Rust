@@ -1,0 +1,18 @@
+---
+source: src/tests/ParserTest.rs
+expression: "parse_text(\"var a;\")"
+---
+Block(
+    Block {
+        body: [
+            Declaration(
+                Declaration {
+                    var_name: "a",
+                    value: Value(
+                        NoneType,
+                    ),
+                },
+            ),
+        ],
+    },
+)

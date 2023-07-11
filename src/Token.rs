@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-#[derive(Debug,Clone,PartialEq, Eq,Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenType {
     STR,
     NUM,
@@ -24,7 +24,7 @@ pub enum TokenType {
     COMMA,
     COLON,
     BANG,
-    MODULO,
+    PERCENT,
     DOUBLE_EQUAL,
     BANG_EQUAL,
     AND,
@@ -42,41 +42,44 @@ pub enum TokenType {
     BREAK,
     FALSE,
     TRUE,
-    VAR
+    VAR,
+    DO,
 }
 
-#[derive(Debug,Clone,PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 
 pub struct Token {
-    pub kind:TokenType,
-    pub span:(usize,usize)
+    pub kind: TokenType,
+    pub span: (usize, usize),
 }
 
 impl Token {
-
-pub fn new(kind:TokenType,span:(usize,usize)) -> Token{
-    Token { kind: kind, span:span}
-}
-pub fn mapKeyword(text:String)->Option<TokenType>{
-    let keywordMap = HashMap::from([
-        ("true",TokenType::TRUE),
-        ("false",TokenType::FALSE),
-        ("input",TokenType::INPUT),
-        ("print",TokenType::PRINT),
-        ("if",TokenType::IF),
-        ("elif",TokenType::ELIF),
-        ("else",TokenType::ELSE),
-        ("func",TokenType::FUNC),
-        ("return",TokenType::RETURN),
-        ("loop",TokenType::LOOP),
-        ("while",TokenType::WHILE),
-        ("break",TokenType::BREAK),
-        ("var",TokenType::VAR),
-        ("and",TokenType::AND),
-        ("not",TokenType::NOT),
-        ("or",TokenType::OR)
-    ]);
-    keywordMap.get(text.as_str()).cloned()
-
-}
+    pub fn new(kind: TokenType, span: (usize, usize)) -> Token {
+        Token {
+            kind: kind,
+            span: span,
+        }
+    }
+    pub fn mapKeyword(text: String) -> Option<TokenType> {
+        let keywordMap = HashMap::from([
+            ("true", TokenType::TRUE),
+            ("false", TokenType::FALSE),
+            ("input", TokenType::INPUT),
+            ("print", TokenType::PRINT),
+            ("if", TokenType::IF),
+            ("elif", TokenType::ELIF),
+            ("else", TokenType::ELSE),
+            ("func", TokenType::FUNC),
+            ("return", TokenType::RETURN),
+            ("loop", TokenType::LOOP),
+            ("while", TokenType::WHILE),
+            ("break", TokenType::BREAK),
+            ("var", TokenType::VAR),
+            ("and", TokenType::AND),
+            ("not", TokenType::NOT),
+            ("or", TokenType::OR),
+            ("do", TokenType::DO),
+        ]);
+        keywordMap.get(text.as_str()).cloned()
+    }
 }

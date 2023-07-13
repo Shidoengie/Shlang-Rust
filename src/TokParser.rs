@@ -152,6 +152,16 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 }
                 .into();
             }
+            TokenType::NOT|TokenType::BANG => {
+                println!("a");
+                let token = self.peek();
+                let right = self.simple_parse(token);
+                self.next();
+                return UnaryNode{
+                    kind:UnaryOp::NOT,
+                    object:Box::new(right),
+                }.into();
+            }
             TokenType::LPAREN => {
                 println!("{value:?}");
                 let expr = self.parse_expr();
@@ -163,8 +173,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 self.next();
                 return expr;
             }
-            _ => {
-                todo!();
+            unexpected => {
+                panic!("{unexpected:?}");
             }
         };
     }
@@ -199,9 +209,9 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::LESSER => return self.parse_operator(left, BinaryOp::LESSER),
             TokenType::DOUBLE_EQUAL => return self.parse_operator(left, BinaryOp::ISEQUAL),
             TokenType::BANG_EQUAL => return self.parse_operator(left, BinaryOp::ISDIFERENT),
-            TokenType::AND => return self.parse_operator(left, BinaryOp::AND),
-            TokenType::OR => return self.parse_operator(left, BinaryOp::OR),
-            tok => {
+            TokenType::AND|TokenType::AMPERSAND => return self.parse_operator(left, BinaryOp::AND),
+            TokenType::OR|TokenType::PIPE => return self.parse_operator(left, BinaryOp::OR),
+            _ => {
                 return left;
             }
         }

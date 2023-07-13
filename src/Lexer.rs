@@ -68,7 +68,7 @@ impl<'a> Scanner<'a> {
         }
         let stop = self.index();
         let span = &self.source[start..stop];
-        let keyword = Token::mapKeyword(span.to_string());
+        let keyword = Token::map_keyword(span.to_string());
         if keyword.is_none() {
             return Token::new(TokenType::IDENTIFIER, (start, stop));
         }
@@ -93,7 +93,7 @@ impl<'a> Scanner<'a> {
         let stop = self.index() - 1.max(0);
         return Some(Token::new(TokenType::STR, (start, stop)));
     }
-    fn pushAdvance(&mut self, kind: TokenType, range: (usize, usize)) -> Token {
+    fn push_advance(&mut self, kind: TokenType, range: (usize, usize)) -> Token {
         self.advance();
         Token::new(kind, range)
     }
@@ -121,24 +121,26 @@ impl<'a> Scanner<'a> {
             '%' => Some(Token::new(TokenType::PERCENT, range)),
             ':' => Some(Token::new(TokenType::COLON, range)),
             ';' => Some(Token::new(TokenType::EOL, range)),
+            '|' => Some(Token::new(TokenType::PIPE, range)),
+            '&' => Some(Token::new(TokenType::AMPERSAND, range)),
             '"' => self.str(),
             '<' => {
                 if self.current_is('=') {
-                    Some(self.pushAdvance(TokenType::LESSER_EQUAL, (start, self.index())))
+                    Some(self.push_advance(TokenType::LESSER_EQUAL, (start, self.index())))
                 } else {
                     Some(Token::new(TokenType::LESSER, range))
                 }
             }
             '>' => {
                 if self.current_is('=') {
-                    Some(self.pushAdvance(TokenType::GREATER_EQUAL, (start, self.index())))
+                    Some(self.push_advance(TokenType::GREATER_EQUAL, (start, self.index())))
                 } else {
                     Some(Token::new(TokenType::GREATER, range))
                 }
             }
             '!' => {
                 if self.current_is('=') {
-                    Some(self.pushAdvance(TokenType::BANG_EQUAL, (start, self.index())))
+                    Some(self.push_advance(TokenType::BANG_EQUAL, (start, self.index())))
                 } else {
                     Some(Token::new(TokenType::BANG, range))
                 }

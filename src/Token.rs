@@ -44,6 +44,8 @@ pub enum TokenType {
     TRUE,
     VAR,
     DO,
+    AMPERSAND,
+    PIPE,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,8 +62,8 @@ impl Token {
             span: span,
         }
     }
-    pub fn mapKeyword(text: String) -> Option<TokenType> {
-        let keywordMap = HashMap::from([
+    pub fn map_keyword(text: String) -> Option<TokenType> {
+        let keyword_map = HashMap::from([
             ("true", TokenType::TRUE),
             ("false", TokenType::FALSE),
             ("input", TokenType::INPUT),
@@ -80,6 +82,6 @@ impl Token {
             ("or", TokenType::OR),
             ("do", TokenType::DO),
         ]);
-        keywordMap.get(text.as_str()).cloned()
+        keyword_map.get(text.as_str()).cloned()
     }
 }

@@ -40,6 +40,7 @@ pub enum Node {
     BranchNode(BranchNode),
     LoopNode(LoopNode),
     WhileNode(WhileNode),
+    DoNode(DoNode)
 }
 
 impl Node {
@@ -50,7 +51,7 @@ impl Node {
         });
     }
     pub fn block(body: NodeStream) -> Self {
-        return Node::Block(Block { body });
+        return Node::Block(Block { body:Box::new(body) });
     }
 }
 impl From<Function> for Value {
@@ -74,12 +75,13 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { UnaryNode BinaryNode Call Variable Assignment Declaration BranchNode WhileNode LoopNode Block}
+nodes_from! { UnaryNode DoNode BinaryNode Call Variable Assignment Declaration BranchNode WhileNode LoopNode Block}
 pub type NodeStream = Vec<Node>;
 pub type NodeRef = Box<Node>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Block {
-    pub body: NodeStream,
+    pub body: Box<NodeStream>,
 }
 pub type BlockRef = Box<Block>;
 #[derive(Clone, Debug, PartialEq)]
@@ -120,6 +122,7 @@ pub struct Declaration {
     pub var_name: String,
     pub value: NodeRef,
 }
+
 impl Declaration {
     fn new(var_name: String, v: impl Into<NodeRef>) -> Self {
         Self {
@@ -147,9 +150,14 @@ pub struct Variable {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Call {
-    pub callee: Variable,
+    pub callee: NodeRef,
     pub args: Box<NodeStream>,
 }
+#[derive(Clone, Debug, PartialEq)]
+pub struct DoNode {
+    pub body: Box<NodeStream>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct BranchNode {
     pub condition: NodeRef,
@@ -170,6 +178,7 @@ pub struct Scope {
     pub parent: Option<Box<Scope>>,
     pub var_map: HashMap<String, Value>,
 }
+
 impl Scope {
     pub fn get_var(&self, var_name: String) -> Option<Value> {
         if let Some(var) = self.var_map.get(&var_name) {

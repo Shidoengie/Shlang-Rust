@@ -63,12 +63,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         self.next();
         return self.peek();
     }
-    fn is(&mut self, kind: TokenType) -> bool {
-        match self.peek() {
-            Some(peeked) => peeked.kind == kind,
-            _ => false,
-        }
-    }
     fn next(&mut self) -> Option<Token> {
         self.tokens.next()
     }
@@ -83,16 +77,22 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         );
         return token;
     }
+    fn is(&mut self, expected: TokenType) -> bool {
+        let token: Token = self.peek().expect("invalid syntax");
+        if token.kind != expected {
+            return false;
+        }
+        return true;
+    }
     fn expect(&mut self, expected: TokenType) -> Token {
-        self.next();
         let token: Token = self.peek().expect("invalid syntax");
         if token.kind != expected {
             panic!("expected token: {expected:?} but got: {:?}", token.kind)
-        } else {
-            return token;
         }
+        return token;
     }
     fn parse_vardef(&mut self) -> Node {
+        self.next();
         let ident: Token = self.expect(TokenType::IDENTIFIER);
         let var_name = self.text(ident);
         self.next();
@@ -184,7 +184,14 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             }
         };
     }
-
+    fn parse_call(&mut self) {
+        let mut params: NodeStream = vec![];
+        self.next();
+        loop {
+            let expr = self.parse_expr();
+            let token = self.peek().expect("Invalid Call");
+        }
+    }
     fn parse_expr(&mut self) -> Node {
         let value = self.peek();
         dbg!(self.next());
@@ -192,9 +199,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let Some(token) = self.peek() else {return left;};
 
         match token.kind {
-            TokenType::EOL => {
-                return left;
-            }
+            TokenType::LPAREN => {}
             TokenType::PLUS => return self.parse_operator(left, BinaryOp::ADD),
             TokenType::MINUS => return self.parse_operator(left, BinaryOp::SUBTRACT),
             TokenType::STAR => return self.parse_operator(left, BinaryOp::MULTIPLY),
@@ -226,11 +231,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     pub fn batch_parse(&mut self) -> Node {
         let mut body: NodeStream = vec![];
         loop {
-            let parsed = self.parse_top();
-            if parsed.is_none() {
-                break;
-            }
-            body.push(parsed.unwrap());
+            let Some(parsed) = self.parse_top() else {break;};
+            body.push(parsed);
         }
         return Node::block(body);
     }

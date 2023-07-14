@@ -1,7 +1,7 @@
 use std::io;
 use std::io::Write;
 use std::*;
-
+pub mod Interpreter;
 pub mod AstNodes;
 pub mod Lexer;
 pub mod TokParser;

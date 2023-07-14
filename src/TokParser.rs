@@ -143,6 +143,17 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         .into();
     }
+    fn parse_paren(&mut self) -> Node {
+        let expr = self.parse_expr();
+        self.peek();
+        assert_eq!(
+            self.peek().expect("Unterminated parentheses").kind,
+            TokenType::RPAREN,
+            "Unterminated parentheses"
+        );
+        self.next();
+        return expr;
+    }
     fn simple_parse(&mut self, peeked: Option<Token>) -> Node {
         let Some(value) = peeked else {todo!()};
 
@@ -165,41 +176,46 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 }
                 .into();
             }
+
             TokenType::NOT | TokenType::BANG => return self.unary_operator(UnaryOp::NOT),
             TokenType::MINUS => return self.unary_operator(UnaryOp::NEGATIVE),
             TokenType::PLUS => return self.unary_operator(UnaryOp::POSITIVE),
-            TokenType::LPAREN => {
-                let expr = dbg!(self.parse_expr());
-                dbg!(self.peek());
-                assert_eq!(
-                    self.peek().expect("Unterminated parentheses").kind,
-                    TokenType::RPAREN,
-                    "Unterminated parentheses"
-                );
-                self.next();
-                return expr;
-            }
+            TokenType::LPAREN => return self.parse_paren(),
             unexpected => {
                 panic!("{unexpected:?}");
             }
         };
     }
-    fn parse_call(&mut self) {
+    fn parse_call(&mut self,callee:Node)->Node{
         let mut params: NodeStream = vec![];
         self.next();
         loop {
             let expr = self.parse_expr();
-            let token = self.peek().expect("Invalid Call");
+            let token = dbg!(self.peek().expect("Invalid call"));
+            match token.kind {
+                TokenType::RPAREN => break,
+                TokenType::COMMA => {
+                    params.push(expr);
+                    self.next();
+                }
+                _=>panic!("invalid token:{:?}",token.kind)
+            }
+            
         }
+        self.next();
+        return Call{
+            args:Box::new(params),
+            callee:Box::new(callee)
+        }.into();
     }
     fn parse_expr(&mut self) -> Node {
         let value = self.peek();
-        dbg!(self.next());
+        self.next();
         let left = self.simple_parse(value);
         let Some(token) = self.peek() else {return left;};
 
         match token.kind {
-            TokenType::LPAREN => {}
+            TokenType::LPAREN => return self.parse_call(left),
             TokenType::PLUS => return self.parse_operator(left, BinaryOp::ADD),
             TokenType::MINUS => return self.parse_operator(left, BinaryOp::SUBTRACT),
             TokenType::STAR => return self.parse_operator(left, BinaryOp::MULTIPLY),

@@ -31,16 +31,16 @@ type ValueStream = Vec<Value>;
 pub enum Node {
     Value(Box<Value>),
     Block(Block),
+    DoBlock(DoBlock),
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
     Declaration(Declaration),
     Assignment(Assignment),
     Variable(Variable),
     Call(Call),
-    BranchNode(BranchNode),
-    LoopNode(LoopNode),
-    WhileNode(WhileNode),
-    DoNode(DoNode)
+    Branch(Branch),
+    Loop(Loop),
+    While(While),
 }
 
 impl Node {
@@ -51,7 +51,9 @@ impl Node {
         });
     }
     pub fn block(body: NodeStream) -> Self {
-        return Node::Block(Block { body:Box::new(body) });
+        return Node::Block(Block {
+            body: Box::new(body),
+        });
     }
 }
 impl From<Function> for Value {
@@ -75,7 +77,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { UnaryNode DoNode BinaryNode Call Variable Assignment Declaration BranchNode WhileNode LoopNode Block}
+nodes_from! { UnaryNode DoBlock BinaryNode Call Variable Assignment Declaration Branch While Loop Block}
 pub type NodeStream = Vec<Node>;
 pub type NodeRef = Box<Node>;
 
@@ -154,22 +156,22 @@ pub struct Call {
     pub args: Box<NodeStream>,
 }
 #[derive(Clone, Debug, PartialEq)]
-pub struct DoNode {
+pub struct DoBlock {
     pub body: Box<NodeStream>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct BranchNode {
+pub struct Branch {
     pub condition: NodeRef,
     pub if_block: BlockRef,
     pub else_block: Option<BlockRef>,
 }
 #[derive(Clone, Debug, PartialEq)]
-pub struct LoopNode {
+pub struct Loop {
     pub proc: BlockRef,
 }
 #[derive(Clone, Debug, PartialEq)]
-pub struct WhileNode {
+pub struct While {
     pub condition: NodeRef,
     pub proc: BlockRef,
 }

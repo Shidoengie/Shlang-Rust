@@ -1,0 +1,41 @@
+---
+source: src/tests/ParserTest.rs
+expression: "parse_text(\"var a = a(1,1,1);\")"
+---
+Block(
+    Block {
+        body: [
+            Declaration(
+                Declaration {
+                    var_name: "a",
+                    value: Call(
+                        Call {
+                            callee: Variable(
+                                Variable {
+                                    name: "a",
+                                },
+                            ),
+                            args: [
+                                Value(
+                                    Num(
+                                        1.0,
+                                    ),
+                                ),
+                                Value(
+                                    Num(
+                                        1.0,
+                                    ),
+                                ),
+                                Value(
+                                    Num(
+                                        1.0,
+                                    ),
+                                ),
+                            ],
+                        },
+                    ),
+                },
+            ),
+        ],
+    },
+)

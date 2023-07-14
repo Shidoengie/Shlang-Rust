@@ -1,0 +1,55 @@
+---
+source: src/tests/ParserTest.rs
+expression: "parse_text(\"var a = !0 +(+0)+(-0);\")"
+---
+Block(
+    Block {
+        body: [
+            Declaration(
+                Declaration {
+                    var_name: "a",
+                    value: BinaryNode(
+                        BinaryNode {
+                            kind: ADD,
+                            left: UnaryNode(
+                                UnaryNode {
+                                    kind: NOT,
+                                    object: Value(
+                                        Num(
+                                            0.0,
+                                        ),
+                                    ),
+                                },
+                            ),
+                            right: BinaryNode(
+                                BinaryNode {
+                                    kind: ADD,
+                                    left: UnaryNode(
+                                        UnaryNode {
+                                            kind: POSITIVE,
+                                            object: Value(
+                                                Num(
+                                                    0.0,
+                                                ),
+                                            ),
+                                        },
+                                    ),
+                                    right: UnaryNode(
+                                        UnaryNode {
+                                            kind: NEGATIVE,
+                                            object: Value(
+                                                Num(
+                                                    0.0,
+                                                ),
+                                            ),
+                                        },
+                                    ),
+                                },
+                            ),
+                        },
+                    ),
+                },
+            ),
+        ],
+    },
+)

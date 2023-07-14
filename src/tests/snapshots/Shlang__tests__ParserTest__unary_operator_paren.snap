@@ -1,0 +1,25 @@
+---
+source: src/tests/ParserTest.rs
+expression: "parse_text(\"var a = !(0);\")"
+---
+Block(
+    Block {
+        body: [
+            Declaration(
+                Declaration {
+                    var_name: "a",
+                    value: UnaryNode(
+                        UnaryNode {
+                            kind: NOT,
+                            object: Value(
+                                Num(
+                                    0.0,
+                                ),
+                            ),
+                        },
+                    ),
+                },
+            ),
+        ],
+    },
+)

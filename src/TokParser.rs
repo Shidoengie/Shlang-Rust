@@ -46,10 +46,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         return self.input[token.span.0..token.span.1].to_string();
     }
     fn peek(&mut self) -> Option<Token> {
-        match self.tokens.peek() {
-            Some(tok) => Some(tok.clone()),
-            _ => None,
-        }
+        self.tokens.peek().cloned()
     }
     fn peek_kind(&mut self) -> Option<TokenType> {
         match self.tokens.peek() {
@@ -96,8 +93,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
     }
     fn parse_vardef(&mut self) -> Node {
-        let identTok: Token = self.expect(TokenType::IDENTIFIER);
-        let var_name = self.text(identTok);
+        let ident: Token = self.expect(TokenType::IDENTIFIER);
+        let var_name = self.text(ident);
         self.next();
         match self
             .peek()
@@ -127,8 +124,24 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             }
         }
     }
-    fn unary_minus(&mut self) -> Node {
-        todo!()
+    fn unary_operator(&mut self, kind: UnaryOp) -> Node {
+        let token = self.peek();
+        self.next();
+        let right = self.simple_parse(token);
+        return UnaryNode {
+            kind,
+            object: Box::new(right),
+        }
+        .into();
+    }
+    fn parse_operator(&mut self, left: Node, kind: BinaryOp) -> Node {
+        self.next();
+        return BinaryNode {
+            kind,
+            left: Box::new(left),
+            right: Box::new(self.parse_expr()),
+        }
+        .into();
     }
     fn simple_parse(&mut self, peeked: Option<Token>) -> Node {
         let Some(value) = peeked else {todo!()};
@@ -152,19 +165,12 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 }
                 .into();
             }
-            TokenType::NOT|TokenType::BANG => {
-                println!("a");
-                let token = self.peek();
-                let right = self.simple_parse(token);
-                self.next();
-                return UnaryNode{
-                    kind:UnaryOp::NOT,
-                    object:Box::new(right),
-                }.into();
-            }
+            TokenType::NOT | TokenType::BANG => return self.unary_operator(UnaryOp::NOT),
+            TokenType::MINUS => return self.unary_operator(UnaryOp::NEGATIVE),
+            TokenType::PLUS => return self.unary_operator(UnaryOp::POSITIVE),
             TokenType::LPAREN => {
-                println!("{value:?}");
-                let expr = self.parse_expr();
+                let expr = dbg!(self.parse_expr());
+                dbg!(self.peek());
                 assert_eq!(
                     self.peek().expect("Unterminated parentheses").kind,
                     TokenType::RPAREN,
@@ -178,22 +184,13 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             }
         };
     }
-    fn parse_operator(&mut self, left: Node, kind: BinaryOp) -> Node {
-        self.next();
-        return BinaryNode {
-            kind,
-            left: Box::new(left),
-            right: Box::new(self.parse_expr()),
-        }
-        .into();
-    }
-    fn parse_expr(&mut self) -> Node {
-        let val = self.peek();
-        self.next();
 
-        let left = self.simple_parse(val);
+    fn parse_expr(&mut self) -> Node {
+        let value = self.peek();
+        dbg!(self.next());
+        let left = self.simple_parse(value);
         let Some(token) = self.peek() else {return left;};
-        
+
         match token.kind {
             TokenType::EOL => {
                 return left;
@@ -209,8 +206,10 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::LESSER => return self.parse_operator(left, BinaryOp::LESSER),
             TokenType::DOUBLE_EQUAL => return self.parse_operator(left, BinaryOp::ISEQUAL),
             TokenType::BANG_EQUAL => return self.parse_operator(left, BinaryOp::ISDIFERENT),
-            TokenType::AND|TokenType::AMPERSAND => return self.parse_operator(left, BinaryOp::AND),
-            TokenType::OR|TokenType::PIPE => return self.parse_operator(left, BinaryOp::OR),
+            TokenType::AND | TokenType::AMPERSAND => {
+                return self.parse_operator(left, BinaryOp::AND)
+            }
+            TokenType::OR | TokenType::PIPE => return self.parse_operator(left, BinaryOp::OR),
             _ => {
                 return left;
             }

@@ -1,0 +1,20 @@
+---
+source: src/tests/ParserTest.rs
+expression: "parse_text(\"var a = 2;\")"
+---
+Block(
+    Block {
+        body: [
+            Declaration(
+                Declaration {
+                    var_name: "a",
+                    value: Value(
+                        Num(
+                            2.0,
+                        ),
+                    ),
+                },
+            ),
+        ],
+    },
+)

@@ -1,6 +1,6 @@
 ---
 source: src/tests/ParserTest.rs
-expression: "parse_text(\"var a = a(1,1,1);\")"
+expression: "parse_text(\"var a = a((1+2),true,\\\"1\\\");\")"
 ---
 Block(
     Block {
@@ -16,19 +16,29 @@ Block(
                                 },
                             ),
                             args: [
+                                BinaryNode(
+                                    BinaryNode {
+                                        kind: ADD,
+                                        left: Value(
+                                            Num(
+                                                1.0,
+                                            ),
+                                        ),
+                                        right: Value(
+                                            Num(
+                                                2.0,
+                                            ),
+                                        ),
+                                    },
+                                ),
                                 Value(
-                                    Num(
-                                        1.0,
+                                    Bool(
+                                        true,
                                     ),
                                 ),
                                 Value(
-                                    Num(
-                                        1.0,
-                                    ),
-                                ),
-                                Value(
-                                    Num(
-                                        1.0,
+                                    Str(
+                                        "1",
                                     ),
                                 ),
                             ],

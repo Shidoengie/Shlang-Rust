@@ -189,16 +189,27 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     fn parse_call(&mut self, callee: Node) -> Node {
         let mut params: NodeStream = vec![];
         self.next();
-        loop {
-            let expr = self.parse_expr();
-            let token = dbg!(self.peek().expect("Invalid call"));
+        let mut token = dbg!(self.peek().expect("Invalid call"));
+        if token.kind == TokenType::RPAREN {
+            self.next();
+            return Call {
+                args: Box::new(params),
+                callee: Box::new(callee),
+            }.into();
+        }
+        while token.kind != TokenType::RPAREN{
+            let expr = dbg!(self.parse_expr());
+            token = dbg!(self.peek().expect("Invalid call"));
             match token.kind {
-                TokenType::RPAREN => break,
+                TokenType::RPAREN => {
+                    params.push(expr);
+                    break;
+                },
                 TokenType::COMMA => {
                     params.push(expr);
                     self.next();
                 }
-                _ => panic!("invalid token:{:?}", token.kind),
+                _ => panic!("invalid token:{:?}", self.text(token)),
             }
         }
         self.next();
@@ -227,7 +238,9 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::LESSER => return self.parse_operator(left, BinaryOp::LESSER),
             TokenType::DOUBLE_EQUAL => return self.parse_operator(left, BinaryOp::ISEQUAL),
             TokenType::BANG_EQUAL => return self.parse_operator(left, BinaryOp::ISDIFERENT),
-            TokenType::AND | TokenType::AMPERSAND => return self.parse_operator(left, BinaryOp::AND),
+            TokenType::AND | TokenType::AMPERSAND => {
+                return self.parse_operator(left, BinaryOp::AND)
+            }
             TokenType::OR | TokenType::PIPE => return self.parse_operator(left, BinaryOp::OR),
             _ => {
                 return left;

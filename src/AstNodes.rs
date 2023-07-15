@@ -6,6 +6,7 @@ pub enum Control {
     Result(Box<Value>),
     Break,
 }
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Null,

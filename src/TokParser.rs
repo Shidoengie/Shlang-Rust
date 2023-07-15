@@ -105,7 +105,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 self.next();
                 return Declaration {
                     var_name: var_name,
-                    value: Box::new(Value::NoneType.into()),
+                    value: Box::new(Value::Null.into()),
                 }
                 .into();
             }
@@ -186,7 +186,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             }
         };
     }
-    fn parse_call(&mut self,callee:Node)->Node{
+    fn parse_call(&mut self, callee: Node) -> Node {
         let mut params: NodeStream = vec![];
         self.next();
         loop {
@@ -198,15 +198,15 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                     params.push(expr);
                     self.next();
                 }
-                _=>panic!("invalid token:{:?}",token.kind)
+                _ => panic!("invalid token:{:?}", token.kind),
             }
-            
         }
         self.next();
-        return Call{
-            args:Box::new(params),
-            callee:Box::new(callee)
-        }.into();
+        return Call {
+            args: Box::new(params),
+            callee: Box::new(callee),
+        }
+        .into();
     }
     fn parse_expr(&mut self) -> Node {
         let value = self.peek();
@@ -227,9 +227,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::LESSER => return self.parse_operator(left, BinaryOp::LESSER),
             TokenType::DOUBLE_EQUAL => return self.parse_operator(left, BinaryOp::ISEQUAL),
             TokenType::BANG_EQUAL => return self.parse_operator(left, BinaryOp::ISDIFERENT),
-            TokenType::AND | TokenType::AMPERSAND => {
-                return self.parse_operator(left, BinaryOp::AND)
-            }
+            TokenType::AND | TokenType::AMPERSAND => return self.parse_operator(left, BinaryOp::AND),
             TokenType::OR | TokenType::PIPE => return self.parse_operator(left, BinaryOp::OR),
             _ => {
                 return left;

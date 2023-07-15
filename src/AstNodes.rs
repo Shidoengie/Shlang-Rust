@@ -2,12 +2,13 @@ use std::collections::*;
 use std::rc::Rc;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Control {
-    Return(Node),
+    Return(Box<Value>),
+    Result(Box<Value>),
     Break,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
-    NoneType,
+    Null,
     Control(Control),
     Num(f64),
     Bool(bool),
@@ -34,6 +35,7 @@ pub enum Node {
     DoBlock(DoBlock),
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
+    ReturnNode(Box<Node>),
     Declaration(Declaration),
     Assignment(Assignment),
     Variable(Variable),
@@ -59,6 +61,16 @@ impl Node {
 impl From<Function> for Value {
     fn from(x: Function) -> Self {
         Value::Function(x)
+    }
+}
+impl From<Control> for Value {
+    fn from(x: Control) -> Self {
+        Value::Control(x)
+    }
+}
+impl From<Control> for Node {
+    fn from(x: Control) -> Self {
+        Node::Value(Box::new(Value::Control(x)))
     }
 }
 impl From<Value> for Node {
@@ -194,6 +206,15 @@ impl Scope {
     }
     pub fn define(&mut self, var_name: String, val: Value) {
         self.var_map.insert(var_name, val);
+    }
+    pub fn new(parent: Option<Box<Scope>>, var_map: HashMap<String, Value>) -> Self {
+        Scope { parent, var_map }
+    }
+    pub fn travel(&mut self) {
+        let Some(parent) = self.parent.clone() else {panic!()};
+        let grandpa = parent.clone().parent;
+        self.parent = grandpa;
+        self.var_map = parent.var_map;
     }
     fn assign(&mut self, var_name: String, value: Value) -> Option<Value> {
         if let Some(var) = self.var_map.get_mut(&var_name) {

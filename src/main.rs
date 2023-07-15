@@ -7,6 +7,7 @@ pub mod Lexer;
 pub mod TokParser;
 pub mod Token;
 pub mod tests;
+pub mod Defaults;
 use Lexer::*;
 use TokParser::Parser;
 

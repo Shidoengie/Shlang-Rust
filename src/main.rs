@@ -1,6 +1,11 @@
+#![allow(unused_variables)]
+#![allow(non_snake_case)]
+#![allow(non_camel_case_types)]
 use std::io;
 use std::io::Write;
 use std::*;
+use std::fs;
+use std::env;
 pub mod Interpreter;
 pub mod AstNodes;
 pub mod Lexer;
@@ -21,8 +26,16 @@ fn input(message: &str) -> String {
     return String::from(result.trim());
 }
 fn main() {
-    println!("Hello, world!");
-    rpl();
+    let args: Vec<String> = env::args().collect();
+    if args.len() <= 1{
+        rpl();
+        return;
+    }
+    let file_path = &args[1];
+    let source = fs::read_to_string(file_path)
+        .expect("Should have been able to read the file");
+    let mut parser = Parser::new(source.as_str());
+    println!("{:#?}", parser.batch_parse());
 }
 fn lexer_rpl() {
     loop {
@@ -43,7 +56,7 @@ fn lexer_rpl() {
 fn rpl() {
     loop{
     let source = input(">: ");
-    let mut scan = Scanner::new(&source);
+    let scan = Scanner::new(&source);
     let mut parser = Parser::new(source.as_str());
     println!("{:#?}", parser.batch_parse());
     }

@@ -1,50 +1,39 @@
 ---
 source: src/tests/ParserTest.rs
-expression: "parse_text(\"var a = a((1+2),true,\\\"1\\\");\")"
+expression: "parse_expr(\"a((1+2),true,\\\"1\\\");\")"
 ---
-Block(
-    Block {
-        body: [
-            Declaration(
-                Declaration {
-                    var_name: "a",
-                    value: Call(
-                        Call {
-                            callee: Variable(
-                                Variable {
-                                    name: "a",
-                                },
-                            ),
-                            args: [
-                                BinaryNode(
-                                    BinaryNode {
-                                        kind: ADD,
-                                        left: Value(
-                                            Num(
-                                                1.0,
-                                            ),
-                                        ),
-                                        right: Value(
-                                            Num(
-                                                2.0,
-                                            ),
-                                        ),
-                                    },
-                                ),
-                                Value(
-                                    Bool(
-                                        true,
-                                    ),
-                                ),
-                                Value(
-                                    Str(
-                                        "1",
-                                    ),
-                                ),
-                            ],
-                        },
+Call(
+    Call {
+        callee: Variable(
+            Variable {
+                name: "a",
+            },
+        ),
+        args: [
+            BinaryNode(
+                BinaryNode {
+                    kind: ADD,
+                    left: Value(
+                        Num(
+                            1.0,
+                        ),
+                    ),
+                    right: Value(
+                        Num(
+                            2.0,
+                        ),
                     ),
                 },
+            ),
+            Value(
+                Bool(
+                    true,
+                ),
+            ),
+            Value(
+                Str(
+                    "1",
+                ),
             ),
         ],
     },

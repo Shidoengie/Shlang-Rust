@@ -37,19 +37,13 @@ impl Interpreter {
         return Value::Null;
     }
     fn num_convert(&self, num: Value) -> (f64, bool) {
-        let mut out: (f64, bool) = (0.0, false);
         match num {
-            Value::Num(val) => {
-                out = (val, val != 0.0);
-            }
-            Value::Bool(cond) => {
-                out = (cond as i8 as f64, cond);
-            }
+            Value::Num(val) => (val, val != 0.0),
+            Value::Bool(cond) => (cond as i8 as f64, cond),
             invalid => {
                 panic!("Invalid type{invalid:?}");
             }
-        };
-        return out;
+        }
     }
 
     fn num_calc(&self, kind: BinaryOp, left_val: Value, right_val: Value) -> Value {

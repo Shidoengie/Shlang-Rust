@@ -1,0 +1,14 @@
+---
+source: src/tests/ParserTest.rs
+expression: "parse_expr(\"b = 1;\")"
+---
+Assignment(
+    Assignment {
+        var_name: "b",
+        value: Value(
+            Num(
+                1.0,
+            ),
+        ),
+    },
+)

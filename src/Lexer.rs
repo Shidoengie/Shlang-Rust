@@ -153,14 +153,14 @@ impl<'a> Scanner<'a> {
                     Some(Token::new(TokenType::EQUAL, range))
                 }
             }
-            ' ' | '\t' | '\r' => self.next(),
+            ' ' | '\t' | '\r'|'\n' => self.next(),
             _ => {
                 if current.is_digit(10) {
                     Some(self.num())
                 } else if current.is_alphanumeric() {
                     Some(self.ident())
                 } else {
-                    panic!("Unexpected char: {current}")
+                    panic!("Unexpected char: {current:#?}")
                 }
             }
         }

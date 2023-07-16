@@ -1,5 +1,4 @@
 use std::collections::*;
-use std::rc::Rc;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Control {
     Return(Box<Value>),
@@ -22,12 +21,12 @@ pub struct Function {
     block: Box<Block>,
     args: Vec<String>,
 }
+type ValueStream = Vec<Value>;
 #[derive(Clone, Debug, PartialEq)]
 pub struct BuiltinFunc {
-    funcPointer: fn(Vec<Value>) -> Value,
-    argSize: i16,
+    function: fn(ValueStream) -> Value,
+    arg_size: i16,
 }
-type ValueStream = Vec<Value>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
@@ -138,26 +137,10 @@ pub struct Declaration {
     pub value: NodeRef,
 }
 
-impl Declaration {
-    fn new(var_name: String, v: impl Into<NodeRef>) -> Self {
-        Self {
-            var_name,
-            value: v.into(),
-        }
-    }
-}
 #[derive(Clone, Debug, PartialEq)]
 pub struct Assignment {
     pub var_name: String,
     pub value: NodeRef,
-}
-impl Assignment {
-    fn new(var_name: String, v: impl Into<NodeRef>) -> Self {
-        Self {
-            var_name,
-            value: v.into(),
-        }
-    }
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Variable {

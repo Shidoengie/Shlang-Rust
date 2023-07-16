@@ -1,25 +1,14 @@
 ---
 source: src/tests/ParserTest.rs
-expression: "parse_text(\"var a = a();\")"
+expression: "parse_expr(\"a();\")"
 ---
-Block(
-    Block {
-        body: [
-            Declaration(
-                Declaration {
-                    var_name: "a",
-                    value: Call(
-                        Call {
-                            callee: Variable(
-                                Variable {
-                                    name: "a",
-                                },
-                            ),
-                            args: [],
-                        },
-                    ),
-                },
-            ),
-        ],
+Call(
+    Call {
+        callee: Variable(
+            Variable {
+                name: "a",
+            },
+        ),
+        args: [],
     },
 )

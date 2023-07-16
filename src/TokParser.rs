@@ -1,11 +1,10 @@
+use core::panic;
 use std::iter::Peekable;
 
-use crate::AstNodes;
 use crate::AstNodes::*;
 use crate::Scanner;
 use crate::Token::*;
-use std::string;
-use AstNodes::*;
+use colored::*;
 #[derive(Clone)]
 pub struct TokenIter<'input> {
     lexer: Scanner<'input>,
@@ -45,23 +44,24 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     pub fn text(&mut self, token: Token) -> String {
         return self.input[token.span.0..token.span.1].to_string();
     }
+    pub fn line_pos(&mut self, token: Token) -> usize {
+        return self.input[..token.span.0]
+            .chars()
+            .filter(|ch| *ch == '\n')
+            .count()
+            + 1;
+    }
     fn peek(&mut self) -> Option<Token> {
         self.tokens.peek().cloned()
     }
-    fn peek_kind(&mut self) -> Option<TokenType> {
-        match self.tokens.peek() {
-            Some(tok) => Some(tok.kind.clone()),
-            _ => None,
-        }
-    }
-    fn peek_next(&mut self) -> Option<Token> {
-        let mut cloned = self.clone();
-        cloned.next();
-        return cloned.next();
-    }
-    fn peek_advance(&mut self) -> Option<Token> {
-        self.next();
-        return self.peek();
+    fn peek_some(&mut self) -> Token {
+        self.tokens.peek().cloned().expect(
+            format!(
+                "{} Expected to find another token but none was found",
+                "ERROR!".red()
+            )
+            .as_str(),
+        )
     }
     fn next(&mut self) -> Option<Token> {
         self.tokens.next()
@@ -77,18 +77,35 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         );
         return token;
     }
-    fn is(&mut self, expected: TokenType) -> bool {
-        let token: Token = self.peek().expect("invalid syntax");
-        if token.kind != expected {
-            return false;
-        }
-        return true;
+    fn error_builder(&mut self, msg: &str, token: Token) -> String {
+        let position = self.line_pos(token.clone());
+        let (start, stop) = (
+            self.input[..token.span.0].to_string(),
+            self.input[token.span.1..].to_string(),
+        );
+        let marked = format!("{start}{}{stop}", self.text(token).red());
+        let lines: Vec<&str> = marked.lines().collect();
+        let line = lines[position - 1];
+        
+        let I = "|".blue();
+        return format!("{} {msg}\n{position} {I} {line}", "ERROR!".red(),);
     }
-    fn expect(&mut self, expected: TokenType) -> Token {
-        let token: Token = self.peek().expect("invalid syntax");
+    fn check_valid(&mut self, expected: TokenType, token: Token){
         if token.kind != expected {
-            panic!("expected token: {expected:?} but got: {:?}", token.kind)
+            println!();
+            let err = self.error_builder(
+                format!("expected token {expected:?} but got token {:?}", token.kind).as_str(),
+                token,
+            );
+            println!("{err}");
+            println!();
+            panic!();
         }
+    }
+
+    fn expect(&mut self, expected: TokenType) -> Token {
+        let token: Token = self.peek_some();
+        self.check_valid(expected, token.clone());
         return token;
     }
     fn parse_vardef(&mut self) -> Node {
@@ -96,11 +113,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let ident: Token = self.expect(TokenType::IDENTIFIER);
         let var_name = self.text(ident);
         self.next();
-        match self
-            .peek()
-            .expect(format!("Invalid {:?}", self.peek()).as_str())
-            .kind
-        {
+        match self.peek_some().kind {
             TokenType::EOL => {
                 self.next();
                 return Declaration {
@@ -134,7 +147,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         .into();
     }
-    fn parse_operator(&mut self, left: Node, kind: BinaryOp) -> Node {
+    fn binary_operator(&mut self, left: Node, kind: BinaryOp) -> Node {
         self.next();
         return BinaryNode {
             kind,
@@ -143,14 +156,18 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         .into();
     }
-    fn parse_paren(&mut self) -> Node {
+
+    fn parse_paren(&mut self, paren: Token) -> Node {
         let expr = self.parse_expr();
-        self.peek();
-        assert_eq!(
-            self.peek().expect("Unterminated parentheses").kind,
-            TokenType::RPAREN,
-            "Unterminated parentheses"
-        );
+
+        let err = self.error_builder("Unterminated parentheses", paren);
+        let Some(end) = self.peek() else {
+            println!();
+            println!("{err}");
+            println!();
+            panic!();
+        };
+        self.check_valid(TokenType::RPAREN, end);
         self.next();
         return expr;
     }
@@ -162,7 +179,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 return Value::Str(self.text(value)).into();
             }
             TokenType::NUM => {
-                return Value::Num((self.text(value).parse().unwrap())).into();
+                return Value::Num(self.text(value).parse().unwrap()).into();
             }
             TokenType::FALSE => {
                 return Value::Bool(false).into();
@@ -180,7 +197,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::NOT | TokenType::BANG => return self.unary_operator(UnaryOp::NOT),
             TokenType::MINUS => return self.unary_operator(UnaryOp::NEGATIVE),
             TokenType::PLUS => return self.unary_operator(UnaryOp::POSITIVE),
-            TokenType::LPAREN => return self.parse_paren(),
+            TokenType::LPAREN => return self.parse_paren(value),
             unexpected => {
                 panic!("{unexpected:?}");
             }
@@ -189,22 +206,23 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     fn parse_call(&mut self, callee: Node) -> Node {
         let mut params: NodeStream = vec![];
         self.next();
-        let mut token = dbg!(self.peek().expect("Invalid call"));
+        let mut token = dbg!(self.peek_some());
         if token.kind == TokenType::RPAREN {
             self.next();
             return Call {
                 args: Box::new(params),
                 callee: Box::new(callee),
-            }.into();
+            }
+            .into();
         }
-        while token.kind != TokenType::RPAREN{
+        while token.kind != TokenType::RPAREN {
             let expr = dbg!(self.parse_expr());
-            token = dbg!(self.peek().expect("Invalid call"));
+            token = dbg!(self.peek_some());
             match token.kind {
                 TokenType::RPAREN => {
                     params.push(expr);
                     break;
-                },
+                }
                 TokenType::COMMA => {
                     params.push(expr);
                     self.next();
@@ -213,40 +231,53 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             }
         }
         self.next();
-        return Call {
+
+        let val: Node = Call {
             args: Box::new(params),
             callee: Box::new(callee),
         }
         .into();
+        self.parse_operator(token, val)
     }
-    fn parse_expr(&mut self) -> Node {
-        let value = self.peek();
-        self.next();
-        let left = self.simple_parse(value);
+    fn parse_operator(&mut self, previous: Token, left: Node) -> Node {
         let Some(token) = self.peek() else {return left;};
-
         match token.kind {
-            TokenType::LPAREN => return self.parse_call(left),
-            TokenType::PLUS => return self.parse_operator(left, BinaryOp::ADD),
-            TokenType::MINUS => return self.parse_operator(left, BinaryOp::SUBTRACT),
-            TokenType::STAR => return self.parse_operator(left, BinaryOp::MULTIPLY),
-            TokenType::SLASH => return self.parse_operator(left, BinaryOp::DIVIDE),
-            TokenType::PERCENT => return self.parse_operator(left, BinaryOp::MODULO),
-            TokenType::GREATER_EQUAL => return self.parse_operator(left, BinaryOp::GREATER_EQUAL),
-            TokenType::GREATER => return self.parse_operator(left, BinaryOp::GREATER),
-            TokenType::LESSER_EQUAL => return self.parse_operator(left, BinaryOp::LESSER_EQUAL),
-            TokenType::LESSER => return self.parse_operator(left, BinaryOp::LESSER),
-            TokenType::DOUBLE_EQUAL => return self.parse_operator(left, BinaryOp::ISEQUAL),
-            TokenType::BANG_EQUAL => return self.parse_operator(left, BinaryOp::ISDIFERENT),
-            TokenType::AND | TokenType::AMPERSAND => {
-                return self.parse_operator(left, BinaryOp::AND)
+            TokenType::EQUAL => {
+                self.check_valid(TokenType::IDENTIFIER, previous.clone());
+                let var_name = self.text(previous);
+                self.next();
+                return Assignment{
+                    var_name,
+                    value:Box::new(self.parse_expr())
+                }.into();
             }
-            TokenType::OR | TokenType::PIPE => return self.parse_operator(left, BinaryOp::OR),
+            TokenType::LPAREN => return self.parse_call(left),
+            TokenType::PLUS => return self.binary_operator(left, BinaryOp::ADD),
+            TokenType::MINUS => return self.binary_operator(left, BinaryOp::SUBTRACT),
+            TokenType::STAR => return self.binary_operator(left, BinaryOp::MULTIPLY),
+            TokenType::SLASH => return self.binary_operator(left, BinaryOp::DIVIDE),
+            TokenType::PERCENT => return self.binary_operator(left, BinaryOp::MODULO),
+            TokenType::GREATER_EQUAL => return self.binary_operator(left, BinaryOp::GREATER_EQUAL),
+            TokenType::GREATER => return self.binary_operator(left, BinaryOp::GREATER),
+            TokenType::LESSER_EQUAL => return self.binary_operator(left, BinaryOp::LESSER_EQUAL),
+            TokenType::LESSER => return self.binary_operator(left, BinaryOp::LESSER),
+            TokenType::DOUBLE_EQUAL => return self.binary_operator(left, BinaryOp::ISEQUAL),
+            TokenType::BANG_EQUAL => return self.binary_operator(left, BinaryOp::ISDIFERENT),
+            TokenType::AND | TokenType::AMPERSAND => {
+                return self.binary_operator(left, BinaryOp::AND)
+            }
+            TokenType::OR | TokenType::PIPE => return self.binary_operator(left, BinaryOp::OR),
             _ => {
                 return left;
             }
         }
-        todo!()
+    }
+    pub fn parse_expr(&mut self) -> Node {
+        let value = self.peek();
+        self.next();
+        let left = self.simple_parse(value.clone());
+        let Some(peeked) = value else {todo!()};
+        self.parse_operator(peeked, left)
     }
     pub fn parse_top(&mut self) -> Option<Node> {
         match self.peek()?.kind {
@@ -263,4 +294,5 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         return Node::block(body);
     }
+
 }

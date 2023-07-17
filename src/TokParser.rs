@@ -196,7 +196,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
 
             TokenType::NOT | TokenType::BANG => return self.unary_operator(UnaryOp::NOT),
             TokenType::MINUS => return self.unary_operator(UnaryOp::NEGATIVE),
-            TokenType::PLUS => return self.unary_operator(UnaryOp::POSITIVE),
             TokenType::LPAREN => return self.parse_paren(value),
             unexpected => {
                 panic!("{unexpected:?}");

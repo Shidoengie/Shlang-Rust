@@ -1,8 +1,9 @@
-use std::collections::HashMap;
-
 use crate::AstNodes;
 use crate::Defaults;
+use std::collections::HashMap;
+use std::*;
 use AstNodes::*;
+const VOID: TypedValue = (Value::Void, Type::Void);
 pub struct Interpreter {
     program: Block,
     current: Scope,
@@ -19,25 +20,25 @@ impl Interpreter {
     pub fn execute(&mut self) {
         self.eval_block(self.program.clone());
     }
-    fn eval_block(&mut self, block: Block) -> Value {
 
+    fn eval_block(&mut self, block: Block) -> TypedValue {
         let cur = Some(Box::new(self.current.clone()));
         let new_scope = Scope::new(cur, HashMap::from([]));
         self.current = new_scope;
         if block.body.len() == 0 {
-            return Value::Void;
+            return VOID;
         }
         let body = *block.body;
         for node in body {
-            println!("a");
-            let Value::Control(result) = self.eval_node(node) else {continue;};
+            let Value::Control(result) = self.eval_node(node).0 else {continue;};
             let parent = self.current.parent.clone();
             self.current = *parent.expect("Invalid control outside block");
-            return Value::Control(result);
+            return (Value::Control(result), Type::Never);
         }
+
         let parent = self.current.parent.clone();
         self.current = *parent.expect("Invalid control outside block");
-        return Value::Void;
+        return VOID;
     }
     fn num_convert(&self, num: Value) -> (f64, bool) {
         match num {
@@ -48,8 +49,18 @@ impl Interpreter {
             }
         }
     }
-
-    fn num_calc(&self, kind: BinaryOp, left_val: Value, right_val: Value) -> Value {
+    fn unary_calc(&self, kind: UnaryOp, target: TypedValue) -> TypedValue {
+        match kind {
+            UnaryOp::NEGATIVE => {
+                let Value::Num(val) = target.0 else {panic!("Invalid Type expected Num but got {:?}",target.1)};
+                return (Value::Num(-val),Type::Num);
+            }
+            UnaryOp::NOT => {
+                return (Value::Bool(!self.num_convert(target.0).1),Type::Bool);
+            }
+        }
+    }
+    fn binary_calc(&self, kind: BinaryOp, left_val: Value, right_val: Value) -> Value {
         let (left, left_bool) = self.num_convert(left_val);
         let (right, right_bool) = self.num_convert(right_val);
         match kind {
@@ -83,85 +94,99 @@ impl Interpreter {
             op => panic!("Cant do {op:?} operation with strings"),
         }
     }
-    fn unwrap_var(&self, value: Value) -> Value {
-        if value == Value::Void {
-            panic!("Cannot assign void to variable");
-        }
-        let Value::Control(control) = value else {
-            return value;
-        };
-        let Control::Result(val) = control else {
-            panic!("Unexpected controlflow node");
-        };
-        if *val == Value::Void {
-            panic!("Cannot assign void to variable");
-        }
-        return *val;
-    }
-    fn declare(&mut self, request: Declaration) {
-        let init_val = self.eval_node(*request.value);
-        self.current
-            .define(request.var_name, self.unwrap_var(init_val));
-    }
-    fn assign(&mut self, request: Assignment) {
-        let init_val = self.eval_node(*request.value);
-        if self
-            .current
-            .assign(request.var_name, self.unwrap_var(init_val))
-            .is_none()
-        {
-            panic!("Attempted to assign to a non existent variable")
-        }
-    }
 
-    fn eval_binary_node(&mut self, bin_op: BinaryNode) -> Value {
-        let left = self.eval_node(*bin_op.left);
-        let right = self.eval_node(*bin_op.right);
-
-        if left != right {
-            let is_numerical = (matches!(left, Value::Num(_)) && matches!(right, Value::Bool(_))
-                || matches!(left, Value::Bool(_)) && matches!(right, Value::Num(_)));
+    fn eval_binary_node(&mut self, bin_op: BinaryNode) -> TypedValue {
+        let (left, left_type) = self.eval_node(*bin_op.left);
+        let (right, right_type) = self.eval_node(*bin_op.right);
+        if left_type != right_type {
+            let are_numerical = left_type.is_numeric() && right_type.is_numeric();
             match bin_op.kind {
-                BinaryOp::ISDIFERENT => return Value::Bool(true),
-                BinaryOp::ISEQUAL => return Value::Bool(false),
+                BinaryOp::ISDIFERENT => return (Value::Bool(true), Type::Bool),
+                BinaryOp::ISEQUAL => return (Value::Bool(true), Type::Bool),
                 _ => {
-                    if !is_numerical {
+                    if !are_numerical {
                         panic!("mixed types: {left:?} {right:?}")
                     }
                 }
             }
         }
-        match left {
-            Value::Num(_) | Value::Bool(_) => return self.num_calc(bin_op.kind, left, right),
-            Value::Str(_) => return self.str_calc(bin_op.kind, left, right),
+        match left_type {
+            Type::Num | Type::Bool => {
+                return (self.binary_calc(bin_op.kind, left, right), left_type)
+            }
+            Type::Str => return (self.str_calc(bin_op.kind, left, right), left_type),
             invalid => panic!("Invalid type in binary operation:{invalid:?}"),
         }
     }
-    fn eval_node(&mut self, expr: Node) -> Value {
+    fn unwrap_var(&self, value: TypedValue) -> (Value, Type) {
+        if value.1 == Type::Void {
+            panic!("Cannot assign void to variable");
+        }
+        let Value::Control(control) = value.0 else {
+            return value;
+        };
+        let Control::Result(res_val,res_type) = control else {
+            panic!("Unexpected controlflow node");
+        };
+        if res_type == Type::Void {
+            panic!("Cannot assign void to variable");
+        }
+        return (*res_val, res_type);
+    }
+
+    fn declare(&mut self, request: Declaration) {
+        let init_val = self.eval_node(*request.value);
+        self.current
+            .define(request.var_name, self.unwrap_var(init_val).0);
+    }
+    fn assign(&mut self, request: Assignment) {
+        let init_val = self.eval_node(*request.value);
+        if self
+            .current
+            .assign(request.var_name, self.unwrap_var(init_val).0)
+            .is_none()
+        {
+            panic!("Attempted to assign to a non existent variable")
+        }
+    }
+    fn eval_node(&mut self, expr: Node) -> TypedValue {
         match expr {
-            Node::Value(val) => *val,
+            Node::Value(val) => (*val.clone(), val.get_type()),
             Node::Block(body) => self.eval_block(body),
             Node::Variable(var) => {
-                todo!()
+                let result = self.current.get_var(var.name).expect("undefined variable");
+                let res_type = result.get_type();
+                return (result, res_type.clone());
             }
             Node::Call(request) => {
                 todo!()
             }
             Node::UnaryNode(unary_op) => {
-                todo!()
+                let (target, target_type) = self.eval_node(*unary_op.object);
+                self.unary_calc(unary_op.kind, (target, target_type))
             }
             Node::BinaryNode(bin_op) => self.eval_binary_node(bin_op),
             Node::Branch(branch) => {
                 todo!()
             }
-            Node::ReturnNode(expr) => Control::Result(Box::new(self.eval_node(*expr))).into(),
+            Node::ReturnNode(expr) => {
+                let evaluated = self.eval_node(*expr);
+                let result: Value = Control::Return(Box::new(evaluated.0), evaluated.1).into();
+                (result, Type::Never)
+            }
+            Node::ResultNode(expr) => {
+                let evaluated = self.eval_node(*expr);
+                let result: Value = Control::Result(Box::new(evaluated.0), evaluated.1).into();
+                (result, Type::Never)
+            }
+            Node::BreakNode => (Control::Break.into(), Type::Never),
             Node::Declaration(declaration) => {
                 self.declare(declaration);
-                Value::Void
+                VOID
             }
             Node::Assignment(ass) => {
                 self.assign(ass);
-                Value::Void
+                VOID
             }
             Node::While(obj) => {
                 todo!()

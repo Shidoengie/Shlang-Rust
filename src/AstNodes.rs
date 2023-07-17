@@ -1,8 +1,9 @@
 use std::collections::*;
 #[derive(Clone, Debug, PartialEq)]
+
 pub enum Control {
-    Return(Box<Value>),
-    Result(Box<Value>),
+    Return(Box<Value>, Type),
+    Result(Box<Value>, Type),
     Break,
 }
 
@@ -17,6 +18,41 @@ pub enum Value {
     Function(Function),
     BuiltinFunc(BuiltinFunc),
 }
+impl Value {
+    pub fn get_type(&self) -> Type {
+        match *self {
+            Value::Bool(_) => return Type::Bool,
+            Value::BuiltinFunc(_) | Value::Function(_) => return Type::Function,
+            Value::Null => return Type::Null,
+            Value::Void => return Type::Void,
+            Value::Str(_) => return Type::Str,
+            Value::Num(_) => return Type::Num,
+            Value::Control(_) => return Type::Never,
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq)]
+pub enum Type {
+    Null,
+    Void,
+    Num,
+    Bool,
+    Str,
+    Function,
+    Never,
+}
+impl Type {
+    pub fn is_void(&self) -> bool {
+        self == &Self::Void
+    }
+    pub fn is_numeric(&self) -> bool {
+        match self {
+            Self::Bool | Self::Num => return true,
+            _ => return false,
+        }
+    }
+}
+pub type TypedValue = (Value, Type);
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
     block: Box<Block>,
@@ -36,7 +72,9 @@ pub enum Node {
     DoBlock(DoBlock),
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
+    ResultNode(Box<Node>),
     ReturnNode(Box<Node>),
+    BreakNode,
     Declaration(Declaration),
     Assignment(Assignment),
     Variable(Variable),
@@ -124,7 +162,6 @@ pub struct BinaryNode {
 #[derive(Clone, Debug, PartialEq)]
 pub enum UnaryOp {
     NEGATIVE,
-    POSITIVE,
     NOT,
 }
 #[derive(Clone, Debug, PartialEq)]

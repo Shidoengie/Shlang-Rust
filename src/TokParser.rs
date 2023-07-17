@@ -286,13 +286,13 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             token => panic!("Invalid Token at toplevel: {token:?}"),
         }
     }
-    pub fn batch_parse(&mut self) -> Node {
+    pub fn batch_parse(&mut self) -> Block {
         let mut body: NodeStream = vec![];
         loop {
             let Some(parsed) = self.parse_top() else {break;};
             body.push(parsed);
         }
-        return Node::block(body);
+        return Block{body:Box::new(body)};
     }
 
 }

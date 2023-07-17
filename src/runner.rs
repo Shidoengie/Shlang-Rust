@@ -20,21 +20,24 @@ impl Interpreter {
         self.eval_block(self.program.clone());
     }
     fn eval_block(&mut self, block: Block) -> Value {
+
         let cur = Some(Box::new(self.current.clone()));
         let new_scope = Scope::new(cur, HashMap::from([]));
         self.current = new_scope;
         if block.body.len() == 0 {
-            return Value::Null;
+            return Value::Void;
         }
         let body = *block.body;
         for node in body {
+            println!("a");
             let Value::Control(result) = self.eval_node(node) else {continue;};
             let parent = self.current.parent.clone();
             self.current = *parent.expect("Invalid control outside block");
+            return Value::Control(result);
         }
         let parent = self.current.parent.clone();
         self.current = *parent.expect("Invalid control outside block");
-        return Value::Null;
+        return Value::Void;
     }
     fn num_convert(&self, num: Value) -> (f64, bool) {
         match num {
@@ -63,7 +66,6 @@ impl Interpreter {
             BinaryOp::OR => Value::Bool(left_bool || right_bool),
             BinaryOp::ISEQUAL => Value::Bool(left == right),
             BinaryOp::ISDIFERENT => Value::Bool(left != right),
-            _ => todo!(),
         }
     }
     fn str_calc(&self, kind: BinaryOp, left_val: Value, right_val: Value) -> Value {
@@ -81,17 +83,37 @@ impl Interpreter {
             op => panic!("Cant do {op:?} operation with strings"),
         }
     }
-    fn declare(&mut self, request: Declaration) {
-        let init_val = self.eval_node(*request.value);
-        let Value::Control(control) = init_val else {
-            self.current.define(request.var_name, init_val);
-            return;
+    fn unwrap_var(&self, value: Value) -> Value {
+        if value == Value::Void {
+            panic!("Cannot assign void to variable");
+        }
+        let Value::Control(control) = value else {
+            return value;
         };
         let Control::Result(val) = control else {
             panic!("Unexpected controlflow node");
         };
-        self.current.define(request.var_name, *val);
+        if *val == Value::Void {
+            panic!("Cannot assign void to variable");
+        }
+        return *val;
     }
+    fn declare(&mut self, request: Declaration) {
+        let init_val = self.eval_node(*request.value);
+        self.current
+            .define(request.var_name, self.unwrap_var(init_val));
+    }
+    fn assign(&mut self, request: Assignment) {
+        let init_val = self.eval_node(*request.value);
+        if self
+            .current
+            .assign(request.var_name, self.unwrap_var(init_val))
+            .is_none()
+        {
+            panic!("Attempted to assign to a non existent variable")
+        }
+    }
+
     fn eval_binary_node(&mut self, bin_op: BinaryNode) -> Value {
         let left = self.eval_node(*bin_op.left);
         let right = self.eval_node(*bin_op.right);
@@ -135,10 +157,11 @@ impl Interpreter {
             Node::ReturnNode(expr) => Control::Result(Box::new(self.eval_node(*expr))).into(),
             Node::Declaration(declaration) => {
                 self.declare(declaration);
-                Value::Null
+                Value::Void
             }
             Node::Assignment(ass) => {
-                todo!()
+                self.assign(ass);
+                Value::Void
             }
             Node::While(obj) => {
                 todo!()

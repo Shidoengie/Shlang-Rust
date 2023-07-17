@@ -5,7 +5,7 @@ use std::io;
 use std::io::Write;
 use std::*;
 use AstNodes::*;
-fn parse_full(source: &str) -> Node {
+fn parse_full(source: &str) -> Block {
     let mut parser = Parser::new(source);
     return parser.batch_parse();
 }

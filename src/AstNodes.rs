@@ -9,6 +9,7 @@ pub enum Control {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Null,
+    Void,
     Control(Control),
     Num(f64),
     Bool(bool),
@@ -189,7 +190,8 @@ impl Scope {
         None
     }
     pub fn define(&mut self, var_name: String, val: Value) {
-        self.var_map.insert(var_name, val);
+        dbg!(self.var_map.insert(var_name, val));
+        dbg!(&self.var_map);
     }
     pub fn new(parent: Option<Box<Scope>>, var_map: HashMap<String, Value>) -> Self {
         Scope { parent, var_map }
@@ -200,7 +202,7 @@ impl Scope {
         self.parent = grandpa;
         self.var_map = parent.var_map;
     }
-    fn assign(&mut self, var_name: String, value: Value) -> Option<Value> {
+    pub fn assign(&mut self, var_name: String, value: Value) -> Option<Value> {
         if let Some(var) = self.var_map.get_mut(&var_name) {
             *var = value;
             return Some(var.clone());

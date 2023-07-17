@@ -30,8 +30,6 @@ pub enum TokenType {
     AND,
     NOT,
     OR,
-    PRINT,
-    INPUT,
     IF,
     ELSE,
     ELIF,
@@ -63,25 +61,23 @@ impl Token {
         }
     }
     pub fn map_keyword(text: String) -> Option<TokenType> {
-        let keyword_map = HashMap::from([
-            ("true", TokenType::TRUE),
-            ("false", TokenType::FALSE),
-            ("input", TokenType::INPUT),
-            ("print", TokenType::PRINT),
-            ("if", TokenType::IF),
-            ("elif", TokenType::ELIF),
-            ("else", TokenType::ELSE),
-            ("func", TokenType::FUNC),
-            ("return", TokenType::RETURN),
-            ("loop", TokenType::LOOP),
-            ("while", TokenType::WHILE),
-            ("break", TokenType::BREAK),
-            ("var", TokenType::VAR),
-            ("and", TokenType::AND),
-            ("not", TokenType::NOT),
-            ("or", TokenType::OR),
-            ("do", TokenType::DO),
-        ]);
-        keyword_map.get(text.as_str()).cloned()
+        match text.as_str() {
+            "true" => Some(TokenType::TRUE),
+            "false" => Some(TokenType::FALSE),
+            "if" => Some(TokenType::IF),
+            "elif" => Some(TokenType::ELIF),
+            "else" => Some(TokenType::ELSE),
+            "func" => Some(TokenType::FUNC),
+            "return" => Some(TokenType::RETURN),
+            "loop" => Some(TokenType::LOOP),
+            "while" => Some(TokenType::WHILE),
+            "break" => Some(TokenType::BREAK),
+            "var" => Some(TokenType::VAR),
+            "and" => Some(TokenType::AND),
+            "not" => Some(TokenType::NOT),
+            "or" => Some(TokenType::OR),
+            "do" => Some(TokenType::DO),
+            _ => None,
+        }
     }
 }

@@ -1,21 +1,18 @@
-#![allow(unused_variables)]
-#![allow(non_snake_case)]
-#![allow(non_camel_case_types)]
+use std::env;
+use std::fs;
 use std::io;
 use std::io::Write;
 use std::*;
-use std::fs;
-use std::env;
-pub mod Interpreter;
 pub mod AstNodes;
+pub mod Defaults;
+pub mod Runner;
 pub mod Lexer;
 pub mod TokParser;
 pub mod Token;
 pub mod tests;
-pub mod Defaults;
 use Lexer::*;
 use TokParser::Parser;
-
+use Runner::Interpreter;
 fn input(message: &str) -> String {
     print!("{message} ");
     io::stdout().flush().unwrap();
@@ -27,13 +24,12 @@ fn input(message: &str) -> String {
 }
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() <= 1{
-        rpl();
+    if args.len() <= 1 {
+        full_rpl();
         return;
     }
     let file_path = &args[1];
-    let source = fs::read_to_string(file_path)
-        .expect("Should have been able to read the file");
+    let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
     let mut parser = Parser::new(source.as_str());
     println!("{:#?}", parser.batch_parse());
 }
@@ -50,14 +46,23 @@ fn lexer_rpl() {
             let some = tok.unwrap();
             println!("{:?} | {:?}", some.clone(), parser.text(some));
         }
-       
     }
 }
 fn rpl() {
-    loop{
-    let source = input(">: ");
-    let scan = Scanner::new(&source);
-    let mut parser = Parser::new(source.as_str());
-    println!("{:#?}", parser.batch_parse());
+    loop {
+        let source = input(">: ");
+        let scan = Scanner::new(&source);
+        let mut parser = Parser::new(source.as_str());
+        println!("{:#?}", parser.batch_parse());
+    }
+}
+fn full_rpl() {
+    loop {
+        let source = input(">: ");
+        let mut parser = Parser::new(source.as_str());
+        let ast = parser.batch_parse();
+        println!("{:#?}", &ast);
+        let mut interpreter = Interpreter::new(ast);
+        interpreter.execute()
     }
 }

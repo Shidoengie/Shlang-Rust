@@ -2,12 +2,12 @@ use std::str::Chars;
 
 use crate::Token::*;
 #[derive(Debug, Clone)]
-pub struct Scanner<'a> {
+pub struct Lexer<'a> {
     chars: Chars<'a>,
     source: String,
     size: usize,
 }
-impl<'a> Scanner<'a> {
+impl<'a> Lexer<'a> {
     fn peek(&self) -> Option<char> {
         self.chars.clone().next()
     }
@@ -166,7 +166,7 @@ impl<'a> Scanner<'a> {
         }
     }
     pub fn new(src: &'a str) -> Self {
-        return Scanner {
+        return Self {
             chars: src.chars(),
             source: String::from(src),
             size: src.chars().count(),

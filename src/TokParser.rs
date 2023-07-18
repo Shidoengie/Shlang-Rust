@@ -1,19 +1,19 @@
 use core::panic;
 use std::iter::Peekable;
 
-use crate::AstNodes::*;
-use crate::Scanner;
+use crate::ast_nodes::*;
+use crate::lexer::Lexer;
 use crate::Token::*;
 use colored::*;
 #[derive(Clone)]
 pub struct TokenIter<'input> {
-    lexer: Scanner<'input>,
+    lexer: Lexer<'input>,
 }
 
 impl<'input> TokenIter<'input> {
     pub fn new(input: &'input str) -> Self {
         Self {
-            lexer: Scanner::new(input),
+            lexer: Lexer::new(input),
         }
     }
 }
@@ -109,7 +109,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         return token;
     }
     fn parse_vardef(&mut self) -> Node {
-        self.next();
+        dbg!(self.next());
         let ident: Token = self.expect(TokenType::IDENTIFIER);
         let var_name = self.text(ident);
         self.next();
@@ -177,6 +177,9 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         match value.kind {
             TokenType::STR => {
                 return Value::Str(self.text(value)).into();
+            }
+            TokenType::VAR =>{
+                return self.parse_vardef();
             }
             TokenType::NUM => {
                 return Value::Num(self.text(value).parse().unwrap()).into();
@@ -262,6 +265,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::LESSER => return self.binary_operator(left, BinaryOp::LESSER),
             TokenType::DOUBLE_EQUAL => return self.binary_operator(left, BinaryOp::ISEQUAL),
             TokenType::BANG_EQUAL => return self.binary_operator(left, BinaryOp::ISDIFERENT),
+
             TokenType::AND | TokenType::AMPERSAND => {
                 return self.binary_operator(left, BinaryOp::AND)
             }

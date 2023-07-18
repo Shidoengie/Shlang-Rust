@@ -1,8 +1,8 @@
-use crate::AstNodes;
+use crate::ast_nodes;
 use crate::Defaults;
 use std::collections::HashMap;
 use std::*;
-use AstNodes::*;
+use ast_nodes::*;
 const VOID: TypedValue = (Value::Void, Type::Void);
 pub struct Interpreter {
     program: Block,

@@ -3,16 +3,18 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::*;
-pub mod AstNodes;
+
+pub mod ast_nodes;
 pub mod Defaults;
-pub mod Runner;
-pub mod Lexer;
+pub mod lexer;
+pub mod interpreter;
 pub mod TokParser;
 pub mod Token;
 pub mod tests;
-use Lexer::*;
+
+use lexer::Lexer;
 use TokParser::Parser;
-use Runner::Interpreter;
+use interpreter::Interpreter;
 fn input(message: &str) -> String {
     print!("{message} ");
     io::stdout().flush().unwrap();
@@ -36,7 +38,7 @@ fn main() {
 fn lexer_rpl() {
     loop {
         let source = input(">: ");
-        let mut scan = Scanner::new(&source);
+        let mut scan = Lexer::new(&source);
         let mut parser = Parser::new(source.as_str());
         loop {
             let tok = scan.next();
@@ -51,7 +53,7 @@ fn lexer_rpl() {
 fn rpl() {
     loop {
         let source = input(">: ");
-        let scan = Scanner::new(&source);
+        let scan = Lexer::new(&source);
         let mut parser = Parser::new(source.as_str());
         println!("{:#?}", parser.batch_parse());
     }

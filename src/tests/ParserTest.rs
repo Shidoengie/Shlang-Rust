@@ -1,10 +1,10 @@
-use crate::AstNodes;
+use crate::ast_nodes;
 use crate::Parser;
 use insta::*;
 use std::io;
 use std::io::Write;
 use std::*;
-use AstNodes::*;
+use ast_nodes::*;
 fn parse_full(source: &str) -> Block {
     let mut parser = Parser::new(source);
     return parser.batch_parse();

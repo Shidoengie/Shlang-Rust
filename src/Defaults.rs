@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::AstNodes;
-use AstNodes::*;
+use crate::ast_nodes;
+use ast_nodes::*;
 
 pub fn var_map()->HashMap<String, Value>{
     let map = HashMap::from([

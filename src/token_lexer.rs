@@ -1,6 +1,7 @@
 use std::str::Chars;
 
-use crate::Token::*;
+use crate::tokens;
+use crate::tokens::*;
 #[derive(Debug, Clone)]
 pub struct Lexer<'a> {
     chars: Chars<'a>,
@@ -50,7 +51,7 @@ impl<'a> Lexer<'a> {
             current = self.peek_next();
             self.advance();
         }
-        return Token::new(TokenType::NUM, (start - 1, self.index()));
+        Token::new(TokenType::NUM,(start - 1, self.index()))
     }
     fn ident(&mut self) -> Token {
         let start = self.index() - 1;
@@ -68,7 +69,7 @@ impl<'a> Lexer<'a> {
         }
         let stop = self.index();
         let span = &self.source[start..stop];
-        let keyword = Token::map_keyword(span.to_string());
+        let keyword = tokens::map_keyword(span.to_string());
         if keyword.is_none() {
             return Token::new(TokenType::IDENTIFIER, (start, stop));
         }

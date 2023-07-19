@@ -1,2 +1,2 @@
 #[cfg(test)]
-pub mod ParserTest;
+pub mod parser_test;

@@ -2,8 +2,8 @@ use core::panic;
 use std::iter::Peekable;
 
 use crate::ast_nodes::*;
-use crate::lexer::Lexer;
-use crate::Token::*;
+use crate::token_lexer::Lexer;
+use crate::tokens::*;
 use colored::*;
 #[derive(Clone)]
 pub struct TokenIter<'input> {

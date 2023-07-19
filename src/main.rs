@@ -5,15 +5,15 @@ use std::io::Write;
 use std::*;
 
 pub mod ast_nodes;
-pub mod Defaults;
-pub mod lexer;
+pub mod defaults;
+pub mod token_lexer;
 pub mod interpreter;
-pub mod TokParser;
-pub mod Token;
+pub mod token_parser;
+pub mod tokens;
 pub mod tests;
-
-use lexer::Lexer;
-use TokParser::Parser;
+pub mod spans;
+use token_lexer::Lexer;
+use token_parser::Parser;
 use interpreter::Interpreter;
 fn input(message: &str) -> String {
     print!("{message} ");

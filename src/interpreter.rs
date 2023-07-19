@@ -1,5 +1,5 @@
 use crate::ast_nodes;
-use crate::Defaults;
+use crate::defaults;
 use std::collections::HashMap;
 use std::*;
 use ast_nodes::*;
@@ -8,12 +8,12 @@ pub struct Interpreter {
     program: Block,
     current: Scope,
 }
-
 impl Interpreter {
     pub fn new(program: Block) -> Self {
         let current = Scope {
             parent: None,
-            var_map: Defaults::var_map(),
+            
+            var_map: defaults::var_map(),
         };
         return Interpreter { program, current };
     }

@@ -50,5 +50,6 @@ assignement:"b = 1;"
 single_var_expr_decl:"var a;"
 var_expr_decl_with_expr_:"var a = 1+2+b;"
 do_block:"do{var a = 1;1+a}"
-
+func_expr:"func(b){1}"
+func_decl_expr:"func a (b){1}"
 ));

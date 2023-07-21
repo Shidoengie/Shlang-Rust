@@ -108,15 +108,6 @@ pub enum Node {
     Loop(Loop),
     While(While),
 }
-pub type NodeSpan = Spanned<Node>;
-impl NodeSpan {
-    pub fn wrap_in_result(&self)->Self{
-        let value = self.clone();
-        Spanned::new(Node::ResultNode(Box::new(value.clone())), value.span)
-    }
-}
-pub type NodeStream = Vec<NodeSpan>;
-pub type NodeRef = Box<NodeSpan>;
 impl Node {
     pub fn declaration(name: &str, value: NodeSpan) -> Self {
         return Node::Declaration(Declaration {
@@ -129,7 +120,20 @@ impl Node {
             body: Box::new(body),
         });
     }
+    pub fn to_spanned(&self,span:Span)->NodeSpan{
+        return NodeSpan::new(self.clone(), span);
+    }
 }
+pub type NodeSpan = Spanned<Node>;
+impl NodeSpan {
+    pub fn wrap_in_result(&self)->Self{
+        let value = self.clone();
+        Spanned::new(Node::ResultNode(Box::new(value.clone())), value.span)
+    }
+}
+pub type NodeStream = Vec<NodeSpan>;
+pub type NodeRef = Box<NodeSpan>;
+
 
 impl From<Control> for Node {
     fn from(x: Control) -> Self {

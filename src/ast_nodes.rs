@@ -1,4 +1,6 @@
 use std::collections::*;
+
+use crate::spans::*;
 #[derive(Clone, Debug, PartialEq)]
 
 pub enum Control {
@@ -18,6 +20,8 @@ pub enum Value {
     Function(Function),
     BuiltinFunc(BuiltinFunc),
 }
+pub type TypedValue = (Value, Type);
+pub type ValueStream = Vec<Value>;
 impl Value {
     pub fn get_type(&self) -> Type {
         match *self {
@@ -29,6 +33,30 @@ impl Value {
             Value::Num(_) => return Type::Num,
             Value::Control(_) => return Type::Never,
         }
+    }
+    pub fn to_nodespan(&self,span:Span)->NodeSpan{
+        Spanned::new(Node::Value(Box::new(self.clone())),span)
+    }
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct Function {
+    block: Box<Block>,
+    args: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BuiltinFunc {
+    function: fn(ValueStream) -> Value,
+    arg_size: i16,
+}
+impl From<Function> for Value {
+    fn from(x: Function) -> Self {
+        Value::Function(x)
+    }
+}
+impl From<Control> for Value {
+    fn from(x: Control) -> Self {
+        Value::Control(x)
     }
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -52,18 +80,7 @@ impl Type {
         }
     }
 }
-pub type TypedValue = (Value, Type);
-#[derive(Clone, Debug, PartialEq)]
-pub struct Function {
-    block: Box<Block>,
-    args: Vec<String>,
-}
-type ValueStream = Vec<Value>;
-#[derive(Clone, Debug, PartialEq)]
-pub struct BuiltinFunc {
-    function: fn(ValueStream) -> Value,
-    arg_size: i16,
-}
+
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
@@ -72,8 +89,8 @@ pub enum Node {
     DoBlock(DoBlock),
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
-    ResultNode(Box<Node>),
-    ReturnNode(Box<Node>),
+    ResultNode(Box<NodeSpan>),
+    ReturnNode(Box<NodeSpan>),
     BreakNode,
     Declaration(Declaration),
     Assignment(Assignment),
@@ -83,9 +100,17 @@ pub enum Node {
     Loop(Loop),
     While(While),
 }
-
+pub type NodeSpan = Spanned<Node>;
+impl NodeSpan {
+    pub fn wrap_in_result(&self)->Self{
+        let value = self.clone();
+        Spanned::new(Node::ResultNode(Box::new(value.clone())), value.span)
+    }
+}
+pub type NodeStream = Vec<NodeSpan>;
+pub type NodeRef = Box<NodeSpan>;
 impl Node {
-    pub fn declaration(name: &str, value: Node) -> Self {
+    pub fn declaration(name: &str, value: NodeSpan) -> Self {
         return Node::Declaration(Declaration {
             var_name: String::from(name),
             value: Box::new(value),
@@ -97,16 +122,7 @@ impl Node {
         });
     }
 }
-impl From<Function> for Value {
-    fn from(x: Function) -> Self {
-        Value::Function(x)
-    }
-}
-impl From<Control> for Value {
-    fn from(x: Control) -> Self {
-        Value::Control(x)
-    }
-}
+
 impl From<Control> for Node {
     fn from(x: Control) -> Self {
         Node::Value(Box::new(Value::Control(x)))
@@ -125,18 +141,21 @@ macro_rules! nodes_from {
                     Self::$name(node)
                 }
             }
+            impl $name {
+                pub fn to_nodespan(&self,span:Span) -> NodeSpan {
+                    Spanned::new(Node::$name(self.clone()),span)
+                }
+                
+            }
         )*
     }
 }
 nodes_from! { UnaryNode DoBlock BinaryNode Call Variable Assignment Declaration Branch While Loop Block}
-pub type NodeStream = Vec<Node>;
-pub type NodeRef = Box<Node>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Block {
     pub body: Box<NodeStream>,
 }
-pub type BlockRef = Box<Block>;
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
     ADD,
@@ -191,23 +210,23 @@ pub struct Call {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct DoBlock {
-    pub body: Box<NodeStream>,
+    pub body: NodeRef,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Branch {
     pub condition: NodeRef,
-    pub if_block: BlockRef,
-    pub else_block: Option<BlockRef>,
+    pub if_block: NodeRef,
+    pub else_block: Option<NodeRef>,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Loop {
-    pub proc: BlockRef,
+    pub proc: NodeRef,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct While {
     pub condition: NodeRef,
-    pub proc: BlockRef,
+    pub proc: NodeRef,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Scope {

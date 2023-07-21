@@ -12,6 +12,7 @@ pub mod token_parser;
 pub mod tokens;
 pub mod tests;
 pub mod spans;
+pub mod lang_errors;
 use token_lexer::Lexer;
 use token_parser::Parser;
 use interpreter::Interpreter;
@@ -27,7 +28,7 @@ fn input(message: &str) -> String {
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() <= 1 {
-        full_rpl();
+        rpl();
         return;
     }
     let file_path = &args[1];
@@ -46,7 +47,7 @@ fn lexer_rpl() {
                 break;
             }
             let some = tok.unwrap();
-            println!("{:?} | {:?}", some.clone(), parser.text(some));
+            println!("{:?} | {:?}", some.clone(), parser.text(&some));
         }
     }
 }

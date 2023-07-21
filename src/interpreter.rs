@@ -149,7 +149,8 @@ impl Interpreter {
             panic!("Attempted to assign to a non existent variable")
         }
     }
-    fn eval_node(&mut self, expr: Node) -> TypedValue {
+    fn eval_node(&mut self, node: NodeSpan) -> TypedValue {
+        let (span,expr) = (node.span,node.unspanned);
         match expr {
             Node::Value(val) => (*val.clone(), val.get_type()),
             Node::Block(body) => self.eval_block(body),

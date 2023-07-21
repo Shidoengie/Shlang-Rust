@@ -1,0 +1,28 @@
+---
+source: src/tests/parser_test.rs
+expression: "parse_expr(\"a();\")"
+---
+Ok(
+    Spanned {
+        unspanned: Call(
+            Call {
+                callee: Spanned {
+                    unspanned: Variable(
+                        Variable {
+                            name: "a",
+                        },
+                    ),
+                    span: (
+                        0,
+                        1,
+                    ),
+                },
+                args: [],
+            },
+        ),
+        span: (
+            1,
+            3,
+        ),
+    },
+)

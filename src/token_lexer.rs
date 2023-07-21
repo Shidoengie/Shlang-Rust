@@ -23,12 +23,7 @@ impl<'a> Lexer<'a> {
     fn current_is(&mut self, expected: char) -> bool {
         match self.peek() {
             Some(val) => {
-                if val == expected {
-                    return true;
-                }
-                {
-                    return false;
-                }
+                val==expected
             }
             _ => false,
         }

@@ -36,29 +36,15 @@ fn main() {
     let mut parser = Parser::new(source.as_str());
     println!("{:#?}", parser.batch_parse());
 }
-fn lexer_rpl() {
-    loop {
-        let source = input(">: ");
-        let mut scan = Lexer::new(&source);
-        let mut parser = Parser::new(source.as_str());
-        loop {
-            let tok = scan.next();
-            if tok.is_none() {
-                break;
-            }
-            let some = tok.unwrap();
-            println!("{:?} | {:?}", some.clone(), parser.text(&some));
-        }
-    }
-}
+
 fn rpl() {
     loop {
         let source = input(">: ");
-        let scan = Lexer::new(&source);
         let mut parser = Parser::new(source.as_str());
         println!("{:#?}", parser.batch_parse());
     }
 }
+
 fn full_rpl() {
     loop {
         let source = input(">: ");

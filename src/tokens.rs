@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use crate::spans::*;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenType {
@@ -57,6 +56,12 @@ impl Token {
             kind,
             span,
         }
+    }
+    pub fn is(&self,kind: &TokenType) -> bool{
+        &self.kind == kind
+    }
+    pub fn isnt(&self,kind: &TokenType) -> bool{
+        &self.kind != kind
     }
 }
 

@@ -30,6 +30,8 @@ single_var_decl:"var a;"
 multi_var_decl:"var a; var a;"
 var_declare_and_assign_value:"var a = 2;"
 var_assign_do:"var a = do{1+1}"
+func_decl:"func a(b){1}"
+func_decl_with_var:"var a = func(b){1}"
 ));
 test_func!(parse_expr,(
 parse_nested_paren:"((1+2)+(1+2));"

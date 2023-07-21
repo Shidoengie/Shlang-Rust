@@ -40,8 +40,16 @@ impl Value {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
-    block: Box<Block>,
+    block: NodeRef,
     args: Vec<String>,
+}
+impl Function{
+    pub fn new(block:NodeSpan,args:Vec<String>)->Self{
+        Self{
+            block:Box::new(block),
+            args
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

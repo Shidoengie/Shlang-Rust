@@ -21,12 +21,7 @@ impl<'a> Lexer<'a> {
         self.chars.next()
     }
     fn current_is(&mut self, expected: char) -> bool {
-        match self.peek() {
-            Some(val) => {
-                val==expected
-            }
-            _ => false,
-        }
+        self.peek()==Some(expected)
     }
     fn index(&self) -> usize {
         self.size - self.chars.clone().count()

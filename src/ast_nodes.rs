@@ -34,8 +34,8 @@ impl Value {
             Value::Control(_) => return Type::Never,
         }
     }
-    pub fn to_nodespan(&self,span:Span)->NodeSpan{
-        Spanned::new(Node::Value(Box::new(self.clone())),span)
+    pub fn to_nodespan(&self, span: Span) -> NodeSpan {
+        Spanned::new(Node::Value(Box::new(self.clone())), span)
     }
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -43,11 +43,11 @@ pub struct Function {
     block: NodeRef,
     args: Vec<String>,
 }
-impl Function{
-    pub fn new(block:NodeSpan,args:Vec<String>)->Self{
-        Self{
-            block:Box::new(block),
-            args
+impl Function {
+    pub fn new(block: NodeSpan, args: Vec<String>) -> Self {
+        Self {
+            block: Box::new(block),
+            args,
         }
     }
 }
@@ -89,7 +89,6 @@ impl Type {
     }
 }
 
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
     Value(Box<Value>),
@@ -120,20 +119,19 @@ impl Node {
             body: Box::new(body),
         });
     }
-    pub fn to_spanned(&self,span:Span)->NodeSpan{
+    pub fn to_spanned(&self, span: Span) -> NodeSpan {
         return NodeSpan::new(self.clone(), span);
     }
 }
 pub type NodeSpan = Spanned<Node>;
 impl NodeSpan {
-    pub fn wrap_in_result(&self)->Self{
+    pub fn wrap_in_result(&self) -> Self {
         let value = self.clone();
         Spanned::new(Node::ResultNode(Box::new(value.clone())), value.span)
     }
 }
 pub type NodeStream = Vec<NodeSpan>;
 pub type NodeRef = Box<NodeSpan>;
-
 
 impl From<Control> for Node {
     fn from(x: Control) -> Self {
@@ -157,7 +155,7 @@ macro_rules! nodes_from {
                 pub fn to_nodespan(&self,span:Span) -> NodeSpan {
                     Spanned::new(Node::$name(self.clone()),span)
                 }
-                
+
             }
         )*
     }
@@ -230,6 +228,22 @@ pub struct Branch {
     pub condition: NodeRef,
     pub if_block: NodeRef,
     pub else_block: Option<NodeRef>,
+}
+impl Branch {
+    pub fn new_single(condition: NodeSpan, block: NodeSpan) -> Self {
+        Self {
+            condition: Box::new(condition),
+            if_block: Box::new(block),
+            else_block: None,
+        }
+    }
+    pub fn new(condition: NodeSpan, if_block: NodeSpan, else_block: NodeSpan) -> Self {
+        Self {
+            condition: Box::new(condition),
+            if_block: Box::new(if_block),
+            else_block: Some(Box::new(else_block)),
+        }
+    }
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Loop {

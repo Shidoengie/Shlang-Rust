@@ -61,7 +61,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         };
     }
     pub fn parse_expr(&mut self) -> Result<NodeSpan, ()> {
-        let value = dbg!(self.peek());
+        let value = self.peek();
         self.next();
         let left = self.simple_parse(&value)?;
         let Some(peeked) = value else {todo!()};
@@ -82,6 +82,11 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     fn next(&mut self) -> Option<Token> {
         self.tokens.next()
+    }
+    fn peek_next(&mut self) -> Option<Token> {
+        let mut cloned = self.tokens.clone();
+        cloned.next();
+        cloned.peek().cloned()
     }
     fn check_valid(&mut self, expected: TokenType, token: Token) -> Result<(), ()> {
         if token.isnt(&expected) {
@@ -143,7 +148,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 }
                 .to_nodespan(value.span));
             }
-            TokenType::WHILE =>return self.parse_while_loop(),
+            TokenType::WHILE => return self.parse_while_loop(),
+            TokenType::IF => return self.parse_branch(),
             TokenType::DO => {
                 let first = self.expect(TokenType::LBRACE)?;
                 let block = self.parse_block()?;
@@ -166,7 +172,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 let expr = Box::new(self.parse_expr()?);
                 return Ok(Node::ReturnNode(expr).to_spanned(value.span));
             }
-            TokenType::BREAK=>return Ok(Node::BreakNode.to_spanned(value.span)),
+            TokenType::BREAK => return Ok(Node::BreakNode.to_spanned(value.span)),
             TokenType::NOT | TokenType::BANG => return self.unary_operator(UnaryOp::NOT),
             TokenType::MINUS => return self.unary_operator(UnaryOp::NEGATIVE),
             TokenType::LPAREN => return self.parse_paren(value),
@@ -178,7 +184,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     fn parse_call(&mut self, callee: NodeSpan) -> Result<NodeSpan, ()> {
         let mut params: NodeStream = vec![];
         let first = self.next().expect("");
-        let mut token = dbg!(self.peek_some()?);
+        let mut token = self.peek_some()?;
         if token.is(&TokenType::RPAREN) {
             let last = self.next().expect("");
             return Ok(Call {
@@ -188,8 +194,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             .to_nodespan((first.span.0, last.span.1)));
         }
         while token.isnt(&TokenType::RPAREN) {
-            let expr = dbg!(self.parse_expr()?);
-            token = dbg!(self.peek_some()?);
+            let expr = self.parse_expr()?;
+            token = self.peek_some()?;
             match token.kind {
                 TokenType::RPAREN => {
                     params.push(expr);
@@ -220,11 +226,11 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let first = self.expect(TokenType::LBRACE)?;
         let mut body: NodeStream = vec![];
         self.next().expect("");
-        let mut token = dbg!(self.peek_some()?);
+        let mut token = self.peek_some()?;
 
         while self.peek_some()?.isnt(&TokenType::RBRACE) {
             let expr = self.parse_expr()?;
-            token = dbg!(self.peek_some()?);
+            token = self.peek_some()?;
             match token.kind {
                 TokenType::EOL => {
                     self.next();
@@ -235,12 +241,16 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                     body.push(expr.wrap_in_result());
                     break;
                 }
-                unexpected => self.err_out.emit(
-                    format!("Unexpected Token{unexpected:?}").as_str(),
-                    token.span,
-                ),
+                unexpected => {
+                    self.err_out.emit(
+                        format!("Unexpected Token{unexpected:?}").as_str(),
+                        token.span,
+                    );
+                    return Err(());
+                },
             }
         }
+
         return Ok(Block {
             body: Box::new(body),
         }
@@ -336,7 +346,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     fn parse_func_params(&mut self) -> Result<Vec<String>, ()> {
         let mut params: Vec<String> = vec![];
         self.next();
-        let mut token = dbg!(self.peek_some()?);
+        let mut token = self.peek_some()?;
         if token.is(&TokenType::RPAREN) {
             self.next();
             return Ok(params);
@@ -345,7 +355,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             let ident: Token = self.expect(TokenType::IDENTIFIER)?;
             let var_name = self.text(&ident);
             self.next();
-            token = dbg!(self.peek_some()?);
+            token = self.peek_some()?;
 
             match token.kind {
                 TokenType::RPAREN => {
@@ -363,7 +373,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 }
             }
         }
-        dbg!(self.next());
+        self.next();
         Ok(params)
     }
     fn build_func(&mut self) -> Result<Value, ()> {
@@ -377,8 +387,10 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::IDENTIFIER => {
                 let func_name = self.text(&first);
                 self.next();
-                let func = self.build_func()?;
+                let params = self.parse_func_params()?;
                 let last = self.peek_some()?;
+                let func: Value = Function::new(self.parse_block()?, params).into();
+
                 let func_span = (first.span.0, last.span.1);
                 return Ok(Declaration {
                     var_name: func_name,
@@ -402,9 +414,31 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     fn parse_while_loop(&mut self) -> Result<NodeSpan, ()> {
         let first = self.peek_some()?;
         let condition = Box::new(self.parse_expr()?);
-        let proc = Box::new(self.parse_block()?);
         let last = self.peek_some()?;
+        let proc = Box::new(self.parse_block()?);
+
         return Ok(While { condition, proc }.to_nodespan((first.span.0, last.span.1)));
+    }
+    pub fn parse_branch(&mut self) -> Result<NodeSpan, ()> {
+        let first = self.peek_some()?;
+        let condition = self.parse_expr()?;
+        let last = self.peek_some()?;
+        let if_block = self.parse_block()?;
+        let span = (first.span.0, last.span.1);
+        let Some(else_branch) = self.peek_next() else{ 
+            return Ok(Branch::new_single(condition, if_block).to_nodespan(span))};
+        match else_branch.kind {
+            TokenType::ELSE =>{
+                self.next();
+                self.next();
+                let else_block = self.parse_block()?;
+                return Ok(Branch::new(condition,if_block,else_block).to_nodespan(span));
+            }
+            _ => {
+                return Ok(Branch::new_single(condition, if_block).to_nodespan(span));
+            }
+        }
+        todo!()
     }
     fn parse_top(&mut self) -> Option<Result<NodeSpan, ()>> {
         let peeked = self.peek()?;

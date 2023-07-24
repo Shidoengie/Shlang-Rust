@@ -1,7 +1,13 @@
-var a;
-var a = (a);
-func a (b) {
-    do {1}
-    1
+var a = 1+1;
+var b = func(){};
+func b(b) {
+    while true {
+        print(b);
+    }
 }
-var a = 1
+var c = 1;
+var c = do{
+    func(){
+
+    }
+};

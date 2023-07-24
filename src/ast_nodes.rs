@@ -106,6 +106,7 @@ pub enum Node {
     Branch(Branch),
     Loop(Loop),
     While(While),
+    DontResult,
 }
 impl Node {
     pub fn declaration(name: &str, value: NodeSpan) -> Self {

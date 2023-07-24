@@ -41,7 +41,7 @@ fn rpl() {
     loop {
         let source = input(">: ");
         let mut parser = Parser::new(source.as_str());
-        println!("{:#?}", parser.parse_expr());
+        println!("{:#?}", parser.batch_parse());
     }
 }
 

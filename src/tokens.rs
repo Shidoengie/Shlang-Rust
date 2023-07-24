@@ -1,4 +1,5 @@
 use crate::spans::*;
+use std::option;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenType {
     STR,
@@ -50,6 +51,10 @@ pub struct Token {
     pub kind: TokenType,
     pub span: (usize, usize),
 }
+pub trait TokenEq {
+    fn is(&self,kind: &TokenType) -> bool;
+    fn isnt(&self,kind: &TokenType) -> bool;
+}
 impl Token {
     pub fn new(kind: TokenType, span: Span) -> Self {
         Token {
@@ -57,14 +62,30 @@ impl Token {
             span,
         }
     }
-    pub fn is(&self,kind: &TokenType) -> bool{
+}
+impl TokenEq for Token {
+    fn is(&self,kind: &TokenType) -> bool{
         &self.kind == kind
     }
-    pub fn isnt(&self,kind: &TokenType) -> bool{
+    fn isnt(&self,kind: &TokenType) -> bool{
         &self.kind != kind
     }
 }
-
+type MaybeToken = Option<Token>;
+impl TokenEq for MaybeToken{
+    fn is(&self,kind: &TokenType) -> bool {
+        match self.clone() {
+            Some(tok)=>return &tok.kind==kind,
+            None => return false
+        }
+    }
+    fn isnt(&self,kind: &TokenType) -> bool {
+        match self.clone() {
+            Some(tok)=>return &tok.kind!=kind,
+            None => return false
+        }
+    }
+}
 pub fn map_keyword(text: String) -> Option<TokenType> {
     match text.as_str() {
         "true" => Some(TokenType::TRUE),

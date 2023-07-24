@@ -1,0 +1,84 @@
+---
+source: src/tests/parser_test.rs
+expression: "parse_full(\"func(b){do{1}}\")"
+---
+Block {
+    body: [
+        Spanned {
+            unspanned: Value(
+                Function(
+                    Function {
+                        block: Spanned {
+                            unspanned: Block(
+                                Block {
+                                    body: [
+                                        Spanned {
+                                            unspanned: ResultNode(
+                                                Spanned {
+                                                    unspanned: DoBlock(
+                                                        DoBlock {
+                                                            body: Spanned {
+                                                                unspanned: Block(
+                                                                    Block {
+                                                                        body: [
+                                                                            Spanned {
+                                                                                unspanned: ResultNode(
+                                                                                    Spanned {
+                                                                                        unspanned: Value(
+                                                                                            Num(
+                                                                                                1.0,
+                                                                                            ),
+                                                                                        ),
+                                                                                        span: (
+                                                                                            11,
+                                                                                            12,
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                                span: (
+                                                                                    11,
+                                                                                    12,
+                                                                                ),
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                ),
+                                                                span: (
+                                                                    10,
+                                                                    12,
+                                                                ),
+                                                            },
+                                                        },
+                                                    ),
+                                                    span: (
+                                                        10,
+                                                        12,
+                                                    ),
+                                                },
+                                            ),
+                                            span: (
+                                                10,
+                                                12,
+                                            ),
+                                        },
+                                    ],
+                                },
+                            ),
+                            span: (
+                                7,
+                                10,
+                            ),
+                        },
+                        args: [
+                            "b",
+                        ],
+                    },
+                ),
+            ),
+            span: (
+                4,
+                14,
+            ),
+        },
+    ],
+}

@@ -40,8 +40,8 @@ impl Value {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
-    block: NodeRef,
-    args: Vec<String>,
+    pub block: NodeRef,
+    pub args: Vec<String>,
 }
 impl Function {
     pub fn new(block: NodeSpan, args: Vec<String>) -> Self {
@@ -279,8 +279,7 @@ impl Scope {
         None
     }
     pub fn define(&mut self, var_name: String, val: Value) {
-        dbg!(self.var_map.insert(var_name, val));
-        dbg!(&self.var_map);
+        self.var_map.insert(var_name, val);
     }
     pub fn new(parent: Option<Box<Scope>>, var_map: HashMap<String, Value>) -> Self {
         Scope { parent, var_map }

@@ -34,7 +34,9 @@ fn main() {
     let file_path = &args[1];
     let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
     let mut parser = Parser::new(source.as_str());
-    println!("{:#?}", parser.batch_parse());
+    let ast = parser.batch_parse();
+    let mut interpreter = Interpreter::new(ast,source);
+    dbg!(interpreter.execute());
 }
 
 fn rpl() {
@@ -52,6 +54,6 @@ fn full_rpl() {
         let ast = parser.batch_parse();
         println!("{:#?}", &ast);
         let mut interpreter = Interpreter::new(ast,source);
-        interpreter.execute()
+        interpreter.execute();
     }
 }

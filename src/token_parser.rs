@@ -50,7 +50,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     pub fn text(&mut self, token: &Token) -> String {
         return self.input[token.span.0..token.span.1].to_string();
     }
-    
+
     fn peek(&mut self) -> Option<Token> {
         self.tokens.peek().cloned()
     }
@@ -104,7 +104,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         self.next();
         return Ok(expr);
     }
-    
+
     fn parse_call(&mut self, callee: NodeSpan) -> Result<NodeSpan, ()> {
         let mut params: NodeStream = vec![];
         let first = self.next().unwrap();
@@ -151,24 +151,30 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let mut body: NodeStream = vec![];
         self.next().unwrap();
         let token = self.peek_some()?;
-        if token.is(&TokenType::RBRACE){
+        if token.is(&TokenType::RBRACE) {
             return Ok(Block {
                 body: Box::new(body),
             }
             .to_nodespan((first.span.0, token.span.1)));
         }
         loop {
-            dbg!(self.peek());
+            self.peek();
             let expr = self.parse_expr()?;
-            dbg!(self.peek());
+            self.peek();
             body.push(expr);
-            if self.peek().is(&TokenType::RBRACE){break;}
+            if self.peek().is(&TokenType::RBRACE) {
+                break;
+            }
         }
         let maybe_result = body.last();
         if let Some(last) = maybe_result {
-            let mut filtered:Vec<_> = body.iter().filter(|&x|x.unspanned!=Node::DontResult).cloned().collect();
-            if last.unspanned != Node::DontResult&&last.unspanned.can_result(){
-                let index = filtered.len()-1;
+            let mut filtered: Vec<_> = body
+                .iter()
+                .filter(|&x| x.unspanned != Node::DontResult)
+                .cloned()
+                .collect();
+            if last.unspanned != Node::DontResult && last.unspanned.can_result() {
+                let index = filtered.len() - 1;
 
                 filtered[index] = last.wrap_in_result();
             }
@@ -179,8 +185,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         .to_nodespan((first.span.0, token.span.1)));
     }
-    
-    
 
     fn empty_var_decl(&mut self, first: Token, var_name: String) -> NodeSpan {
         let Some(last) = self.peek() else {todo!()};
@@ -300,16 +304,16 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             return Ok(Branch::new_single(condition, if_block).to_nodespan(span))
         };
         match else_branch.kind {
-            TokenType::ELSE =>{
+            TokenType::ELSE => {
                 dbg!(self.next());
-                if self.peek_some()?.is(&TokenType::IF){
+                if self.peek_some()?.is(&TokenType::IF) {
                     self.next();
                     let elif_block = self.parse_branch()?;
                     return Ok(Branch::new(condition, if_block, elif_block).to_nodespan(span));
                 }
                 let else_block = self.parse_block()?;
                 dbg!(self.next());
-                return Ok(Branch::new(condition,if_block,else_block).to_nodespan(span));
+                return Ok(Branch::new(condition, if_block, else_block).to_nodespan(span));
             }
             _ => {
                 return Ok(Branch::new_single(condition, if_block).to_nodespan(span));
@@ -317,7 +321,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         todo!()
     }
-    
+
     pub fn batch_parse(&mut self) -> Block {
         let mut body: NodeStream = vec![];
         loop {
@@ -389,7 +393,9 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let value = self.peek();
         self.next();
         let left = self.simple_parse(&value)?;
-        if left.unspanned == Node::DontResult {return Ok(left);}
+        if left.unspanned == Node::DontResult {
+            return Ok(left);
+        }
         let Some(peeked) = value else {todo!()};
         self.parse_operator(peeked, left)
     }
@@ -453,7 +459,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::NOT | TokenType::BANG => return self.unary_operator(UnaryOp::NOT),
             TokenType::MINUS => return self.unary_operator(UnaryOp::NEGATIVE),
             TokenType::LPAREN => return self.parse_paren(value),
-            TokenType::EOL=> return Ok(Spanned::new(Node::DontResult, (0,0))),
+            TokenType::EOL => return Ok(Spanned::new(Node::DontResult, (0, 0))),
             unexpected => {
                 panic!("{unexpected:?}");
             }

@@ -18,6 +18,7 @@ impl Interpreter {
 
             var_map: defaults::var_map(),
         };
+        dbg!(current.clone());
         return Interpreter {
             program,
             current,
@@ -27,8 +28,8 @@ impl Interpreter {
     fn emit_err(&self, msg: String, span: Span) {
         self.err_out.emit(msg.as_str(), span);
     }
-    pub fn execute(&mut self) {
-        self.eval_block(self.program.clone());
+    pub fn execute(&mut self) -> Result<TypedValue, ()> {
+        return self.eval_block(self.program.clone());
     }
 
     fn eval_block(&mut self, block: Block) -> Result<TypedValue, ()> {
@@ -86,9 +87,14 @@ impl Interpreter {
             }
         }
     }
-    fn binary_calc(&self, node: BinaryNode,left_val: Value, right_val: Value) -> Result<Value, ()> {
-        let (left, left_bool) = self.num_convert(left_val,node.left.span)?;
-        let (right, right_bool) = self.num_convert(right_val,node.right.span)?;
+    fn binary_calc(
+        &self,
+        node: BinaryNode,
+        left_val: Value,
+        right_val: Value,
+    ) -> Result<Value, ()> {
+        let (left, left_bool) = self.num_convert(left_val, node.left.span)?;
+        let (right, right_bool) = self.num_convert(right_val, node.right.span)?;
         match node.kind {
             BinaryOp::ADD => Ok(Value::Num(left + right)),
             BinaryOp::SUBTRACT => Ok(Value::Num(left - right)),
@@ -117,7 +123,13 @@ impl Interpreter {
             BinaryOp::LESSER_EQUAL => Ok(Value::Bool(left <= right)),
             BinaryOp::ISEQUAL => Ok(Value::Bool(left == right)),
             BinaryOp::ISDIFERENT => Ok(Value::Bool(left != right)),
-            op => panic!("Cant do {op:?} operation with strings"),
+            op => {
+                self.emit_err(
+                    format!("Cant do {op:?} operation with strings"),
+                    (node.left.span.1, node.right.span.0),
+                );
+                Err(())
+            }
         }
     }
 
@@ -196,23 +208,133 @@ impl Interpreter {
         }
         return Ok(());
     }
+    fn eval_var(&mut self, var: Variable, span: Span) -> Result<TypedValue, ()> {
+        let maybe_result = self.current.get_var(var.name);
+        let Some(result) = maybe_result else{
+            self.emit_err("Non existing variable".to_string(), span);
+            return Err(());
+        };
+        let res_type = result.get_type();
+        return Ok((result, res_type.clone()));
+    }
+    fn call_builtin(
+        &mut self,
+        called: BuiltinFunc,
+        arg_values: ValueStream,
+        span: Span,
+    ) -> Result<TypedValue, ()> {
+        if called.arg_size != -1 && arg_values.len() as i16 != called.arg_size {
+            self.emit_err(
+                format!(
+                    "Not enough arguments expected {:?} but got {:?}",
+                    called.arg_size,
+                    arg_values.len()
+                ),
+                span,
+            );
+            return Err(());
+        }
+        let result = (called.function)(arg_values);
+        let result_type = result.get_type();
+        return Ok((result, result_type));
+    }
+    fn call_func(
+        &mut self,
+        mut called: Function,
+        arg_values: ValueStream,
+        arg_spans: Vec<Span>,
+        span: Span,
+    ) -> Result<TypedValue, ()> {
+        let Node::Block(mut func_block) = called.block.unspanned else{
+            self.err_out.emit("HOW", span);
+            return Err(());
+        };
+        if arg_values.len() != called.args.len() {
+            self.emit_err(
+                format!(
+                    "Not enough arguments expected {:?} but got {:?}",
+                    called.args.len(),
+                    arg_values.len()
+                ),
+                span,
+            );
+            return Err(());
+        }
+        let mut arg_decl: NodeStream = vec![];
+        for (index, name) in called.args.iter().enumerate() {
+            let span = arg_spans[index];
+            let var = Box::new(NodeSpan::new(arg_values[index].clone().into(), span));
+            arg_decl.push(
+                Declaration {
+                    var_name: name.to_string(),
+                    value: var,
+                }
+                .to_nodespan(span),
+            );
+        }
+
+        arg_decl.append(&mut func_block.body);
+        called.block.unspanned = Block {
+            body: Box::new(arg_decl),
+        }
+        .into();
+        let (result, result_type) = self.eval_node(&*called.block)?;
+        let Value::Control(flow) = result else {
+            return Ok((result,result_type));
+        };
+        match flow {
+            Control::Break => {
+                self.err_out.emit("Unexpected control flow node", span);
+                return Err(());
+            }
+            Control::Return(val, kind) => {
+                return Ok((*val, kind));
+            }
+            Control::Result(val, kind) => {
+                return Ok((*val, kind));
+            }
+        }
+    }
+    fn eval_call(&mut self, request: Call) -> Result<TypedValue, ()> {
+        let (func_val, kind) = self.eval_node(&request.callee)?;
+        if kind != Type::Function {
+            self.emit_err(
+                format!("Invalid Function call expected a function but got {kind:?}"),
+                request.callee.span,
+            );
+            return Err(());
+        }
+        let call_args = *request.args;
+        let mut arg_values: ValueStream = vec![];
+        let mut arg_spans: Vec<Span> = vec![];
+        for a in call_args {
+            arg_spans.push(a.span);
+            let argument = self.eval_node(&a)?.0;
+            arg_values.push(argument);
+        }
+        let arg_span = if !arg_spans.is_empty() {
+            (request.callee.span.1 + 1, arg_spans.last().unwrap().1)
+        } else {
+            (request.callee.span.1 + 1, request.callee.span.1 + 2)
+        };
+        match func_val {
+            Value::BuiltinFunc(func) => {
+                return self.call_builtin(func, arg_values, arg_span);
+            }
+            Value::Function(called) => {
+                return self.call_func(called, arg_values, arg_spans, request.callee.span);
+            }
+            _ => panic!(),
+        }
+    }
     fn eval_node(&mut self, node: &NodeSpan) -> Result<TypedValue, ()> {
+        
         let (span, expr) = (node.span, node.unspanned.clone());
         match expr {
             Node::Value(val) => Ok((*val.clone(), val.get_type())),
             Node::Block(body) => self.eval_block(body),
-            Node::Variable(var) => {
-                let maybe_result = self.current.get_var(var.name);
-                let Some(result) = maybe_result else{
-                    self.emit_err("".to_string(), span);
-                    return Err(());
-                };
-                let res_type = result.get_type();
-                return Ok((result, res_type.clone()));
-            }
-            Node::Call(request) => {
-                todo!()
-            }
+            Node::Variable(var) => self.eval_var(var, span),
+            Node::Call(request) => self.eval_call(request),
             Node::UnaryNode(unary_op) => {
                 let (target, target_type) = self.eval_node(&*unary_op.object)?;
                 self.unary_calc(unary_op, (target, target_type))
@@ -233,11 +355,11 @@ impl Interpreter {
             }
             Node::BreakNode => Ok((Control::Break.into(), Type::Never)),
             Node::Declaration(declaration) => {
-                self.declare(declaration);
+                self.declare(declaration)?;
                 VOID
             }
             Node::Assignment(ass) => {
-                self.assign(ass);
+                self.assign(ass)?;
                 VOID
             }
             Node::While(obj) => {

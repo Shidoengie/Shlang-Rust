@@ -42,7 +42,8 @@ pub fn var_map() -> HashMap<String, Value> {
 }
 pub fn print_builtin(args: ValueStream) -> Value {
     if args.is_empty() {
-        println!()
+        println!("");
+
     }
     for val in args {
         match val {

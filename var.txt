@@ -1,22 +1,10 @@
 var a = 1+1;
-var b = func(){};
-func b(b) {
-    while true {
-        print(b);
-    }
+func b(c) {
+    print(c);
 }
-var d = if true {};
-func c(){
-    while true{
-        
-    }
-    if true{
-        
-    }
-    else if true{
-
-    }
-    func(){
-        return 9;
-    }
+func main(){
+    
+    print("If next is two cry rn");
+    b(a);
 }
+var c = main();

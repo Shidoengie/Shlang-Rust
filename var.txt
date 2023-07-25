@@ -5,9 +5,18 @@ func b(b) {
         print(b);
     }
 }
-var c = 1;
-var c = do{
-    func(){
+var d = if true {};
+func c(){
+    while true{
+        
+    }
+    if true{
+        
+    }
+    else if true{
 
     }
-};
+    func(){
+        return 9;
+    }
+}

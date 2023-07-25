@@ -51,7 +51,7 @@ fn full_rpl() {
         let mut parser = Parser::new(source.as_str());
         let ast = parser.batch_parse();
         println!("{:#?}", &ast);
-        let mut interpreter = Interpreter::new(ast);
+        let mut interpreter = Interpreter::new(ast,source);
         interpreter.execute()
     }
 }

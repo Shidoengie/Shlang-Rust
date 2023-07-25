@@ -6,15 +6,17 @@ pub struct LangError {
 }
 
 impl LangError {
-    
-    pub fn emit(&mut self, msg: &str, span: Span){
-        println!("{}",self.build(msg, span));
+    pub fn new(input: String) -> Self {
+        Self { input }
     }
-    pub fn panic_emit(&mut self, msg: &str, span: Span){
+    pub fn emit(&self, msg: &str, span: Span) {
+        println!("{}", self.build(msg, span));
+    }
+    pub fn panic_emit(&self, msg: &str, span: Span) {
         self.emit(msg, span);
         panic!()
     }
-    pub fn build(&mut self, msg: &str, span: Span) -> String {
+    pub fn build(&self, msg: &str, span: Span) -> String {
         let position = self.line_pos(span.clone());
         let (start, stop) = (
             self.input[..span.0].to_string(),
@@ -29,7 +31,7 @@ impl LangError {
         let I = "|".blue();
         return format!("{} {msg}\n{position} {I} {line}", "ERROR!".red(),);
     }
-    pub fn line_pos(&mut self, span: Span) -> usize {
+    pub fn line_pos(&self, span: Span) -> usize {
         return self.input[..span.0]
             .chars()
             .filter(|ch| *ch == '\n')

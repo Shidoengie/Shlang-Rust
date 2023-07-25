@@ -54,8 +54,8 @@ impl Function {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BuiltinFunc {
-    function: fn(ValueStream) -> Value,
-    arg_size: i16,
+    pub function: fn(ValueStream) -> Value,
+    pub arg_size: i16,
 }
 impl From<Function> for Value {
     fn from(x: Function) -> Self {
@@ -93,7 +93,6 @@ impl Type {
 pub enum Node {
     Value(Box<Value>),
     Block(Block),
-    DoBlock(DoBlock),
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
     ResultNode(Box<NodeSpan>),
@@ -106,6 +105,7 @@ pub enum Node {
     Branch(Branch),
     Loop(Loop),
     While(While),
+    DoBlock(DoBlock),
     DontResult,
 }
 impl Node {
@@ -122,6 +122,12 @@ impl Node {
     }
     pub fn to_spanned(&self, span: Span) -> NodeSpan {
         return NodeSpan::new(self.clone(), span);
+    }
+    pub fn can_result(&self)->bool{
+        match self.clone(){
+            Self::Value(_)|Self::BinaryNode(_)|Self::UnaryNode(_)|Self::Variable(_)|Self::Call(_)=>true,
+            _=>false
+        }
     }
 }
 pub type NodeSpan = Spanned<Node>;

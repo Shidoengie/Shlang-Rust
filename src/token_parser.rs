@@ -294,10 +294,10 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     pub fn parse_branch(&mut self) -> Result<NodeSpan, ()> {
         let first = self.peek_some()?;
-        let condition = dbg!(self.parse_expr()?);
+        let condition = self.parse_expr()?;
         let last = self.peek_some()?;
         let if_block = self.parse_block()?;
-        dbg!(self.next());
+        self.next();
         let span = (first.span.0, last.span.1);
         let Some(else_branch) = self.peek() else {
             self.next();
@@ -305,14 +305,17 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         };
         match else_branch.kind {
             TokenType::ELSE => {
-                dbg!(self.next());
+                self.next();
                 if self.peek_some()?.is(&TokenType::IF) {
                     self.next();
-                    let elif_block = self.parse_branch()?;
+                    let elif = self.parse_branch()?;
+                    let elif_span = elif.span;
+                    let elif_body:Box<NodeStream> = Box::new(vec![elif]);
+                    let elif_block = Block{body:elif_body}.to_nodespan(elif_span);
                     return Ok(Branch::new(condition, if_block, elif_block).to_nodespan(span));
                 }
                 let else_block = self.parse_block()?;
-                dbg!(self.next());
+                self.next();
                 return Ok(Branch::new(condition, if_block, else_block).to_nodespan(span));
             }
             _ => {

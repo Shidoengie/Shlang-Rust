@@ -36,7 +36,7 @@ fn main() {
     let mut parser = Parser::new(source.as_str());
     let ast = parser.batch_parse();
     let mut interpreter = Interpreter::new(ast,source);
-    dbg!(interpreter.execute());
+    interpreter.execute();
 }
 
 fn rpl() {

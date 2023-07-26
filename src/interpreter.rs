@@ -6,6 +6,7 @@ use ast_nodes::*;
 use std::collections::HashMap;
 use std::*;
 const VOID: Result<TypedValue, ()> = Ok((Value::Void, Type::Void));
+const NULL: Result<TypedValue, ()> = Ok((Value::Null, Type::Null));
 pub struct Interpreter {
     program: Block,
     current: Scope,
@@ -18,7 +19,6 @@ impl Interpreter {
 
             var_map: defaults::var_map(),
         };
-        dbg!(current.clone());
         return Interpreter {
             program,
             current,
@@ -184,14 +184,15 @@ impl Interpreter {
         }
         return Ok((*res_val, res_type));
     }
-    fn declare(&mut self, request: Declaration) -> Result<(), ()> {
+    fn declare(&mut self, request: Declaration) -> Result<TypedValue, ()> {
         let init_val = self.eval_node(&*request.value)?;
         let unwrapped = self.unwrap_var(init_val, request.value.span)?;
         self.current.define(request.var_name, unwrapped.0);
-        return Ok(());
+        return VOID;
     }
-    fn assign(&mut self, request: Assignment) -> Result<(), ()> {
+    fn assign(&mut self, request: Assignment) -> Result<TypedValue, ()> {
         let init_val = self.eval_node(&*request.value)?;
+
         if self
             .current
             .assign(
@@ -206,7 +207,7 @@ impl Interpreter {
             );
             return Err(());
         }
-        return Ok(());
+        return VOID;
     }
     fn eval_var(&mut self, var: Variable, span: Span) -> Result<TypedValue, ()> {
         let maybe_result = self.current.get_var(var.name);
@@ -238,6 +239,7 @@ impl Interpreter {
         let result_type = result.get_type();
         return Ok((result, result_type));
     }
+
     fn call_func(
         &mut self,
         mut called: Function,
@@ -327,8 +329,57 @@ impl Interpreter {
             _ => panic!(),
         }
     }
+    fn branch(&mut self, branch: Branch) -> Result<TypedValue, ()> {
+        let Node::Block(if_block) = branch.if_block.unspanned else {
+            panic!("if you see this shido fucked up source code line {:?}",line!())
+        };
+        let condition = self.eval_node(&*branch.condition)?;
+        let cond_val = self.num_convert(condition.0, branch.condition.span)?.1;
+
+        if cond_val {
+            return self.eval_block(if_block);
+        }
+        let Some(has_else) = branch.else_block else {
+            return NULL;
+        };
+        let Node::Block(else_block) = has_else.unspanned else {
+            panic!("if you see this shido fucked up source code line {:?}",line!())
+        };
+        return self.eval_block(else_block);
+    }
+    fn eval_loop(&mut self, loop_node: Loop) -> Result<TypedValue, ()> {
+        let Node::Block(_) = loop_node.proc.unspanned else {
+            panic!("if you see this shido fucked up source code line {:?}",line!())
+        };
+        loop {
+            let (result, result_type) = self.eval_node(&*loop_node.proc)?;
+            let Value::Control(flow) = result.clone() else {continue;};
+            if flow == Control::Break {
+                return NULL;
+            }
+            return Ok((result, result_type));
+        }
+    }
+    fn eval_while_loop(&mut self, loop_node: While) -> Result<TypedValue, ()> {
+        let Node::Block(_) = loop_node.proc.unspanned else {
+            panic!("if you see this shido fucked up source code line {:?}",line!())
+        };
+
+        loop {
+            let condition = self.eval_node(&*loop_node.condition)?;
+            let cond_val = self.num_convert(condition.0, loop_node.condition.span)?.1;
+            if !cond_val {
+                return NULL;
+            }
+            let (result, result_type) = self.eval_node(&*loop_node.proc)?;
+            let Value::Control(flow) = result.clone() else {continue;};
+            if flow == Control::Break {
+                return NULL;
+            }
+            return Ok((result, result_type));
+        }
+    }
     fn eval_node(&mut self, node: &NodeSpan) -> Result<TypedValue, ()> {
-        
         let (span, expr) = (node.span, node.unspanned.clone());
         match expr {
             Node::Value(val) => Ok((*val.clone(), val.get_type())),
@@ -340,9 +391,7 @@ impl Interpreter {
                 self.unary_calc(unary_op, (target, target_type))
             }
             Node::BinaryNode(bin_op) => self.eval_binary_node(bin_op),
-            Node::Branch(branch) => {
-                todo!()
-            }
+            Node::Branch(branch) => self.branch(branch),
             Node::ReturnNode(expr) => {
                 let evaluated = self.eval_node(&*expr)?;
                 let result: Value = Control::Return(Box::new(evaluated.0), evaluated.1).into();
@@ -354,20 +403,10 @@ impl Interpreter {
                 Ok((result, Type::Never))
             }
             Node::BreakNode => Ok((Control::Break.into(), Type::Never)),
-            Node::Declaration(declaration) => {
-                self.declare(declaration)?;
-                VOID
-            }
-            Node::Assignment(ass) => {
-                self.assign(ass)?;
-                VOID
-            }
-            Node::While(obj) => {
-                todo!()
-            }
-            Node::Loop(obj) => {
-                todo!()
-            }
+            Node::Declaration(declaration) => self.declare(declaration),
+            Node::Assignment(ass) => self.assign(ass),
+            Node::While(obj) => self.eval_while_loop(obj),
+            Node::Loop(obj) => self.eval_loop(obj),
             _ => {
                 todo!()
             }

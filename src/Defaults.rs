@@ -1,8 +1,10 @@
 use crate::ast_nodes;
 use ast_nodes::*;
 use std::collections::HashMap;
+use std::fmt::format;
 use std::io;
 use std::io::Write;
+
 
 pub fn var_map() -> HashMap<String, Value> {
     let map = HashMap::from([
@@ -11,7 +13,7 @@ pub fn var_map() -> HashMap<String, Value> {
             "input".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
                 function: input_builtin,
-                arg_size: 1,
+                arg_size: -1,
             }),
         ),
         (
@@ -40,21 +42,24 @@ pub fn var_map() -> HashMap<String, Value> {
     ]);
     map
 }
+fn val_to_str(val:Value)->String{
+    match val {
+        Value::Num(num) => num.to_string(),
+        Value::Bool(cond) => cond.to_string(),
+        Value::Str(txt) => txt,
+        Value::Null => "null".to_string(),
+        Value::Void => "void".to_string(),
+        Value::Control(_) => "!".to_string(),
+        _ => "unnamed".to_string(),
+    }
+}
 pub fn print_builtin(args: ValueStream) -> Value {
     if args.is_empty() {
         println!("");
 
     }
     for val in args {
-        match val {
-            Value::Num(num) => println!("{num}"),
-            Value::Bool(cond) => println!("{cond}"),
-            Value::Str(txt) => println!("{txt}"),
-            Value::Null => println!("null"),
-            Value::Void => println!("void"),
-            Value::Control(_) => println!("!"),
-            _ => println!("todo"),
-        }
+        println!("{}",val_to_str(val))
     }
     return Value::Void;
 }
@@ -67,9 +72,11 @@ pub fn num_to_str(args: ValueStream)->Value{
     Value::Str(input.to_string())
 }
 pub fn input_builtin(args: ValueStream) -> Value {
-    let message = &args[0];
-    print!("{message:?}");
-    io::stdout().flush().unwrap();
+    if !args.is_empty(){
+        let message = &args[0];
+        print!("{}",val_to_str(message.clone()));
+        io::stdout().flush().unwrap();
+    }
     let mut result = String::new();
     let read = io::stdin().read_line(&mut result);
     if read.is_err() {

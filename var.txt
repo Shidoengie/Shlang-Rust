@@ -1,10 +1,9 @@
-var a = 1+1;
-func b(c) {
-    print(c);
-}
 func main(){
-    
-    print("If next is two cry rn");
-    b(a);
+    var i = 0;
+    while i < 10 {
+        i = i + 1;
+        print(i);
+    }
+    0
 }
 var c = main();

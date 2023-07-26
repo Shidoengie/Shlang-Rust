@@ -33,7 +33,6 @@ pub enum TokenType {
     OR,
     IF,
     ELSE,
-    ELIF,
     FUNC,
     RETURN,
     LOOP,
@@ -45,6 +44,13 @@ pub enum TokenType {
     DO,
     AMPERSAND,
     PIPE,
+    VOID,
+    NULL,
+    CONTINUE,
+    PLUS_EQUAL,
+    MINUS_EQUAL,
+    STAR_EQUAL,
+    SLASH_EQUAL
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
@@ -91,7 +97,6 @@ pub fn map_keyword(text: String) -> Option<TokenType> {
         "true" => Some(TokenType::TRUE),
         "false" => Some(TokenType::FALSE),
         "if" => Some(TokenType::IF),
-        "elif" => Some(TokenType::ELIF),
         "else" => Some(TokenType::ELSE),
         "func" => Some(TokenType::FUNC),
         "return" => Some(TokenType::RETURN),
@@ -103,6 +108,9 @@ pub fn map_keyword(text: String) -> Option<TokenType> {
         "not" => Some(TokenType::NOT),
         "or" => Some(TokenType::OR),
         "do" => Some(TokenType::DO),
+        "void"=>Some(TokenType::VOID),
+        "null"=>Some(TokenType::NULL),
+        "continue"=>Some(TokenType::CONTINUE),
         _ => None,
     }
 }

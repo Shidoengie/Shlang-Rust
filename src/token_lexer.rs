@@ -21,7 +21,7 @@ impl<'a> Lexer<'a> {
         self.chars.next()
     }
     fn current_is(&mut self, expected: char) -> bool {
-        self.peek()==Some(expected)
+        self.peek() == Some(expected)
     }
     fn index(&self) -> usize {
         self.size - self.chars.clone().count()
@@ -41,7 +41,7 @@ impl<'a> Lexer<'a> {
             current = self.peek_next();
             self.advance();
         }
-        Token::new(TokenType::NUM,(start - 1, self.index()))
+        Token::new(TokenType::NUM, (start - 1, self.index()))
     }
     fn ident(&mut self) -> Token {
         let start = self.index() - 1;
@@ -51,7 +51,7 @@ impl<'a> Lexer<'a> {
                 break;
             }
             let val = current.unwrap();
-            if !val.is_alphanumeric() {
+            if !val.is_alphanumeric() && val != '_' {
                 break;
             }
             current = self.peek_next();
@@ -68,20 +68,16 @@ impl<'a> Lexer<'a> {
     fn str(&mut self) -> Option<Token> {
         let start = self.index();
         let mut last = self.advance();
+        let mut escaped = false;
         loop {
-            match last {
-                Some('"') => break,
-                None => {
-                    return None;
-                }
-                _ => {
-                    last = self.advance();
-                    continue;
-                }
+            match (escaped, last?) {
+                (false, '"') => break,
+                (false, '\\') => escaped = true,
+                _ => escaped = false,
             }
+            last = self.advance();
         }
-
-        let stop = self.index() - 1.max(0);
+        let stop = self.index() - 1;
         return Some(Token::new(TokenType::STR, (start, stop)));
     }
     fn push_advance(&mut self, kind: TokenType, range: (usize, usize)) -> Token {
@@ -105,16 +101,40 @@ impl<'a> Lexer<'a> {
             ')' => Some(Token::new(TokenType::RPAREN, range)),
             '[' => Some(Token::new(TokenType::LBRACK, range)),
             ']' => Some(Token::new(TokenType::RBRACK, range)),
-            '-' => Some(Token::new(TokenType::MINUS, range)),
-            '+' => Some(Token::new(TokenType::PLUS, range)),
-            '*' => Some(Token::new(TokenType::STAR, range)),
-            '/' => Some(Token::new(TokenType::SLASH, range)),
             '%' => Some(Token::new(TokenType::PERCENT, range)),
             ':' => Some(Token::new(TokenType::COLON, range)),
             ';' => Some(Token::new(TokenType::EOL, range)),
             '|' => Some(Token::new(TokenType::PIPE, range)),
             '&' => Some(Token::new(TokenType::AMPERSAND, range)),
             '"' => self.str(),
+            '+' => {
+                if self.current_is('=') {
+                    Some(self.push_advance(TokenType::PLUS_EQUAL, (start, self.index())))
+                } else {
+                    Some(Token::new(TokenType::PLUS, range))
+                }
+            }
+            '*' => {
+                if self.current_is('=') {
+                    Some(self.push_advance(TokenType::STAR_EQUAL, (start, self.index())))
+                } else {
+                    Some(Token::new(TokenType::STAR, range))
+                }
+            }
+            '/' => {
+                if self.current_is('=') {
+                    Some(self.push_advance(TokenType::SLASH_EQUAL, (start, self.index())))
+                } else {
+                    Some(Token::new(TokenType::SLASH, range))
+                }
+            }
+            '-' => {
+                if self.current_is('=') {
+                    Some(self.push_advance(TokenType::MINUS_EQUAL, (start, self.index())))
+                } else {
+                    Some(Token::new(TokenType::MINUS, range))
+                }
+            }
             '<' => {
                 if self.current_is('=') {
                     Some(self.push_advance(TokenType::LESSER_EQUAL, (start, self.index())))
@@ -144,7 +164,15 @@ impl<'a> Lexer<'a> {
                     Some(Token::new(TokenType::EQUAL, range))
                 }
             }
-            ' ' | '\t' | '\r'|'\n' => self.next(),
+            '#' =>{
+                loop{
+                    self.advance();
+                    if self.current_is('\n'){break;}
+                }
+                self.next()
+            }
+            
+            ' ' | '\t' | '\r' | '\n' => self.next(),
             _ => {
                 if current.is_digit(10) {
                     Some(self.num())

@@ -1,7 +1,6 @@
 use crate::ast_nodes;
 use ast_nodes::*;
 use std::collections::HashMap;
-use std::fmt::format;
 use std::io;
 use std::io::Write;
 

@@ -28,8 +28,7 @@ impl LangError {
         );
         let lines: Vec<&str> = marked.lines().collect();
         let line = lines[position - 1];
-        let I = "|".blue();
-        return format!("{} {msg}\n{position} {I} {line}", "ERROR!".red(),);
+        return format!("{} {msg}\n{position} {} {line}","|".blue(),"ERROR!".red(),);
     }
     pub fn line_pos(&self, span: Span) -> usize {
         return self.input[..span.0]

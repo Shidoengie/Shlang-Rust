@@ -285,15 +285,16 @@ impl Interpreter {
             return Ok((result,result_type));
         };
         match flow {
-            Control::Break => {
-                self.err_out.emit("Unexpected control flow node", span);
-                return Err(());
-            }
+            
             Control::Return(val, kind) => {
                 return Ok((*val, kind));
             }
             Control::Result(val, kind) => {
                 return Ok((*val, kind));
+            }
+            _ => {
+                self.err_out.emit("Unexpected control flow node", span);
+                return Err(());
             }
         }
     }
@@ -354,10 +355,11 @@ impl Interpreter {
         loop {
             let (result, result_type) = self.eval_node(&*loop_node.proc)?;
             let Value::Control(flow) = result.clone() else {continue;};
-            if flow == Control::Break {
-                return NULL;
+            match flow {
+                Control::Break=>return NULL,
+                Control::Continue=>continue,
+                _=>return Ok((result, result_type)),
             }
-            return Ok((result, result_type));
         }
     }
     fn eval_while_loop(&mut self, loop_node: While) -> Result<TypedValue, ()> {
@@ -373,10 +375,11 @@ impl Interpreter {
             }
             let (result, result_type) = self.eval_node(&*loop_node.proc)?;
             let Value::Control(flow) = result.clone() else {continue;};
-            if flow == Control::Break {
-                return NULL;
+            match flow {
+                Control::Break=>return NULL,
+                Control::Continue=>continue,
+                _=>return Ok((result, result_type)),
             }
-            return Ok((result, result_type));
         }
     }
     fn eval_node(&mut self, node: &NodeSpan) -> Result<TypedValue, ()> {
@@ -407,6 +410,7 @@ impl Interpreter {
             Node::Assignment(ass) => self.assign(ass),
             Node::While(obj) => self.eval_while_loop(obj),
             Node::Loop(obj) => self.eval_loop(obj),
+            Node::DoBlock(block) => self.eval_node(&block.body),
             _ => {
                 todo!()
             }

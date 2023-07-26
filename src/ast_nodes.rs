@@ -7,6 +7,7 @@ pub enum Control {
     Return(Box<Value>, Type),
     Result(Box<Value>, Type),
     Break,
+    Continue,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -98,6 +99,7 @@ pub enum Node {
     ResultNode(Box<NodeSpan>),
     ReturnNode(Box<NodeSpan>),
     BreakNode,
+    ContinueNode,
     Declaration(Declaration),
     Assignment(Assignment),
     Variable(Variable),

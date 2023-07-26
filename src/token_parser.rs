@@ -3,7 +3,7 @@ use std::iter::Peekable;
 
 use crate::ast_nodes::*;
 use crate::lang_errors::LangError;
-use crate::spans::Spanned;
+use crate::spans::*;
 use crate::token_lexer::Lexer;
 use crate::tokens::*;
 use colored::*;
@@ -50,7 +50,15 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     pub fn text(&mut self, token: &Token) -> String {
         return self.input[token.span.0..token.span.1].to_string();
     }
-
+    pub fn escaped_text(&mut self, token: &Token) -> String {
+        let raw = format!(r"{}", self.input[token.span.0..token.span.1].to_string())
+            .replace("\\n", "\n")
+            .replace("\\t", "\t")
+            .replace("\\r", "\r")
+            .replace("\\0", "\0")
+            .replace("\\\"", "\"");
+        return raw;
+    }
     fn peek(&mut self) -> Option<Token> {
         self.tokens.peek().cloned()
     }
@@ -310,8 +318,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                     self.next();
                     let elif = self.parse_branch()?;
                     let elif_span = elif.span;
-                    let elif_body:Box<NodeStream> = Box::new(vec![elif]);
-                    let elif_block = Block{body:elif_body}.to_nodespan(elif_span);
+                    let elif_body: Box<NodeStream> = Box::new(vec![elif]);
+                    let elif_block = Block { body: elif_body }.to_nodespan(elif_span);
                     return Ok(Branch::new(condition, if_block, elif_block).to_nodespan(span));
                 }
                 let else_block = self.parse_block()?;
@@ -356,20 +364,63 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         .to_nodespan(last.expect("fuck").span));
     }
+
+    fn compound_assignment(
+        &mut self,
+        kind: BinaryOp,
+        var_name: String,
+        value: NodeSpan,
+        span: Span,
+    ) -> Result<NodeSpan, ()> {
+        Ok(Assignment {
+            var_name:var_name.clone(),
+            value: Box::new(
+                BinaryNode {
+                    kind,
+                    left: Box::new(Variable { name: var_name }.to_nodespan(span)),
+                    right: Box::new(value),
+                }
+                .to_nodespan(span),
+            ),
+        }
+        .to_nodespan(span))
+    }
     fn parse_assignment(&mut self, previous: Token, token: Token) -> Result<NodeSpan, ()> {
         self.check_valid(TokenType::IDENTIFIER, previous.clone())?;
         let var_name = self.text(&previous);
-        let last = self.next();
+        let last = self.peek_some()?;
+        self.next();
+        let value = self.parse_expr()?;
+        let span = (token.span.0, last.span.1);
+        match last.kind {
+            TokenType::PLUS_EQUAL => {
+                return self.compound_assignment(BinaryOp::ADD, var_name, value, span)
+            }
+            TokenType::MINUS_EQUAL => {
+                return self.compound_assignment(BinaryOp::SUBTRACT, var_name, value, span)
+            }
+            TokenType::SLASH_EQUAL => {
+                return self.compound_assignment(BinaryOp::DIVIDE, var_name, value, span)
+            }
+            TokenType::STAR_EQUAL => {
+                return self.compound_assignment(BinaryOp::MULTIPLY, var_name, value, span)
+            }
+            _=>{}
+        }
         return Ok(Assignment {
             var_name,
             value: Box::new(self.parse_expr()?),
         }
-        .to_nodespan((token.span.0, last.expect("").span.1)));
+        .to_nodespan(span));
     }
     fn parse_operator(&mut self, previous: Token, left: NodeSpan) -> Result<NodeSpan, ()> {
         let Some(token) = self.peek() else {return Ok(left);};
         match token.kind {
-            TokenType::EQUAL => return self.parse_assignment(previous, token),
+            TokenType::EQUAL
+            | TokenType::PLUS_EQUAL
+            | TokenType::MINUS_EQUAL
+            | TokenType::STAR_EQUAL
+            | TokenType::SLASH_EQUAL => return self.parse_assignment(previous, token),
             TokenType::LPAREN => return self.parse_call(left),
             TokenType::PLUS => return self.binary_operator(left, BinaryOp::ADD),
             TokenType::MINUS => return self.binary_operator(left, BinaryOp::SUBTRACT),
@@ -407,7 +458,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
 
         match value.kind {
             TokenType::STR => {
-                return Ok(Value::Str(self.text(&value)).to_nodespan(value.span));
+                return Ok(Value::Str(self.escaped_text(&value)).to_nodespan(value.span));
             }
             TokenType::VAR => {
                 return self.parse_vardef();
@@ -421,6 +472,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::TRUE => {
                 return Ok(Value::Bool(true).to_nodespan(value.span));
             }
+            TokenType::VOID => return Ok(Value::Void.to_nodespan(value.span)),
+            TokenType::NULL => return Ok(Value::Null.to_nodespan(value.span)),
             TokenType::FUNC => {
                 let func = self.parse_funcdef()?;
                 self.next();

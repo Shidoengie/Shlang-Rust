@@ -75,11 +75,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     fn next(&mut self) -> Option<Token> {
         self.tokens.next()
     }
-    fn peek_next(&mut self) -> Option<Token> {
-        let mut cloned = self.tokens.clone();
-        cloned.next();
-        cloned.peek().cloned()
-    }
     fn check_valid(&mut self, expected: TokenType, token: Token) -> Result<(), ()> {
         if token.isnt(&expected) {
             println!();
@@ -121,7 +116,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             let last = self.next().unwrap();
             return Ok(Call {
                 args: Box::new(params),
-                callee: Box::new(callee),
+                callee: callee.boxed(),
             }
             .to_nodespan((first.span.0, last.span.1)));
         }
@@ -148,7 +143,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
 
         let val = Call {
             args: Box::new(params),
-            callee: Box::new(callee),
+            callee: callee.boxed(),
         }
         .to_nodespan((first.span.0, last.span.1));
         self.parse_operator(token, val)
@@ -160,10 +155,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         self.next().unwrap();
         let token = self.peek_some()?;
         if token.is(&TokenType::RBRACE) {
-            return Ok(Block {
-                body: Box::new(body),
-            }
-            .to_nodespan((first.span.0, token.span.1)));
+            return Ok(body.to_block().to_nodespan((first.span.0, token.span.1)));
         }
         loop {
             self.peek();
@@ -188,17 +180,14 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             }
             body = filtered;
         }
-        return Ok(Block {
-            body: Box::new(body),
-        }
-        .to_nodespan((first.span.0, token.span.1)));
+        return Ok(body.to_block().to_nodespan((first.span.0, token.span.1)));
     }
 
     fn empty_var_decl(&mut self, first: Token, var_name: String) -> NodeSpan {
         let Some(last) = self.peek() else {todo!()};
         return Declaration {
             var_name: var_name,
-            value: Box::new(Value::Null.to_nodespan(first.span)),
+            value: Value::Null.to_nodespan(first.span).boxed(),
         }
         .to_nodespan((first.span.0, last.span.1));
     }
@@ -213,9 +202,9 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 let val = self.parse_expr()?;
                 return Ok(Declaration {
                     var_name: var_name,
-                    value: Box::new(val),
+                    value: val.boxed(),
                 }
-                .to_nodespan((ident.span.0, last.expect("idk").span.1)));
+                .to_nodespan((ident.span.0, last.unwrap().span.1)));
             }
             _ => {
                 let span = self.peek_some()?.span;
@@ -275,7 +264,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 let func_span = (first.span.0, last.span.1);
                 return Ok(Declaration {
                     var_name: func_name,
-                    value: Box::new(func.to_nodespan(func_span.clone())),
+                    value: func.to_nodespan(func_span.clone()).boxed(),
                 }
                 .to_nodespan(func_span));
             }
@@ -294,13 +283,26 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     fn parse_while_loop(&mut self) -> Result<NodeSpan, ()> {
         let first = self.peek_some()?;
-        let condition = Box::new(self.parse_expr()?);
+        let condition = self.parse_expr()?.boxed();
         let last = self.peek_some()?;
-        let proc = Box::new(self.parse_block()?);
+        let proc = self.parse_block()?.boxed();
         self.next();
         return Ok(While { condition, proc }.to_nodespan((first.span.0, last.span.1)));
     }
-    pub fn parse_branch(&mut self) -> Result<NodeSpan, ()> {
+    fn parse_elif(
+        &mut self,
+        condition: NodeSpan,
+        if_block: NodeSpan,
+        span: Span,
+    ) -> Result<NodeSpan, ()> {
+        self.next();
+        let elif = self.parse_branch()?;
+        let elif_span = elif.span;
+        let elif_body: Box<NodeStream> = Box::new(vec![elif]);
+        let elif_block = Block { body: elif_body }.to_nodespan(elif_span);
+        return Ok(Branch::new(condition, if_block, elif_block).to_nodespan(span));
+    }
+    fn parse_branch(&mut self) -> Result<NodeSpan, ()> {
         let first = self.peek_some()?;
         let condition = self.parse_expr()?;
         let last = self.peek_some()?;
@@ -309,28 +311,18 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let span = (first.span.0, last.span.1);
         let Some(else_branch) = self.peek() else {
             self.next();
-            return Ok(Branch::new_single(condition, if_block).to_nodespan(span))
+            return Ok(Branch::new_single(condition, if_block).to_nodespan(span));
         };
-        match else_branch.kind {
-            TokenType::ELSE => {
-                self.next();
-                if self.peek_some()?.is(&TokenType::IF) {
-                    self.next();
-                    let elif = self.parse_branch()?;
-                    let elif_span = elif.span;
-                    let elif_body: Box<NodeStream> = Box::new(vec![elif]);
-                    let elif_block = Block { body: elif_body }.to_nodespan(elif_span);
-                    return Ok(Branch::new(condition, if_block, elif_block).to_nodespan(span));
-                }
-                let else_block = self.parse_block()?;
-                self.next();
-                return Ok(Branch::new(condition, if_block, else_block).to_nodespan(span));
-            }
-            _ => {
-                return Ok(Branch::new_single(condition, if_block).to_nodespan(span));
-            }
+        if else_branch.isnt(&TokenType::ELSE) {
+            return Ok(Branch::new_single(condition, if_block).to_nodespan(span));
         }
-        todo!()
+        self.next();
+        if self.peek_some()?.is(&TokenType::IF) {
+            return self.parse_elif(condition, if_block, span);
+        }
+        let else_block = self.parse_block()?;
+        self.next();
+        return Ok(Branch::new(condition, if_block, else_block).to_nodespan(span));
     }
 
     pub fn batch_parse(&mut self) -> Block {
@@ -340,9 +332,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             let Ok(parsed_2) = parsed else {break;};
             body.push(parsed_2);
         }
-        return Block {
-            body: Box::new(body),
-        };
+        return body.to_block();
     }
     fn unary_operator(&mut self, kind: UnaryOp) -> Result<NodeSpan, ()> {
         let token = self.peek();
@@ -350,20 +340,11 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let right = self.simple_parse(&token)?;
         return Ok(UnaryNode {
             kind,
-            object: Box::new(right),
+            object: right.boxed(),
         }
-        .to_nodespan(token.expect("").span));
+        .to_nodespan(token.unwrap().span));
     }
-    fn binary_operator(&mut self, left: NodeSpan, kind: BinaryOp) -> Result<NodeSpan, ()> {
-        let last = self.next();
-
-        return Ok(BinaryNode {
-            kind,
-            left: Box::new(left),
-            right: Box::new(self.parse_expr()?),
-        }
-        .to_nodespan(last.expect("fuck").span));
-    }
+    
 
     fn compound_assignment(
         &mut self,
@@ -373,15 +354,14 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         span: Span,
     ) -> Result<NodeSpan, ()> {
         Ok(Assignment {
-            var_name:var_name.clone(),
-            value: Box::new(
-                BinaryNode {
-                    kind,
-                    left: Box::new(Variable { name: var_name }.to_nodespan(span)),
-                    right: Box::new(value),
-                }
-                .to_nodespan(span),
-            ),
+            var_name: var_name.clone(),
+            value: BinaryNode {
+                kind,
+                left: Variable { name: var_name }.to_nodespan(span).boxed(),
+                right: value.boxed(),
+            }
+            .to_nodespan(span)
+            .boxed(),
         }
         .to_nodespan(span))
     }
@@ -405,13 +385,22 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::STAR_EQUAL => {
                 return self.compound_assignment(BinaryOp::MULTIPLY, var_name, value, span)
             }
-            _=>{}
+            _ => {}
         }
         return Ok(Assignment {
             var_name,
-            value: Box::new(self.parse_expr()?),
+            value: self.parse_expr()?.boxed(),
         }
         .to_nodespan(span));
+    }
+    fn binary_operator(&mut self, left: NodeSpan, kind: BinaryOp) -> Result<NodeSpan, ()> {
+        let last = self.next();
+        return Ok(BinaryNode {
+            kind,
+            left: left.boxed(),
+            right: self.parse_expr()?.boxed(),
+        }
+        .to_nodespan(last.unwrap().span));
     }
     fn parse_operator(&mut self, previous: Token, left: NodeSpan) -> Result<NodeSpan, ()> {
         let Some(token) = self.peek() else {return Ok(left);};
@@ -443,16 +432,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             }
         }
     }
-    pub fn parse_expr(&mut self) -> Result<NodeSpan, ()> {
-        let value = self.peek();
-        self.next();
-        let left = self.simple_parse(&value)?;
-        if left.unspanned == Node::DontResult {
-            return Ok(left);
-        }
-        let Some(peeked) = value else {todo!()};
-        self.parse_operator(peeked, left)
-    }
+
     fn simple_parse(&mut self, peeked: &Option<Token>) -> Result<NodeSpan, ()> {
         let Some(value) = peeked.clone() else {todo!()};
 
@@ -493,7 +473,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 self.next();
                 let span = block.span.clone();
                 return Ok(DoBlock {
-                    body: Box::new(block),
+                    body: block.boxed(),
                 }
                 .to_nodespan((first.span.0, span.1)));
             }
@@ -503,12 +483,12 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 self.next();
                 let span = block.span.clone();
                 return Ok(Loop {
-                    proc: Box::new(block),
+                    proc: block.boxed(),
                 }
                 .to_nodespan((first.span.0, span.1)));
             }
             TokenType::RETURN => {
-                let expr = Box::new(self.parse_expr()?);
+                let expr = self.parse_expr()?.boxed();
                 return Ok(Node::ReturnNode(expr).to_spanned(value.span));
             }
             TokenType::BREAK => return Ok(Node::BreakNode.to_spanned(value.span)),
@@ -520,6 +500,16 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 panic!("{unexpected:?}");
             }
         };
+    }
+    pub fn parse_expr(&mut self) -> Result<NodeSpan, ()> {
+        let value = self.peek();
+        self.next();
+        let left = self.simple_parse(&value)?;
+        if left.unspanned.eq(&Node::DontResult) {
+            return Ok(left);
+        }
+        let Some(peeked) = value else {todo!()};
+        self.parse_operator(peeked, left)
     }
     fn parse_top(&mut self) -> Option<Result<NodeSpan, ()>> {
         let peeked = self.peek()?;

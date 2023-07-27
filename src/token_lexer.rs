@@ -12,10 +12,9 @@ impl<'a> Lexer<'a> {
     fn peek(&self) -> Option<char> {
         self.chars.clone().next()
     }
-    fn peek_next(&self) -> Option<char> {
-        let mut cloned = self.chars.clone();
-        cloned.next();
-        cloned.next()
+    fn peek_advance(&mut self) -> Option<char> {
+        self.advance();
+        self.peek()
     }
     fn advance(&mut self) -> Option<char> {
         self.chars.next()
@@ -30,40 +29,29 @@ impl<'a> Lexer<'a> {
     fn num(&mut self) -> Token {
         let start = self.index();
         let mut current = self.peek();
-        loop {
-            if current.is_none() {
-                break;
-            }
-            let val = current.unwrap();
+        while let Some(val) = current {
             if !val.is_numeric() && val != '.' {
                 break;
             }
-            current = self.peek_next();
-            self.advance();
+            current = self.peek_advance();
         }
         Token::new(TokenType::NUM, (start - 1, self.index()))
     }
     fn ident(&mut self) -> Token {
         let start = self.index() - 1;
         let mut current = self.peek();
-        loop {
-            if current.is_none() {
-                break;
-            }
-            let val = current.unwrap();
+        while let Some(val) = current {
             if !val.is_alphanumeric() && val != '_' {
                 break;
             }
-            current = self.peek_next();
-            self.advance();
+            current = self.peek_advance();
         }
         let stop = self.index();
         let span = &self.source[start..stop];
-        let keyword = tokens::map_keyword(span.to_string());
-        if keyword.is_none() {
+        let Some(keyword) = tokens::map_keyword(span.to_string()) else {
             return Token::new(TokenType::IDENTIFIER, (start, stop));
-        }
-        return Token::new(keyword.unwrap(), (start, stop));
+        };
+        return Token::new(keyword, (start, stop));
     }
     fn str(&mut self) -> Option<Token> {
         let start = self.index();
@@ -84,15 +72,23 @@ impl<'a> Lexer<'a> {
         self.advance();
         Token::new(kind, range)
     }
+    fn multi_char_token(
+        &mut self,
+        expected: char,
+        short_token: TokenType,
+        long_token: TokenType,
+        range_start: usize,
+    ) -> Option<Token> {
+        if self.current_is(expected) {
+            return Some(self.push_advance(long_token, (range_start, self.index())));
+        }
+        return Some(Token::new(short_token, (range_start, range_start + 1)));
+    }
     pub fn next(&mut self) -> Option<Token> {
         let start = self.index();
-        let last = self.advance();
+        let last = self.advance()?;
         let range = (start, start + 1);
-        if last.is_none() {
-            return None;
-        }
-        let current = last.unwrap();
-        match last.unwrap() {
+        match last {
             '.' => Some(Token::new(TokenType::DOT, range)),
             ',' => Some(Token::new(TokenType::COMMA, range)),
             '{' => Some(Token::new(TokenType::LBRACE, range)),
@@ -107,80 +103,32 @@ impl<'a> Lexer<'a> {
             '|' => Some(Token::new(TokenType::PIPE, range)),
             '&' => Some(Token::new(TokenType::AMPERSAND, range)),
             '"' => self.str(),
-            '+' => {
-                if self.current_is('=') {
-                    Some(self.push_advance(TokenType::PLUS_EQUAL, (start, self.index())))
-                } else {
-                    Some(Token::new(TokenType::PLUS, range))
-                }
-            }
-            '*' => {
-                if self.current_is('=') {
-                    Some(self.push_advance(TokenType::STAR_EQUAL, (start, self.index())))
-                } else {
-                    Some(Token::new(TokenType::STAR, range))
-                }
-            }
-            '/' => {
-                if self.current_is('=') {
-                    Some(self.push_advance(TokenType::SLASH_EQUAL, (start, self.index())))
-                } else {
-                    Some(Token::new(TokenType::SLASH, range))
-                }
-            }
-            '-' => {
-                if self.current_is('=') {
-                    Some(self.push_advance(TokenType::MINUS_EQUAL, (start, self.index())))
-                } else {
-                    Some(Token::new(TokenType::MINUS, range))
-                }
-            }
-            '<' => {
-                if self.current_is('=') {
-                    Some(self.push_advance(TokenType::LESSER_EQUAL, (start, self.index())))
-                } else {
-                    Some(Token::new(TokenType::LESSER, range))
-                }
-            }
-            '>' => {
-                if self.current_is('=') {
-                    Some(self.push_advance(TokenType::GREATER_EQUAL, (start, self.index())))
-                } else {
-                    Some(Token::new(TokenType::GREATER, range))
-                }
-            }
-            '!' => {
-                if self.current_is('=') {
-                    Some(self.push_advance(TokenType::BANG_EQUAL, (start, self.index())))
-                } else {
-                    Some(Token::new(TokenType::BANG, range))
-                }
-            }
-            '=' => {
-                if self.current_is('=') {
+            '+' => self.multi_char_token('=', TokenType::PLUS, TokenType::PLUS_EQUAL, start),
+            '*' => self.multi_char_token('=', TokenType::STAR, TokenType::STAR_EQUAL, start),
+            '/' => self.multi_char_token('=', TokenType::SLASH, TokenType::SLASH_EQUAL, start),
+            '-' => self.multi_char_token('=', TokenType::MINUS, TokenType::MINUS_EQUAL, start),
+            '!' => self.multi_char_token('=', TokenType::BANG, TokenType::BANG_EQUAL, start),
+            '<' => self.multi_char_token('=', TokenType::LESSER, TokenType::LESSER_EQUAL, start),
+            '>' => self.multi_char_token('=', TokenType::GREATER, TokenType::GREATER_EQUAL, start),
+            '=' => self.multi_char_token('=', TokenType::EQUAL, TokenType::DOUBLE_EQUAL, start),
+            '#' => {
+                loop {
                     self.advance();
-                    Some(Token::new(TokenType::DOUBLE_EQUAL, (start, self.index())))
-                } else {
-                    Some(Token::new(TokenType::EQUAL, range))
-                }
-            }
-            '#' =>{
-                loop{
-                    self.advance();
-                    if self.current_is('\n'){break;}
+                    if self.current_is('\n') {
+                        break;
+                    }
                 }
                 self.next()
             }
-            
+
             ' ' | '\t' | '\r' | '\n' => self.next(),
             _ => {
-                if current.is_digit(10) {
-                    Some(self.num())
-                } else if current.is_alphanumeric() {
-                    Some(self.ident())
-                } else {
-                    panic!("Unexpected char: {current:#?}")
+                if last.is_digit(10) {
+                    return Some(self.num());
+                } else if last.is_alphanumeric() {
+                    return Some(self.ident());
                 }
+                panic!("Unexpected char: {last:#?}")
             }
         }
     }

@@ -13,47 +13,39 @@ Block {
                                 Block {
                                     body: [
                                         Spanned {
-                                            unspanned: ResultNode(
-                                                Spanned {
-                                                    unspanned: DoBlock(
-                                                        DoBlock {
-                                                            body: Spanned {
-                                                                unspanned: Block(
-                                                                    Block {
-                                                                        body: [
+                                            unspanned: DoBlock(
+                                                DoBlock {
+                                                    body: Spanned {
+                                                        unspanned: Block(
+                                                            Block {
+                                                                body: [
+                                                                    Spanned {
+                                                                        unspanned: ResultNode(
                                                                             Spanned {
-                                                                                unspanned: ResultNode(
-                                                                                    Spanned {
-                                                                                        unspanned: Value(
-                                                                                            Num(
-                                                                                                1.0,
-                                                                                            ),
-                                                                                        ),
-                                                                                        span: (
-                                                                                            11,
-                                                                                            12,
-                                                                                        ),
-                                                                                    },
+                                                                                unspanned: Value(
+                                                                                    Num(
+                                                                                        1.0,
+                                                                                    ),
                                                                                 ),
                                                                                 span: (
                                                                                     11,
                                                                                     12,
                                                                                 ),
                                                                             },
-                                                                        ],
+                                                                        ),
+                                                                        span: (
+                                                                            11,
+                                                                            12,
+                                                                        ),
                                                                     },
-                                                                ),
-                                                                span: (
-                                                                    10,
-                                                                    12,
-                                                                ),
+                                                                ],
                                                             },
-                                                        },
-                                                    ),
-                                                    span: (
-                                                        10,
-                                                        12,
-                                                    ),
+                                                        ),
+                                                        span: (
+                                                            10,
+                                                            12,
+                                                        ),
+                                                    },
                                                 },
                                             ),
                                             span: (

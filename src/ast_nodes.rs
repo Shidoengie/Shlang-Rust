@@ -138,8 +138,19 @@ impl NodeSpan {
         let value = self.clone();
         Spanned::new(Node::ResultNode(Box::new(value.clone())), value.span)
     }
+    pub fn boxed(self)->Box<Self>{
+        Box::new(self)
+    }
+}
+pub trait IntoBlock {
+    fn to_block(self)->Block;
 }
 pub type NodeStream = Vec<NodeSpan>;
+impl IntoBlock for NodeStream{
+    fn to_block(self)->Block {
+        Block { body: Box::new(self) }
+    }
+}
 pub type NodeRef = Box<NodeSpan>;
 
 impl From<Control> for Node {

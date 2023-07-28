@@ -112,25 +112,61 @@ impl<'a> Lexer<'a> {
             '>' => self.multi_char_token('=', TokenType::GREATER, TokenType::GREATER_EQUAL, start),
             '=' => self.multi_char_token('=', TokenType::EQUAL, TokenType::DOUBLE_EQUAL, start),
             '#' => {
-                loop {
-                    self.advance();
-                    if self.current_is('\n') {
-                        break;
-                    }
+                if self.current_is('*') {
+                    return self.multi_comment();
                 }
-                self.next()
+                self.single_comment()
             }
 
             ' ' | '\t' | '\r' | '\n' => self.next(),
+            last => Some(self.ident_or_num(last).expect("Unexpected Char")),
+        }
+    }
+    fn ident_or_num(&mut self, expected: char) -> Option<Token> {
+        if expected.is_digit(10) {
+            return Some(self.num());
+        } else if expected.is_alphanumeric() {
+            return Some(self.ident());
+        }
+        None
+    }
+    fn matches_comment(&mut self, mut nest: i32, advanced: char, next: char) -> i32 {
+        match (advanced, next) {
+            ('*', '#') => {
+                nest -= 1;
+            }
+            ('#', '*') => {
+                nest += 1;
+            }
             _ => {
-                if last.is_digit(10) {
-                    return Some(self.num());
-                } else if last.is_alphanumeric() {
-                    return Some(self.ident());
-                }
-                panic!("Unexpected char: {last:#?}")
+                return nest;
             }
         }
+        self.advance();
+        return nest;
+    }
+    fn multi_comment(&mut self) -> Option<Token> {
+        self.advance();
+        let mut nest = 1;
+        while nest >= 1 {
+            let advanced = self.peek_advance()?;
+            match advanced {
+                '*' | '#' => {}
+                _ => continue,
+            }
+            let next = self.peek_advance()?;
+            nest = self.matches_comment(nest, advanced, next);
+        }
+        self.next()
+    }
+    fn single_comment(&mut self) -> Option<Token> {
+        loop {
+            self.advance();
+            if self.current_is('\n') {
+                break;
+            }
+        }
+        self.next()
     }
     pub fn new(src: &'a str) -> Self {
         return Self {

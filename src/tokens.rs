@@ -1,5 +1,4 @@
 use crate::spans::*;
-use std::option;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenType {
     STR,

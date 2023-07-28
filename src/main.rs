@@ -28,7 +28,7 @@ fn input(message: &str) -> String {
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() <= 1 {
-        test_rpl();
+        rpl();
         return;
     }
     let file_path = &args[1];

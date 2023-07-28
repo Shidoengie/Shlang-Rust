@@ -401,7 +401,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             | TokenType::PLUS_EQUAL
             | TokenType::MINUS_EQUAL
             | TokenType::STAR_EQUAL
-            | TokenType::SLASH_EQUAL => return dbg!(self.parse_assignment(previous.unwrap(), op)),
+            | TokenType::SLASH_EQUAL => return self.parse_assignment(previous.unwrap(), op),
             _ => return Ok(left),
         }
     }

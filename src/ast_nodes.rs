@@ -132,7 +132,9 @@ impl Node {
         }
     }
 }
+
 pub type NodeSpan = Spanned<Node>;
+
 impl NodeSpan {
     pub fn wrap_in_result(&self) -> Self {
         let value = self.clone();
@@ -141,6 +143,10 @@ impl NodeSpan {
     pub fn boxed(self)->Box<Self>{
         Box::new(self)
     }
+    pub fn to_block(self)->Block{
+        Block { body: Box::new(vec![self]) }
+    }
+    
 }
 pub trait IntoBlock {
     fn to_block(self)->Block;

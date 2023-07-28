@@ -6,52 +6,52 @@ Ok(
     Spanned {
         unspanned: BinaryNode(
             BinaryNode {
-                kind: MULTIPLY,
+                kind: OR,
                 left: Spanned {
-                    unspanned: Value(
-                        Num(
-                            1.0,
-                        ),
-                    ),
-                    span: (
-                        0,
-                        1,
-                    ),
-                },
-                right: Spanned {
                     unspanned: BinaryNode(
                         BinaryNode {
-                            kind: ADD,
+                            kind: AND,
                             left: Spanned {
-                                unspanned: Value(
-                                    Num(
-                                        2.0,
-                                    ),
-                                ),
-                                span: (
-                                    2,
-                                    3,
-                                ),
-                            },
-                            right: Spanned {
                                 unspanned: BinaryNode(
                                     BinaryNode {
-                                        kind: SUBTRACT,
+                                        kind: ADD,
                                         left: Spanned {
-                                            unspanned: Value(
-                                                Num(
-                                                    2.0,
-                                                ),
+                                            unspanned: BinaryNode(
+                                                BinaryNode {
+                                                    kind: MULTIPLY,
+                                                    left: Spanned {
+                                                        unspanned: Value(
+                                                            Num(
+                                                                1.0,
+                                                            ),
+                                                        ),
+                                                        span: (
+                                                            0,
+                                                            1,
+                                                        ),
+                                                    },
+                                                    right: Spanned {
+                                                        unspanned: Value(
+                                                            Num(
+                                                                2.0,
+                                                            ),
+                                                        ),
+                                                        span: (
+                                                            2,
+                                                            3,
+                                                        ),
+                                                    },
+                                                },
                                             ),
                                             span: (
-                                                4,
-                                                5,
+                                                1,
+                                                2,
                                             ),
                                         },
                                         right: Spanned {
                                             unspanned: BinaryNode(
                                                 BinaryNode {
-                                                    kind: DIVIDE,
+                                                    kind: SUBTRACT,
                                                     left: Spanned {
                                                         unspanned: Value(
                                                             Num(
@@ -59,14 +59,14 @@ Ok(
                                                             ),
                                                         ),
                                                         span: (
-                                                            6,
-                                                            7,
+                                                            4,
+                                                            5,
                                                         ),
                                                     },
                                                     right: Spanned {
                                                         unspanned: BinaryNode(
                                                             BinaryNode {
-                                                                kind: MODULO,
+                                                                kind: DIVIDE,
                                                                 left: Spanned {
                                                                     unspanned: Value(
                                                                         Num(
@@ -74,15 +74,26 @@ Ok(
                                                                         ),
                                                                     ),
                                                                     span: (
-                                                                        8,
-                                                                        9,
+                                                                        6,
+                                                                        7,
                                                                     ),
                                                                 },
                                                                 right: Spanned {
                                                                     unspanned: BinaryNode(
                                                                         BinaryNode {
-                                                                            kind: AND,
+                                                                            kind: MODULO,
                                                                             left: Spanned {
+                                                                                unspanned: Value(
+                                                                                    Num(
+                                                                                        2.0,
+                                                                                    ),
+                                                                                ),
+                                                                                span: (
+                                                                                    8,
+                                                                                    9,
+                                                                                ),
+                                                                            },
+                                                                            right: Spanned {
                                                                                 unspanned: Value(
                                                                                     Num(
                                                                                         5.0,
@@ -93,211 +104,200 @@ Ok(
                                                                                     11,
                                                                                 ),
                                                                             },
-                                                                            right: Spanned {
-                                                                                unspanned: BinaryNode(
-                                                                                    BinaryNode {
-                                                                                        kind: OR,
-                                                                                        left: Spanned {
-                                                                                            unspanned: Value(
-                                                                                                Num(
-                                                                                                    10.0,
-                                                                                                ),
-                                                                                            ),
-                                                                                            span: (
-                                                                                                16,
-                                                                                                18,
-                                                                                            ),
-                                                                                        },
-                                                                                        right: Spanned {
-                                                                                            unspanned: BinaryNode(
-                                                                                                BinaryNode {
-                                                                                                    kind: ISDIFERENT,
-                                                                                                    left: Spanned {
-                                                                                                        unspanned: Value(
-                                                                                                            Num(
-                                                                                                                10.0,
-                                                                                                            ),
-                                                                                                        ),
-                                                                                                        span: (
-                                                                                                            22,
-                                                                                                            24,
-                                                                                                        ),
-                                                                                                    },
-                                                                                                    right: Spanned {
-                                                                                                        unspanned: BinaryNode(
-                                                                                                            BinaryNode {
-                                                                                                                kind: ISEQUAL,
-                                                                                                                left: Spanned {
-                                                                                                                    unspanned: Value(
-                                                                                                                        Num(
-                                                                                                                            1.0,
-                                                                                                                        ),
-                                                                                                                    ),
-                                                                                                                    span: (
-                                                                                                                        26,
-                                                                                                                        27,
-                                                                                                                    ),
-                                                                                                                },
-                                                                                                                right: Spanned {
-                                                                                                                    unspanned: BinaryNode(
-                                                                                                                        BinaryNode {
-                                                                                                                            kind: LESSER,
-                                                                                                                            left: Spanned {
-                                                                                                                                unspanned: Value(
-                                                                                                                                    Num(
-                                                                                                                                        2.0,
-                                                                                                                                    ),
-                                                                                                                                ),
-                                                                                                                                span: (
-                                                                                                                                    29,
-                                                                                                                                    30,
-                                                                                                                                ),
-                                                                                                                            },
-                                                                                                                            right: Spanned {
-                                                                                                                                unspanned: BinaryNode(
-                                                                                                                                    BinaryNode {
-                                                                                                                                        kind: LESSER_EQUAL,
-                                                                                                                                        left: Spanned {
-                                                                                                                                            unspanned: Value(
-                                                                                                                                                Num(
-                                                                                                                                                    4.0,
-                                                                                                                                                ),
-                                                                                                                                            ),
-                                                                                                                                            span: (
-                                                                                                                                                31,
-                                                                                                                                                32,
-                                                                                                                                            ),
-                                                                                                                                        },
-                                                                                                                                        right: Spanned {
-                                                                                                                                            unspanned: BinaryNode(
-                                                                                                                                                BinaryNode {
-                                                                                                                                                    kind: GREATER,
-                                                                                                                                                    left: Spanned {
-                                                                                                                                                        unspanned: Value(
-                                                                                                                                                            Num(
-                                                                                                                                                                3.0,
-                                                                                                                                                            ),
-                                                                                                                                                        ),
-                                                                                                                                                        span: (
-                                                                                                                                                            34,
-                                                                                                                                                            35,
-                                                                                                                                                        ),
-                                                                                                                                                    },
-                                                                                                                                                    right: Spanned {
-                                                                                                                                                        unspanned: BinaryNode(
-                                                                                                                                                            BinaryNode {
-                                                                                                                                                                kind: GREATER_EQUAL,
-                                                                                                                                                                left: Spanned {
-                                                                                                                                                                    unspanned: Value(
-                                                                                                                                                                        Num(
-                                                                                                                                                                            0.0,
-                                                                                                                                                                        ),
-                                                                                                                                                                    ),
-                                                                                                                                                                    span: (
-                                                                                                                                                                        36,
-                                                                                                                                                                        37,
-                                                                                                                                                                    ),
-                                                                                                                                                                },
-                                                                                                                                                                right: Spanned {
-                                                                                                                                                                    unspanned: Value(
-                                                                                                                                                                        Num(
-                                                                                                                                                                            3.0,
-                                                                                                                                                                        ),
-                                                                                                                                                                    ),
-                                                                                                                                                                    span: (
-                                                                                                                                                                        39,
-                                                                                                                                                                        40,
-                                                                                                                                                                    ),
-                                                                                                                                                                },
-                                                                                                                                                            },
-                                                                                                                                                        ),
-                                                                                                                                                        span: (
-                                                                                                                                                            37,
-                                                                                                                                                            38,
-                                                                                                                                                        ),
-                                                                                                                                                    },
-                                                                                                                                                },
-                                                                                                                                            ),
-                                                                                                                                            span: (
-                                                                                                                                                35,
-                                                                                                                                                36,
-                                                                                                                                            ),
-                                                                                                                                        },
-                                                                                                                                    },
-                                                                                                                                ),
-                                                                                                                                span: (
-                                                                                                                                    32,
-                                                                                                                                    33,
-                                                                                                                                ),
-                                                                                                                            },
-                                                                                                                        },
-                                                                                                                    ),
-                                                                                                                    span: (
-                                                                                                                        30,
-                                                                                                                        31,
-                                                                                                                    ),
-                                                                                                                },
-                                                                                                            },
-                                                                                                        ),
-                                                                                                        span: (
-                                                                                                            27,
-                                                                                                            28,
-                                                                                                        ),
-                                                                                                    },
-                                                                                                },
-                                                                                            ),
-                                                                                            span: (
-                                                                                                24,
-                                                                                                25,
-                                                                                            ),
-                                                                                        },
-                                                                                    },
-                                                                                ),
-                                                                                span: (
-                                                                                    19,
-                                                                                    21,
-                                                                                ),
-                                                                            },
                                                                         },
                                                                     ),
                                                                     span: (
-                                                                        12,
-                                                                        15,
+                                                                        9,
+                                                                        10,
                                                                     ),
                                                                 },
                                                             },
                                                         ),
                                                         span: (
-                                                            9,
-                                                            10,
+                                                            7,
+                                                            8,
                                                         ),
                                                     },
                                                 },
                                             ),
                                             span: (
-                                                7,
-                                                8,
+                                                5,
+                                                6,
                                             ),
                                         },
                                     },
                                 ),
                                 span: (
-                                    5,
-                                    6,
+                                    3,
+                                    4,
+                                ),
+                            },
+                            right: Spanned {
+                                unspanned: Value(
+                                    Num(
+                                        10.0,
+                                    ),
+                                ),
+                                span: (
+                                    16,
+                                    18,
                                 ),
                             },
                         },
                     ),
                     span: (
-                        3,
-                        4,
+                        12,
+                        15,
+                    ),
+                },
+                right: Spanned {
+                    unspanned: BinaryNode(
+                        BinaryNode {
+                            kind: ISDIFERENT,
+                            left: Spanned {
+                                unspanned: Value(
+                                    Num(
+                                        10.0,
+                                    ),
+                                ),
+                                span: (
+                                    22,
+                                    24,
+                                ),
+                            },
+                            right: Spanned {
+                                unspanned: BinaryNode(
+                                    BinaryNode {
+                                        kind: ISEQUAL,
+                                        left: Spanned {
+                                            unspanned: Value(
+                                                Num(
+                                                    1.0,
+                                                ),
+                                            ),
+                                            span: (
+                                                26,
+                                                27,
+                                            ),
+                                        },
+                                        right: Spanned {
+                                            unspanned: BinaryNode(
+                                                BinaryNode {
+                                                    kind: LESSER,
+                                                    left: Spanned {
+                                                        unspanned: Value(
+                                                            Num(
+                                                                2.0,
+                                                            ),
+                                                        ),
+                                                        span: (
+                                                            29,
+                                                            30,
+                                                        ),
+                                                    },
+                                                    right: Spanned {
+                                                        unspanned: BinaryNode(
+                                                            BinaryNode {
+                                                                kind: LESSER_EQUAL,
+                                                                left: Spanned {
+                                                                    unspanned: Value(
+                                                                        Num(
+                                                                            4.0,
+                                                                        ),
+                                                                    ),
+                                                                    span: (
+                                                                        31,
+                                                                        32,
+                                                                    ),
+                                                                },
+                                                                right: Spanned {
+                                                                    unspanned: BinaryNode(
+                                                                        BinaryNode {
+                                                                            kind: GREATER,
+                                                                            left: Spanned {
+                                                                                unspanned: Value(
+                                                                                    Num(
+                                                                                        3.0,
+                                                                                    ),
+                                                                                ),
+                                                                                span: (
+                                                                                    34,
+                                                                                    35,
+                                                                                ),
+                                                                            },
+                                                                            right: Spanned {
+                                                                                unspanned: BinaryNode(
+                                                                                    BinaryNode {
+                                                                                        kind: GREATER_EQUAL,
+                                                                                        left: Spanned {
+                                                                                            unspanned: Value(
+                                                                                                Num(
+                                                                                                    0.0,
+                                                                                                ),
+                                                                                            ),
+                                                                                            span: (
+                                                                                                36,
+                                                                                                37,
+                                                                                            ),
+                                                                                        },
+                                                                                        right: Spanned {
+                                                                                            unspanned: Value(
+                                                                                                Num(
+                                                                                                    3.0,
+                                                                                                ),
+                                                                                            ),
+                                                                                            span: (
+                                                                                                39,
+                                                                                                40,
+                                                                                            ),
+                                                                                        },
+                                                                                    },
+                                                                                ),
+                                                                                span: (
+                                                                                    37,
+                                                                                    38,
+                                                                                ),
+                                                                            },
+                                                                        },
+                                                                    ),
+                                                                    span: (
+                                                                        35,
+                                                                        36,
+                                                                    ),
+                                                                },
+                                                            },
+                                                        ),
+                                                        span: (
+                                                            32,
+                                                            33,
+                                                        ),
+                                                    },
+                                                },
+                                            ),
+                                            span: (
+                                                30,
+                                                31,
+                                            ),
+                                        },
+                                    },
+                                ),
+                                span: (
+                                    27,
+                                    28,
+                                ),
+                            },
+                        },
+                    ),
+                    span: (
+                        24,
+                        25,
                     ),
                 },
             },
         ),
         span: (
-            1,
-            2,
+            19,
+            21,
         ),
     },
 )

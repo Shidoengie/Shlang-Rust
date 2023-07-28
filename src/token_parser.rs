@@ -141,12 +141,11 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let last = self.peek_some()?;
         self.next();
 
-        let val = Call {
+        return Ok(Call {
             args: Box::new(params),
             callee: callee.boxed(),
         }
-        .to_nodespan((first.span.0, last.span.1));
-        self.parse_operator(token, val)
+        .to_nodespan((first.span.0, last.span.1)));
     }
 
     fn parse_block(&mut self) -> Result<NodeSpan, ()> {
@@ -344,7 +343,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         .to_nodespan(token.unwrap().span));
     }
-    
 
     fn compound_assignment(
         &mut self,
@@ -389,50 +387,115 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         return Ok(Assignment {
             var_name,
-            value: self.parse_expr()?.boxed(),
+            value: value.boxed(),
         }
         .to_nodespan(span));
     }
-    fn binary_operator(&mut self, left: NodeSpan, kind: BinaryOp) -> Result<NodeSpan, ()> {
-        let last = self.next();
-        return Ok(BinaryNode {
-            kind,
-            left: left.boxed(),
-            right: self.parse_expr()?.boxed(),
-        }
-        .to_nodespan(last.unwrap().span));
-    }
-    fn parse_operator(&mut self, previous: Token, left: NodeSpan) -> Result<NodeSpan, ()> {
-        let Some(token) = self.peek() else {return Ok(left);};
-        match token.kind {
+
+    pub fn parse_expr(&mut self) -> Result<NodeSpan, ()> {
+        let previous = self.peek();
+        let left = self.or_prec()?;
+        let Some(op) = self.peek() else {return Ok(left);};
+        match op.kind {
             TokenType::EQUAL
             | TokenType::PLUS_EQUAL
             | TokenType::MINUS_EQUAL
             | TokenType::STAR_EQUAL
-            | TokenType::SLASH_EQUAL => return self.parse_assignment(previous, token),
-            TokenType::LPAREN => return self.parse_call(left),
-            TokenType::PLUS => return self.binary_operator(left, BinaryOp::ADD),
-            TokenType::MINUS => return self.binary_operator(left, BinaryOp::SUBTRACT),
-            TokenType::STAR => return self.binary_operator(left, BinaryOp::MULTIPLY),
-            TokenType::SLASH => return self.binary_operator(left, BinaryOp::DIVIDE),
-            TokenType::PERCENT => return self.binary_operator(left, BinaryOp::MODULO),
-            TokenType::GREATER_EQUAL => return self.binary_operator(left, BinaryOp::GREATER_EQUAL),
-            TokenType::GREATER => return self.binary_operator(left, BinaryOp::GREATER),
-            TokenType::LESSER_EQUAL => return self.binary_operator(left, BinaryOp::LESSER_EQUAL),
-            TokenType::LESSER => return self.binary_operator(left, BinaryOp::LESSER),
-            TokenType::DOUBLE_EQUAL => return self.binary_operator(left, BinaryOp::ISEQUAL),
-            TokenType::BANG_EQUAL => return self.binary_operator(left, BinaryOp::ISDIFERENT),
-
-            TokenType::AND | TokenType::AMPERSAND => {
-                return self.binary_operator(left, BinaryOp::AND)
-            }
-            TokenType::OR | TokenType::PIPE => return self.binary_operator(left, BinaryOp::OR),
-            _ => {
-                return Ok(left);
-            }
+            | TokenType::SLASH_EQUAL => return dbg!(self.parse_assignment(previous.unwrap(), op)),
+            _ => return Ok(left),
         }
     }
-
+    fn or_prec(&mut self) -> Result<NodeSpan, ()> {
+        let left = self.and_prec()?;
+        let Some(op) = self.peek() else {return Ok(left);};
+        if op.isnt(&TokenType::OR) && op.isnt(&TokenType::PIPE) {
+            return Ok(left);
+        }
+        self.next();
+        return Ok(BinaryNode {
+            kind: BinaryOp::OR,
+            left: left.boxed(),
+            right: self.or_prec()?.boxed(),
+        }
+        .to_nodespan(op.span));
+    }
+    fn and_prec(&mut self) -> Result<NodeSpan, ()> {
+        let left = self.eq_prec()?;
+        let Some(op) = self.peek() else {return Ok(left);};
+        if op.isnt(&TokenType::AND) && op.isnt(&TokenType::AMPERSAND) {
+            return Ok(left);
+        }
+        self.next();
+        return Ok(BinaryNode {
+            kind: BinaryOp::AND,
+            left: left.boxed(),
+            right: self.and_prec()?.boxed(),
+        }
+        .to_nodespan(op.span));
+    }
+    fn eq_prec(&mut self) -> Result<NodeSpan, ()> {
+        let left = self.add_prec()?;
+        let Some(op) = self.peek() else {return Ok(left);};
+        let kind = match op.kind {
+            TokenType::GREATER => BinaryOp::GREATER,
+            TokenType::GREATER_EQUAL => BinaryOp::GREATER_EQUAL,
+            TokenType::LESSER => BinaryOp::LESSER,
+            TokenType::LESSER_EQUAL => BinaryOp::LESSER_EQUAL,
+            TokenType::DOUBLE_EQUAL => BinaryOp::ISEQUAL,
+            TokenType::BANG_EQUAL => BinaryOp::ISDIFERENT,
+            _ => return Ok(left),
+        };
+        self.next();
+        return Ok(BinaryNode {
+            kind,
+            left: left.boxed(),
+            right: self.eq_prec()?.boxed(),
+        }
+        .to_nodespan(op.span));
+    }
+    fn add_prec(&mut self) -> Result<NodeSpan, ()> {
+        let left = self.prod_prec()?;
+        let Some(op) = self.peek() else {return Ok(left);};
+        let kind = match op.kind {
+            TokenType::PLUS => BinaryOp::ADD,
+            TokenType::MINUS => BinaryOp::SUBTRACT,
+            _ => return Ok(left),
+        };
+        self.next();
+        return Ok(BinaryNode {
+            kind,
+            left: left.boxed(),
+            right: self.add_prec()?.boxed(),
+        }
+        .to_nodespan(op.span));
+    }
+    fn prod_prec(&mut self) -> Result<NodeSpan, ()> {
+        let left = self.primary_prec()?;
+        let Some(op) = self.peek() else {return Ok(left);};
+        let kind = match op.kind {
+            TokenType::SLASH => BinaryOp::DIVIDE,
+            TokenType::STAR => BinaryOp::MULTIPLY,
+            TokenType::PERCENT => BinaryOp::MODULO,
+            _ => return Ok(left),
+        };
+        self.next();
+        return Ok(BinaryNode {
+            kind,
+            left: left.boxed(),
+            right: self.prod_prec()?.boxed(),
+        }
+        .to_nodespan(op.span));
+    }
+    fn primary_prec(&mut self) -> Result<NodeSpan, ()> {
+        let value = self.peek();
+        self.next();
+        let left = self.simple_parse(&value)?;
+        let Some(op) = self.peek() else {return Ok(left);};
+        match op.kind {
+            TokenType::LPAREN => return self.parse_call(left),
+            _ => return Ok(left),
+        }
+    }
     fn simple_parse(&mut self, peeked: &Option<Token>) -> Result<NodeSpan, ()> {
         let Some(value) = peeked.clone() else {todo!()};
 
@@ -500,16 +563,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 panic!("{unexpected:?}");
             }
         };
-    }
-    pub fn parse_expr(&mut self) -> Result<NodeSpan, ()> {
-        let value = self.peek();
-        self.next();
-        let left = self.simple_parse(&value)?;
-        if left.unspanned.eq(&Node::DontResult) {
-            return Ok(left);
-        }
-        let Some(peeked) = value else {todo!()};
-        self.parse_operator(peeked, left)
     }
     fn parse_top(&mut self) -> Option<Result<NodeSpan, ()>> {
         let peeked = self.peek()?;

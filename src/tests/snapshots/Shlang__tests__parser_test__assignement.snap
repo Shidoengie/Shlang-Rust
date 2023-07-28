@@ -8,10 +8,14 @@ Ok(
             Assignment {
                 var_name: "b",
                 value: Spanned {
-                    unspanned: DontResult,
+                    unspanned: Value(
+                        Num(
+                            1.0,
+                        ),
+                    ),
                     span: (
-                        0,
-                        0,
+                        4,
+                        5,
                     ),
                 },
             },

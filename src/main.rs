@@ -28,7 +28,7 @@ fn input(message: &str) -> String {
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() <= 1 {
-        full_rpl();
+        test_rpl();
         return;
     }
     let file_path = &args[1];
@@ -38,13 +38,20 @@ fn main() {
     let mut interpreter = Interpreter::new(ast,source);
     interpreter.execute();
 }
-fn full_rpl() {
+fn rpl()->Result<ast_nodes::NodeSpan,()>{
     loop {
         let source = input(">: ");
         let mut parser = Parser::new(source.as_str());
-        let ast = parser.batch_parse();
-        println!("{:#?}", &ast);
-        let mut interpreter = Interpreter::new(ast,source);
-        interpreter.execute();
+        let ast = parser.parse_expr()?;
+        let mut interpreter = Interpreter::new(ast.to_block(),source);
+        interpreter.execute()?;
+    }
+}
+fn test_rpl()->Result<ast_nodes::NodeSpan,()>{
+    loop {
+        let source = input(">: ");
+        let mut parser = Parser::new(source.as_str());
+        let ast = parser.parse_expr()?;
+        println!("{ast:#?}");
     }
 }

@@ -136,47 +136,38 @@ impl Interpreter {
     fn eval_binary_node(&mut self, bin_op: BinaryNode) -> Result<TypedValue, ()> {
         let (left, left_type) = self.eval_node(&*bin_op.left)?;
         let (right, right_type) = self.eval_node(&*bin_op.right)?;
-        if left_type != right_type {
-            let are_numerical = left_type.is_numeric() && right_type.is_numeric();
-            match bin_op.kind {
-                BinaryOp::ISDIFERENT => return Ok((Value::Bool(true), Type::Bool)),
-                BinaryOp::ISEQUAL => return Ok((Value::Bool(false), Type::Bool)),
-                _ => {
-                    if !are_numerical {
-                        panic!("mixed types: {left:?} {right:?}")
-                    }
-                }
-            }
+        match bin_op.kind {
+            BinaryOp::ISDIFERENT => return Ok((Value::Bool(left != right), Type::Bool)),
+            BinaryOp::ISEQUAL => return Ok((Value::Bool(left == right), Type::Bool)),
+            _ => {}
+        }
+        if left_type != right_type && !(left_type.is_numeric() && right_type.is_numeric()) {
+            panic!("mixed types: {left:?} {right:?}")
         }
         match left_type {
             Type::Num | Type::Bool => {
                 let result = (self.binary_calc(bin_op, left, right)?, left_type);
-                Ok(result)
+                return Ok(result);
             }
             Type::Str => {
                 let result = (self.str_calc(bin_op, left, right)?, left_type);
-                Ok(result)
+                return Ok(result);
             }
-            invalid => {
-                self.emit_err(
-                    format!("Invalid type in binary operation: {invalid:?}"),
-                    bin_op.left.span,
-                );
-                return Err(());
-            }
+            _ => {}
         }
+        self.emit_err(
+            format!("Invalid type in binary operation: {left_type:?}"),
+            bin_op.left.span,
+        );
+        return Err(());
     }
     fn unwrap_var(&self, value: TypedValue, span: Span) -> Result<TypedValue, ()> {
         if value.1 == Type::Void {
             self.err_out.emit("Cannot assign void to variable", span);
             return Err(());
         }
-        let Value::Control(control) = value.0 else {
+        let Value::Control(Control::Result(res_val,res_type)) = value.0 else {
             return Ok(value);
-        };
-        let Control::Result(res_val,res_type) = control else {
-            self.err_out.emit("Unexpected control flow node",span);
-            return Err(());
         };
         if res_type == Type::Void {
             self.err_out.emit("Cannot assign void to variable", span);
@@ -239,7 +230,28 @@ impl Interpreter {
         let result_type = result.get_type();
         return Ok((result, result_type));
     }
-
+    fn build_args(
+        &mut self,
+        func: &Function,
+        arg_spans: Vec<Span>,
+        arg_values: ValueStream,
+    ) -> Node {
+        let mut arg_decl: NodeStream = vec![];
+        let Node::Block(mut func_block) = func.block.unspanned.clone() else {panic!()};
+        for (index, name) in func.args.iter().enumerate() {
+            let span = arg_spans[index];
+            let var = Box::new(NodeSpan::new(arg_values[index].clone().into(), span));
+            arg_decl.push(
+                Declaration {
+                    var_name: name.to_string(),
+                    value: var,
+                }
+                .to_nodespan(span),
+            );
+        }
+        arg_decl.append(&mut func_block.body);
+        arg_decl.to_block().into()
+    }
     fn call_func(
         &mut self,
         mut called: Function,
@@ -247,7 +259,7 @@ impl Interpreter {
         arg_spans: Vec<Span>,
         span: Span,
     ) -> Result<TypedValue, ()> {
-        let Node::Block(mut func_block) = called.block.unspanned else{
+        if !matches!(called.block.unspanned, Node::Block(_)) {
             self.err_out.emit("HOW", span);
             return Err(());
         };
@@ -262,30 +274,12 @@ impl Interpreter {
             );
             return Err(());
         }
-        let mut arg_decl: NodeStream = vec![];
-        for (index, name) in called.args.iter().enumerate() {
-            let span = arg_spans[index];
-            let var = Box::new(NodeSpan::new(arg_values[index].clone().into(), span));
-            arg_decl.push(
-                Declaration {
-                    var_name: name.to_string(),
-                    value: var,
-                }
-                .to_nodespan(span),
-            );
-        }
-
-        arg_decl.append(&mut func_block.body);
-        called.block.unspanned = Block {
-            body: Box::new(arg_decl),
-        }
-        .into();
+        called.block.unspanned = self.build_args(&called, arg_spans, arg_values);
         let (result, result_type) = self.eval_node(&*called.block)?;
         let Value::Control(flow) = result else {
             return Ok((result,result_type));
         };
         match flow {
-            
             Control::Return(val, kind) => {
                 return Ok((*val, kind));
             }
@@ -356,9 +350,9 @@ impl Interpreter {
             let (result, result_type) = self.eval_node(&*loop_node.proc)?;
             let Value::Control(flow) = result.clone() else {continue;};
             match flow {
-                Control::Break=>return NULL,
-                Control::Continue=>continue,
-                _=>return Ok((result, result_type)),
+                Control::Break => return NULL,
+                Control::Continue => continue,
+                _ => return Ok((result, result_type)),
             }
         }
     }
@@ -376,9 +370,9 @@ impl Interpreter {
             let (result, result_type) = self.eval_node(&*loop_node.proc)?;
             let Value::Control(flow) = result.clone() else {continue;};
             match flow {
-                Control::Break=>return NULL,
-                Control::Continue=>continue,
-                _=>return Ok((result, result_type)),
+                Control::Break => return NULL,
+                Control::Continue => continue,
+                _ => return Ok((result, result_type)),
             }
         }
     }

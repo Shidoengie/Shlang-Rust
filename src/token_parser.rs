@@ -244,9 +244,9 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     fn parse_funcdef(&mut self) -> Result<NodeSpan, ()> {
         let first = self.peek_some()?;
         match first.kind {
-            TokenType::IDENTIFIER => self.parse_named_func(&first)?,
-            TokenType::LPAREN => self.parse_anon_func(&first)?,
-            _ => unreachable!(),
+            TokenType::IDENTIFIER => return self.parse_named_func(&first),
+            TokenType::LPAREN => return self.parse_anon_func(&first),
+            _ => {},
         };
         self.err_out
             .emit("Unexpected token in function definition", first.span);

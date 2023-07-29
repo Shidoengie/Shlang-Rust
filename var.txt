@@ -1,12 +1,13 @@
-#*
-wassup
-*#
-#BIT CONNECTTT
+
+func idk(is){
+    print(is);
+}
 var main_a = do {
     var i = 0;
-    
+    idk("a");
     while i < 10 {
         i += 1;
+
         if i%3 == 0 and i%5 == 0{
             print("FizzBuzz");
         }

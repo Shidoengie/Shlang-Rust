@@ -151,7 +151,7 @@ there are 2 types of loops, `while` loops and `loop`
 Note using results or returns will have the same effect as break
 ### Loop
 This loop will run indefinitely. 
-```swift
+```rs
 loop {
     print("hi");
 }

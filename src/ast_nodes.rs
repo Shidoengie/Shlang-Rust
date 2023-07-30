@@ -21,7 +21,18 @@ pub enum Value {
     Function(Function),
     BuiltinFunc(BuiltinFunc),
 }
+pub trait ControlUnwrap {
+    fn unwrap_result(self)->Self;
+}
 pub type TypedValue = (Value, Type);
+impl ControlUnwrap for TypedValue{
+    fn unwrap_result(self) -> Self {
+        let Value::Control(Control::Result(res_val,res_type)) = self.0 else {
+            return self;
+        };
+        return (*res_val, res_type);
+    }
+}
 pub type ValueStream = Vec<Value>;
 impl Value {
     pub fn get_type(&self) -> Type {

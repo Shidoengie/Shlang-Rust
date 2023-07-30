@@ -37,7 +37,8 @@ In shlang all numbers are floats, meaning that all numbers can have decimal poin
 Strings are a way of representing text
 ```swift
 "heyo!"
-"hey hey hey!"
+"hey hey 
+hey!"
 ```
 ## Booleans
 Booleans can be either `true` or `false`, booleans are used to build complex logic.
@@ -60,6 +61,11 @@ Coments are lines of code that are used for documentation, and are completly ign
 #* 
 weeee
 *#
+```
+## Blocks
+A block is a list of expression that are envolved by `{}`
+```swift
+
 ```
 ## Variables
 Variables are a way of storing values in named containers, can be declared using `var`, as shlang is dynamic it doesnt have type annotation.
@@ -93,21 +99,35 @@ func foo(bar){
 }
 foo();
 ```
-### Results and returns
-- `return` is used to return values from functions.
+## Results and returns
+### Return
+`return` is used to return values from functions.
 ```swift
 func foo() {
     return 1;
 }
 ```
-- Results work just like Returns except except that they can be used for variable assignment
-  to create a result you ommit the last semicolon in a block.
-```swift
+appon a return all other code will be ignored
+### Implicit returns/results
+Results work by returning the last statement in a block and only if that last statement doesnt have a semicolon
+```cs
 var foo = do {
     1;
     2;
-    3 <- results in 3
-};<- foo now has 3 
+    3 # results in 3
+};# foo now has 3 
+```
+```cs
+var foo = do {
+    1
+    2
+    3;
+};
+# foo is now null as no value was returned 
+```
+results can be used in variable assignment and binary ops
+```swift
+print("hi"+if true {"a"} else {"b"})
 ```
 ## If expressions
 Ifs are expressions which their block will only be evaluated if a condition is true.
@@ -131,7 +151,7 @@ else{
 ```
 
 
-## The Do Block
+## Do expressions
 Do blocks are expressions with blocks that immidately execute, think of like this a `if true`
 ```swift
 var num = do {
@@ -167,7 +187,26 @@ while a < 10 {
 ```
 # Language Defaults
 ## Functions
-- `print()` takes in n arguments and logs them to the console
+- `println()` takes in n arguments and logs them to the console with a space on each argument, and flushes with a newline
+```swift
+println("hey","ho");
+println("ahoy");
+#*
+hey ho
+ahoy
+*#
+```
+- `print()` takes in n arguments and logs them to the console with a space on each argument, and doesnt print a newline
+```swift
+print("hey","ho");
+print("ahoy");
+# hey hoahoy
+```
 - `input()` optionally takes in a prompt and retrieves user input as a string
-- `str_to_num()` converts strings to numbers
-- `num_to_str()` converts numbers to strings
+```swift
+var a = input("insert 2:");
+var b = input();
+# hey hoahoy
+```
+- `parse_num()` parses numbers from strings
+- `to_str()` converts a value to a string

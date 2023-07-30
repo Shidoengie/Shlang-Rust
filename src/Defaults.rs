@@ -16,6 +16,13 @@ pub fn var_map() -> HashMap<String, Value> {
             }),
         ),
         (
+            "println".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: println_builtin,
+                arg_size: -1,
+            }),
+        ),
+        (
             "print".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
                 function: print_builtin,
@@ -23,17 +30,16 @@ pub fn var_map() -> HashMap<String, Value> {
             }),
         ),
         (
-            "str_to_num".to_string(),
+            "parse_num".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
-                function: str_to_num,
+                function: parse_num,
                 arg_size: 1,
             }),
-
         ),
         (
-            "num_to_str".to_string(),
+            "to_str".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
-                function: num_to_str,
+                function: to_str,
                 arg_size: 1,
             }),
             
@@ -41,39 +47,55 @@ pub fn var_map() -> HashMap<String, Value> {
     ]);
     map
 }
-fn val_to_str(val:Value)->String{
+
+fn val_to_str(val:&Value)->String{
     match val {
         Value::Num(num) => num.to_string(),
         Value::Bool(cond) => cond.to_string(),
-        Value::Str(txt) => txt,
+        Value::Str(txt) => txt.to_string(),
         Value::Null => "null".to_string(),
         Value::Void => "void".to_string(),
-        Value::Control(_) => "!".to_string(),
+        Value::Control(val) => format!("{val:?}"),
         _ => "unnamed".to_string(),
     }
 }
-pub fn print_builtin(args: ValueStream) -> Value {
+pub fn println_builtin(args: ValueStream) -> Value {
     if args.is_empty() {
         println!("");
-
     }
+    let mut out = "".to_string();
     for val in args {
-        println!("{}",val_to_str(val))
+        out += format!(" {}",val_to_str(&val)).as_str();
     }
+    println!("{out}");
     return Value::Void;
 }
-pub fn str_to_num(args: ValueStream)->Value{
+pub fn print_builtin(args: ValueStream) -> Value {
+    if args.is_empty() {
+        print!("");
+        io::stdout().flush().unwrap();
+        return Value::Void;
+    }
+    let mut out = "".to_string();
+    for val in args {
+        out += format!(" {}",val_to_str(&val)).as_str();
+    }
+    print!("{out}");
+    io::stdout().flush().unwrap();
+    return Value::Void;
+}
+
+pub fn parse_num(args: ValueStream)->Value{
     let Value::Str(input) = &args[0] else {panic!()};
     Value::Num(input.parse().unwrap())
 }
-pub fn num_to_str(args: ValueStream)->Value{
-    let Value::Num(input) = &args[0] else {panic!()};
-    Value::Str(input.to_string())
+pub fn to_str(args: ValueStream)->Value{
+    return Value::Str(val_to_str(&args[0]));
 }
 pub fn input_builtin(args: ValueStream) -> Value {
     if !args.is_empty(){
         let message = &args[0];
-        print!("{}",val_to_str(message.clone()));
+        print!("{}",val_to_str(&message));
         io::stdout().flush().unwrap();
     }
     let mut result = String::new();

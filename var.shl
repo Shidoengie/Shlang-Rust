@@ -1,25 +1,25 @@
 
 func idk(is){
-    print(is);
+    println(is);
 }
 var main_a = do {
     var i = 0;
     var b = idk("a");
-    
+    var duck = "anb"+if true {"9"};
+    println(duck);
     while i < 10 {
         i += 1;
 
         if i%3 == 0 and i%5 == 0{
-            print("FizzBuzz");
+            println("FizzBuzz");
         }
         else if i%3 ==0 {
-            print("Fizz");
+            println("Fizz");
         }
         else if i%5 ==0 {
-            print("Buzz");
+            println("Buzz");
         }else{
-            print(i);
+            println(i);
         }
     }
-    null
 };

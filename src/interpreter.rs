@@ -134,8 +134,10 @@ impl Interpreter {
     }
 
     fn eval_binary_node(&mut self, bin_op: BinaryNode) -> Result<TypedValue, ()> {
-        let (left, left_type) = self.eval_node(&*bin_op.left)?;
-        let (right, right_type) = self.eval_node(&*bin_op.right)?;
+        let (left, left_type) = self.eval_node(&*bin_op.left)?.unwrap_result();
+        if left_type == Type::Never{return Ok((left, left_type));}
+        let (right, right_type) = self.eval_node(&*bin_op.right)?.unwrap_result();
+        if right_type == Type::Never{return Ok((right, right_type));}
         match bin_op.kind {
             BinaryOp::ISDIFERENT => return Ok((Value::Bool(left != right), Type::Bool)),
             BinaryOp::ISEQUAL => return Ok((Value::Bool(left == right), Type::Bool)),

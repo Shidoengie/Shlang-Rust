@@ -37,7 +37,7 @@ impl Interpreter {
         let new_scope = Scope::new(cur, HashMap::from([]));
         self.current = new_scope;
         if block.body.len() == 0 {
-            return VOID;
+            return NULL;
         }
         let body = *block.body;
         for node in body {
@@ -55,7 +55,7 @@ impl Interpreter {
             return Err(());
         };
         self.current = *parent;
-        return VOID;
+        return NULL;
     }
     fn num_convert(&self, num: Value, span: Span) -> Result<(f64, bool), ()> {
         match num {

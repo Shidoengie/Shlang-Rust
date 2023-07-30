@@ -4,7 +4,8 @@ func idk(is){
 }
 var main_a = do {
     var i = 0;
-    idk("a");
+    var b = idk("a");
+    
     while i < 10 {
         i += 1;
 

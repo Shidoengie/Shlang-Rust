@@ -84,7 +84,7 @@ var foo = func(bar){
 };
 foo();
 ```
-On functions the return value will be implicitely `void` if nothing is returned
+On functions the return value will be implicitely `null` if nothing is returned
 
 Defining functions can be done by giving a name to `func`
 ```swift
@@ -160,8 +160,14 @@ loop {
 This loop will run while a condition is true.
 ```swift
 var a = 0;
-while a < 10{
+while a < 10 {
     a += 1;
     print(a);
 }
 ```
+# Language Defaults
+## Functions
+- `print()` takes in n arguments and logs them to the console
+- `input()` optionally takes in a prompt and retrieves user input as a string
+- `str_to_num()` converts strings to numbers
+- `num_to_str()` converts numbers to strings

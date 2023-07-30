@@ -110,14 +110,14 @@ func foo() {
 appon a return all other code will be ignored
 ### Implicit returns/results
 Results work by returning the last statement in a block and only if that last statement doesnt have a semicolon
-```cs
+```swift
 var foo = do {
     1;
     2;
     3 # results in 3
 };# foo now has 3 
 ```
-```cs
+```swift
 var foo = do {
     1
     2

@@ -42,8 +42,8 @@ fn rpl()->Result<ast_nodes::NodeSpan,()>{
     loop {
         let source = input(">: ");
         let mut parser = Parser::new(source.as_str());
-        let ast = parser.parse_expr()?;
-        let mut interpreter = Interpreter::new(ast.to_block(),source);
+        let ast = parser.batch_parse_expr()?;
+        let mut interpreter = Interpreter::new(ast,source);
         interpreter.execute()?;
     }
 }

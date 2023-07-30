@@ -641,4 +641,14 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         return body.to_block();
     }
+    // Parses input as expressions and collects it into a block ast node
+    pub fn batch_parse_expr(&mut self) -> Result<Block,()> {
+        let mut body: NodeStream = vec![];
+        while self.peek().is_some() {
+            let expr = self.parse_expr()?;
+            body.push(expr);
+            self.next();
+        }
+        return Ok(body.to_block());
+    }
 }

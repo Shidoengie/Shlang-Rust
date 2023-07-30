@@ -62,11 +62,7 @@ Coments are lines of code that are used for documentation, and are completly ign
 weeee
 *#
 ```
-## Blocks
-A block is a list of expression that are envolved by `{}`
-```swift
 
-```
 ## Variables
 Variables are a way of storing values in named containers, can be declared using `var`, as shlang is dynamic it doesnt have type annotation.
 ```swift
@@ -80,6 +76,13 @@ In shlang there many ways to assign a variable the most common being `a = 1;`, b
 - `-=` assigns the subtracted value of the variable and value of the expression.
 - `*=` assigns the multiplies value of the variable and value of the expression.
 - `/=` assigns the divided value of the variable and value of the expression.
+- ## Blocks
+A block is a list of expression that are envolved by `{}`
+```swift
+do{
+#this expression contains a block
+}
+```
 ## Functions
 
 Shlang has first class functions, meaning you can treat them as any other value.

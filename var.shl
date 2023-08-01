@@ -3,9 +3,10 @@ func idk(is){
     println(is);
 }
 var main_a = do {
+    println(4-2-2);
     var i = 0;
     var b = idk("a");
-    var duck = "anb"+if true {"9"};
+    var duck = "anb "+if true {"9"};
     println(duck);
     while i < 10 {
         i += 1;
@@ -22,4 +23,5 @@ var main_a = do {
             println(i);
         }
     }
+    void
 };

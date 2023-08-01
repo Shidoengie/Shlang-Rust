@@ -8,21 +8,21 @@ use std::*;
 const VOID: Result<TypedValue, ()> = Ok((Value::Void, Type::Void));
 const NULL: Result<TypedValue, ()> = Ok((Value::Null, Type::Null));
 pub struct Interpreter {
-    program: Block,
+    program: BlockSpan,
     current: Scope,
-    err_out: LangError,
+    err_out: ErrorBuilder,
 }
 impl Interpreter {
-    pub fn new(program: Block, input: String) -> Self {
+    pub fn new(program: BlockSpan, input: String) -> Self {
         let current = Scope {
             parent: None,
 
-            var_map: defaults::var_map(),
+            vars: defaults::var_map(),
         };
         return Interpreter {
             program,
             current,
-            err_out: LangError::new(input),
+            err_out: ErrorBuilder::new(input),
         };
     }
     fn emit_err(&self, msg: String, span: Span) {
@@ -32,14 +32,14 @@ impl Interpreter {
         return self.eval_block(self.program.clone());
     }
 
-    fn eval_block(&mut self, block: Block) -> Result<TypedValue, ()> {
+    fn eval_block(&mut self, block: BlockSpan) -> Result<TypedValue, ()> {
         let cur = Some(Box::new(self.current.clone()));
         let new_scope = Scope::new(cur, HashMap::from([]));
         self.current = new_scope;
-        if block.body.len() == 0 {
+        if block.unspanned.body.len() == 0 {
             return NULL;
         }
-        let body = *block.body;
+        let body = *block.unspanned.body;
         for node in body {
             let Value::Control(result) = self.eval_node(&node)?.0 else {continue;};
             let Some(parent) = self.current.parent.clone() else {
@@ -109,6 +109,7 @@ impl Interpreter {
             BinaryOp::OR => Ok(Value::Bool(left_bool || right_bool)),
             BinaryOp::ISEQUAL => Ok(Value::Bool(left == right)),
             BinaryOp::ISDIFERENT => Ok(Value::Bool(left != right)),
+            _=>unimplemented!(),
         }
     }
     fn str_calc(&self, node: BinaryNode, left_val: Value, right_val: Value) -> Result<Value, ()> {
@@ -132,33 +133,59 @@ impl Interpreter {
             }
         }
     }
-
+    fn access_struct(&mut self,left:TypedValue,right:NodeSpan)-> Result<TypedValue, ()>{
+        let env = self.current.clone();
+        match left.0 {
+            Value::Struct(obj)=>{
+                self.current = Scope{
+                    parent:None,
+                    vars:obj.vars
+                };
+                let result = self.eval_node(&right);
+                self.current = env;
+                return result;
+            }
+            Value::Str(obj)=>{
+                self.current = Scope{
+                    parent:None,
+                    vars:defaults::str_struct(obj)
+                };
+                let result = self.eval_node(&right);
+                self.current = env;
+                return result;
+            }
+            a=>panic!("{a:?}")
+        }
+    }
     fn eval_binary_node(&mut self, bin_op: BinaryNode) -> Result<TypedValue, ()> {
-        let (left, left_type) = self.eval_node(&*bin_op.left)?.unwrap_result();
-        if left_type == Type::Never{return Ok((left, left_type));}
-        let (right, right_type) = self.eval_node(&*bin_op.right)?.unwrap_result();
-        if right_type == Type::Never{return Ok((right, right_type));}
+        let left = self.eval_node(&*bin_op.left)?.unwrap_result();
+        if left.1 == Type::Never{return Ok(left);}
+        if bin_op.is(&BinaryOp::ACCESS){
+            return self.access_struct(left,*bin_op.right);
+        }
+        let right = self.eval_node(&*bin_op.right)?.unwrap_result();
+        if right.1 == Type::Never{return Ok(right);}
         match bin_op.kind {
             BinaryOp::ISDIFERENT => return Ok((Value::Bool(left != right), Type::Bool)),
             BinaryOp::ISEQUAL => return Ok((Value::Bool(left == right), Type::Bool)),
             _ => {}
         }
-        if left_type != right_type && !(left_type.is_numeric() && right_type.is_numeric()) {
+        if left.1 != right.1 && !(left.1.is_numeric() && right.1.is_numeric()) {
             panic!("mixed types: {left:?} {right:?}")
         }
-        match left_type {
+        match left.1 {
             Type::Num | Type::Bool => {
-                let result = (self.binary_calc(bin_op, left, right)?, left_type);
+                let result = (self.binary_calc(bin_op, left.0, right.0)?, left.1);
                 return Ok(result);
             }
             Type::Str => {
-                let result = (self.str_calc(bin_op, left, right)?, left_type);
+                let result = (self.str_calc(bin_op, left.0, right.0)?, left.1);
                 return Ok(result);
             }
             _ => {}
         }
         self.emit_err(
-            format!("Invalid type in binary operation: {left_type:?}"),
+            format!("Invalid type in binary operation: {:?}",left.1),
             bin_op.left.span,
         );
         return Err(());
@@ -228,7 +255,7 @@ impl Interpreter {
             );
             return Err(());
         }
-        let result = (called.function)(arg_values);
+        let result = (called.function)(self.current.vars.clone(),arg_values);
         let result_type = result.get_type();
         return Ok((result, result_type));
     }
@@ -237,9 +264,9 @@ impl Interpreter {
         func: &Function,
         arg_spans: Vec<Span>,
         arg_values: ValueStream,
-    ) -> Node {
+    ) -> BlockSpan {
         let mut arg_decl: NodeStream = vec![];
-        let Node::Block(mut func_block) = func.block.unspanned.clone() else {panic!()};
+        let mut func_block = func.block.unspanned.clone();
         for (index, name) in func.args.iter().enumerate() {
             let span = arg_spans[index];
             let var = Box::new(NodeSpan::new(arg_values[index].clone().into(), span));
@@ -252,7 +279,7 @@ impl Interpreter {
             );
         }
         arg_decl.append(&mut func_block.body);
-        arg_decl.to_block().into()
+        arg_decl.to_blockspan(func.block.span)
     }
     fn call_func(
         &mut self,
@@ -261,10 +288,6 @@ impl Interpreter {
         arg_spans: Vec<Span>,
         span: Span,
     ) -> Result<TypedValue, ()> {
-        if !matches!(called.block.unspanned, Node::Block(_)) {
-            self.err_out.emit("HOW", span);
-            return Err(());
-        };
         if arg_values.len() != called.args.len() {
             self.emit_err(
                 format!(
@@ -276,8 +299,8 @@ impl Interpreter {
             );
             return Err(());
         }
-        called.block.unspanned = self.build_args(&called, arg_spans, arg_values);
-        let (result, result_type) = self.eval_node(&*called.block)?;
+        called.block = self.build_args(&called, arg_spans, arg_values).boxed();
+        let (result, result_type) = self.eval_block(*called.block)?;
         let Value::Control(flow) = result else {
             return Ok((result,result_type));
         };
@@ -327,29 +350,21 @@ impl Interpreter {
         }
     }
     fn branch(&mut self, branch: Branch) -> Result<TypedValue, ()> {
-        let Node::Block(if_block) = branch.if_block.unspanned else {
-            panic!("if you see this shido fucked up source code line {:?}",line!())
-        };
+        let if_block = *branch.if_block;
         let condition = self.eval_node(&*branch.condition)?;
         let cond_val = self.num_convert(condition.0, branch.condition.span)?.1;
 
         if cond_val {
             return self.eval_block(if_block);
         }
-        let Some(has_else) = branch.else_block else {
+        let Some(else_block) = branch.else_block else {
             return NULL;
         };
-        let Node::Block(else_block) = has_else.unspanned else {
-            panic!("if you see this shido fucked up source code line {:?}",line!())
-        };
-        return self.eval_block(else_block);
+        return self.eval_block(*else_block);
     }
     fn eval_loop(&mut self, loop_node: Loop) -> Result<TypedValue, ()> {
-        let Node::Block(_) = loop_node.proc.unspanned else {
-            panic!("if you see this shido fucked up source code line {:?}",line!())
-        };
         loop {
-            let (result, result_type) = self.eval_node(&*loop_node.proc)?;
+            let (result, result_type) = self.eval_block(*loop_node.proc.clone())?;
             let Value::Control(flow) = result.clone() else {continue;};
             match flow {
                 Control::Break => return NULL,
@@ -359,17 +374,13 @@ impl Interpreter {
         }
     }
     fn eval_while_loop(&mut self, loop_node: While) -> Result<TypedValue, ()> {
-        let Node::Block(_) = loop_node.proc.unspanned else {
-            panic!("if you see this shido fucked up source code line {:?}",line!())
-        };
-
         loop {
             let condition = self.eval_node(&*loop_node.condition)?;
             let cond_val = self.num_convert(condition.0, loop_node.condition.span)?.1;
             if !cond_val {
                 return NULL;
             }
-            let (result, result_type) = self.eval_node(&*loop_node.proc)?;
+            let (result, result_type) = self.eval_block(*loop_node.proc.clone())?;
             let Value::Control(flow) = result.clone() else {continue;};
             match flow {
                 Control::Break => return NULL,
@@ -406,7 +417,7 @@ impl Interpreter {
             Node::Assignment(ass) => self.assign(ass),
             Node::While(obj) => self.eval_while_loop(obj),
             Node::Loop(obj) => self.eval_loop(obj),
-            Node::DoBlock(block) => self.eval_node(&block.body),
+            Node::DoBlock(block) => self.eval_block(*block.body),
             _ => {
                 todo!()
             }

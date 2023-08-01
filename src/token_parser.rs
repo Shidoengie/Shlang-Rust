@@ -2,7 +2,7 @@ use core::panic;
 use std::iter::Peekable;
 
 use crate::ast_nodes::*;
-use crate::lang_errors::LangError;
+use crate::lang_errors::ErrorBuilder;
 use crate::spans::*;
 use crate::token_lexer::Lexer;
 use crate::tokens::*;
@@ -34,7 +34,7 @@ where
 {
     input: &'input str,
     tokens: Peekable<I>,
-    err_out: LangError,
+    err_out: ErrorBuilder,
 }
 
 impl<'input> Parser<'input, TokenIter<'input>> {
@@ -42,7 +42,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         Parser {
             input,
             tokens: TokenIter::new(input).peekable(),
-            err_out: LangError {
+            err_out: ErrorBuilder {
                 input: input.to_string(),
             },
         }
@@ -114,7 +114,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 .collect();
             if last.unspanned != Node::DontResult && last.unspanned.can_result() {
                 let index = filtered.len() - 1;
-
                 filtered[index] = last.wrap_in_result();
             }
             return filtered;
@@ -123,31 +122,29 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     // Parses and collects expressions into a Block node
     // this is used for expressions with blocks like if
-    fn parse_block(&mut self) -> Result<NodeSpan, ()> {
+    fn parse_block(&mut self) -> Result<BlockSpan, ()> {
         let first = self.expect(TokenType::LBRACE)?;
         let mut body: NodeStream = vec![];
         self.next().unwrap();
         let token = self.peek_some()?;
         if token.is(&TokenType::RBRACE) {
-            return Ok(body.to_block().to_nodespan((first.span.0, token.span.1)));
+            return Ok(body.to_blockspan((first.span.0, token.span.1)));
         }
         loop {
-            self.peek();
             let expr = self.parse_expr()?;
-            self.peek();
             body.push(expr);
             if self.peek().is(&TokenType::RBRACE) {
                 break;
             }
         }
         body = self.filter_block(body);
-        return Ok(body.to_block().to_nodespan((first.span.0, token.span.1)));
+        return Ok(body.to_blockspan((first.span.0, token.span.1)));
     }
     // These Parse variable definitions/declarations
     fn empty_var_decl(&mut self, first: Token, var_name: String) -> NodeSpan {
         let Some(last) = self.peek() else {todo!()};
         return Declaration {
-            var_name: var_name,
+            var_name,
             value: Value::Null.to_nodespan(first.span).boxed(),
         }
         .to_nodespan((first.span.0, last.span.1));
@@ -168,43 +165,34 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         match self.peek_some()?.kind {
             TokenType::EOL => return Ok(self.empty_var_decl(ident, var_name)),
             TokenType::EQUAL => return self.var_decl(var_name, ident),
-            _ => {
-                let span = self.peek_some()?.span;
-                self.err_out.emit("Invalid variable declaration", span);
-                return Err(());
-            }
+            _ => {}
         }
+        let span = self.peek_some()?.span;
+        self.err_out.emit("Invalid variable declaration", span);
+        return Err(());
     }
     // This function parses the parameters of function definitions aka: func >(one,two)<
     fn parse_func_params(&mut self) -> Result<Vec<String>, ()> {
-        let mut params: Vec<String> = vec![];
         self.next();
         let mut token = self.peek_some()?;
-        if token.is(&TokenType::RPAREN) {
-            self.next();
-            return Ok(params);
-        }
+        let mut params: Vec<String> = vec![];
         while token.isnt(&TokenType::RPAREN) {
             let ident: Token = self.expect(TokenType::IDENTIFIER)?;
             let var_name = self.text(&ident);
             self.next();
             token = self.peek_some()?;
-
+            params.push(var_name);
             match token.kind {
-                TokenType::RPAREN => {
-                    params.push(var_name);
-                    break;
-                }
+                TokenType::RPAREN => break,
                 TokenType::COMMA => {
-                    params.push(var_name);
                     self.next();
+                    continue;
                 }
-                _ => {
-                    self.err_out
-                        .emit("Invalid Token in function parameters ", token.span);
-                    return Err(());
-                }
+                _ => {}
             }
+            self.err_out
+                .emit("Invalid Token in function parameters ", token.span);
+            return Err(());
         }
         self.next();
         Ok(params)
@@ -246,13 +234,45 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         match first.kind {
             TokenType::IDENTIFIER => return self.parse_named_func(&first),
             TokenType::LPAREN => return self.parse_anon_func(&first),
-            _ => {},
+            _ => {}
         };
         self.err_out
             .emit("Unexpected token in function definition", first.span);
         return Err(());
     }
-
+    fn parse_call_params(&mut self, token: &Token) -> Result<NodeStream, ()> {
+        let mut token = token.clone();
+        let mut params: NodeStream = vec![];
+        while token.isnt(&TokenType::RPAREN) {
+            let expr = self.parse_expr()?;
+            token = self.peek_some()?;
+            params.push(expr);
+            match token.kind {
+                TokenType::RPAREN => break,
+                TokenType::COMMA => {
+                    self.next();
+                    continue;
+                }
+                _ => {}
+            }
+            self.err_out.emit("Invalid Token ", token.span);
+            return Err(());
+        }
+        return Ok(params);
+    }
+    fn parse_call(&mut self, callee: NodeSpan) -> Result<NodeSpan, ()> {
+        let first = self.next().unwrap();
+        let token = self.peek_some()?;
+        let params = self.parse_call_params(&token)?;
+        let last = self.peek_some()?;
+        self.next();
+        let call = Call {
+            args: Box::new(params),
+            callee: callee.boxed(),
+        }
+        .to_nodespan((first.span.0, last.span.1));
+        self.primary_ops(call)
+    }
     fn parse_while_loop(&mut self) -> Result<NodeSpan, ()> {
         let first = self.peek_some()?;
         let condition = self.parse_expr()?.boxed();
@@ -287,14 +307,14 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     fn parse_elif(
         &mut self,
         condition: NodeSpan,
-        if_block: NodeSpan,
+        if_block: BlockSpan,
         span: Span,
     ) -> Result<NodeSpan, ()> {
         self.next();
         let elif = self.parse_branch()?;
         let elif_span = elif.span;
-        let elif_body: Box<NodeStream> = Box::new(vec![elif]);
-        let elif_block = Block { body: elif_body }.to_nodespan(elif_span);
+        let elif_body: NodeStream = vec![elif];
+        let elif_block = elif_body.to_blockspan(elif_span);
         return Ok(Branch::new(condition, if_block, elif_block).to_nodespan(span));
     }
     // parses if expressions
@@ -336,51 +356,12 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         return Ok(expr);
     }
 
-    fn parse_call(&mut self, callee: NodeSpan) -> Result<NodeSpan, ()> {
-        let mut params: NodeStream = vec![];
-        let first = self.next().unwrap();
-        let mut token = self.peek_some()?;
-        if token.is(&TokenType::RPAREN) {
-            let last = self.next().unwrap();
-            return Ok(Call {
-                args: Box::new(params),
-                callee: callee.boxed(),
-            }
-            .to_nodespan((first.span.0, last.span.1)));
-        }
-        while token.isnt(&TokenType::RPAREN) {
-            let expr = self.parse_expr()?;
-            token = self.peek_some()?;
-            match token.kind {
-                TokenType::RPAREN => {
-                    params.push(expr);
-                    break;
-                }
-                TokenType::COMMA => {
-                    params.push(expr);
-                    self.next();
-                }
-                _ => {
-                    self.err_out.emit("Invalid Token ", token.span);
-                    return Err(());
-                }
-            }
-        }
-        let last = self.peek_some()?;
-        self.next();
-
-        return Ok(Call {
-            args: Box::new(params),
-            callee: callee.boxed(),
-        }
-        .to_nodespan((first.span.0, last.span.1)));
-    }
     //parses unary operators:
     // ! not -
     fn unary_operator(&mut self, kind: UnaryOp) -> Result<NodeSpan, ()> {
         let token = self.peek();
         self.next();
-        let right = self.simple_parse(&token)?;
+        let right = self.atom_parser(&token)?;
         return Ok(UnaryNode {
             kind,
             object: right.boxed(),
@@ -461,12 +442,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             return Ok(left);
         }
         self.next();
-        return Ok(BinaryNode {
-            kind: BinaryOp::OR,
-            left: left.boxed(),
-            right: self.or_prec()?.boxed(),
-        }
-        .to_nodespan(op.span));
+        let result = self.or_prec()?;
+        return self.binary_node(BinaryOp::OR, left, result, op.span);
     }
     // a level of precedence for logic and
     fn and_prec(&mut self) -> Result<NodeSpan, ()> {
@@ -476,12 +453,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             return Ok(left);
         }
         self.next();
-        return Ok(BinaryNode {
-            kind: BinaryOp::AND,
-            left: left.boxed(),
-            right: self.and_prec()?.boxed(),
-        }
-        .to_nodespan(op.span));
+        let result = self.and_prec()?;
+        return self.binary_node(BinaryOp::AND, left, result, op.span);
     }
     // a level of precedence for:
     // >= > < <= == !=
@@ -498,12 +471,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             _ => return Ok(left),
         };
         self.next();
-        return Ok(BinaryNode {
-            kind,
-            left: left.boxed(),
-            right: self.eq_prec()?.boxed(),
-        }
-        .to_nodespan(op.span));
+        let result = self.eq_prec()?;
+        return self.binary_node(kind, left, result, op.span);
     }
     // a level of precedence for:
     // + -
@@ -516,12 +485,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             _ => return Ok(left),
         };
         self.next();
-        return Ok(BinaryNode {
-            kind,
-            left: left.boxed(),
-            right: self.add_prec()?.boxed(),
-        }
-        .to_nodespan(op.span));
+        let result = self.add_prec()?;
+        return self.binary_node(kind, left, result, op.span);
     }
     // a level of precedence for:
     // * / %
@@ -535,27 +500,44 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             _ => return Ok(left),
         };
         self.next();
-        return Ok(BinaryNode {
-            kind,
-            left: left.boxed(),
-            right: self.prod_prec()?.boxed(),
-        }
-        .to_nodespan(op.span));
+        let result = self.prod_prec()?;
+        return self.binary_node(kind, left, result, op.span);
     }
-    //highest level of operator precedence used currently for calls
+
     fn primary_prec(&mut self) -> Result<NodeSpan, ()> {
         let value = self.peek();
         self.next();
-        let left = self.simple_parse(&value)?;
+        let left = self.atom_parser(&value)?;
+        return self.primary_ops(left);
+    }
+    fn primary_ops(&mut self, left: NodeSpan) -> Result<NodeSpan, ()> {
         let Some(op) = self.peek() else {return Ok(left);};
-        match op.kind {
+        let kind = match op.kind {
             TokenType::LPAREN => return self.parse_call(left),
+            TokenType::DOT => BinaryOp::ACCESS,
             _ => return Ok(left),
+        };
+        self.next();
+        let result = self.primary_prec()?;
+        return self.binary_node(kind, left, result, op.span);
+    }
+    fn binary_node(
+        &self,
+        kind: BinaryOp,
+        left: NodeSpan,
+        right: NodeSpan,
+        span: Span,
+    ) -> Result<NodeSpan, ()> {
+        return Ok(BinaryNode {
+            kind,
+            left: left.boxed(),
+            right: right.boxed(),
         }
+        .to_nodespan(span));
     }
     // Parses deterministic expressions / atoms
     // these are expressions whose type can be readily known
-    fn simple_parse(&mut self, peeked: &Option<Token>) -> Result<NodeSpan, ()> {
+    fn atom_parser(&mut self, peeked: &Option<Token>) -> Result<NodeSpan, ()> {
         let Some(value) = peeked.clone() else {todo!()};
 
         match value.kind {
@@ -632,23 +614,24 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     // Parses input and collects it into a block ast node
     // This is done so the interpreter can evaluate all the expressions
-    pub fn batch_parse(&mut self) -> Block {
+    pub fn batch_parse(&mut self) -> BlockSpan {
         let mut body: NodeStream = vec![];
         loop {
             let Some(parsed) = self.parse_top() else {break;};
             let Ok(parsed_2) = parsed else {break;};
             body.push(parsed_2);
         }
-        return body.to_block();
+
+        return body.to_blockspan((0, self.input.len().saturating_sub(1)));
     }
     // Parses input as expressions and collects it into a block ast node
-    pub fn batch_parse_expr(&mut self) -> Result<Block,()> {
+    pub fn batch_parse_expr(&mut self) -> Result<BlockSpan, ()> {
         let mut body: NodeStream = vec![];
         while self.peek().is_some() {
             let expr = self.parse_expr()?;
             body.push(expr);
             self.next();
         }
-        return Ok(body.to_block());
+        return Ok(body.to_blockspan((0, self.input.len().saturating_sub(1))));
     }
 }

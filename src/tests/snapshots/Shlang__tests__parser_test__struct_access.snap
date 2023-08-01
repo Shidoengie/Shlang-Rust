@@ -1,0 +1,61 @@
+---
+source: src/tests/parser_test.rs
+expression: "parse_expr(\"b.a*2\")"
+---
+Ok(
+    Spanned {
+        unspanned: BinaryNode(
+            BinaryNode {
+                kind: MULTIPLY,
+                left: Spanned {
+                    unspanned: BinaryNode(
+                        BinaryNode {
+                            kind: ACCESS,
+                            left: Spanned {
+                                unspanned: Variable(
+                                    Variable {
+                                        name: "b",
+                                    },
+                                ),
+                                span: (
+                                    0,
+                                    1,
+                                ),
+                            },
+                            right: Spanned {
+                                unspanned: Variable(
+                                    Variable {
+                                        name: "a",
+                                    },
+                                ),
+                                span: (
+                                    2,
+                                    3,
+                                ),
+                            },
+                        },
+                    ),
+                    span: (
+                        1,
+                        2,
+                    ),
+                },
+                right: Spanned {
+                    unspanned: Value(
+                        Num(
+                            2.0,
+                        ),
+                    ),
+                    span: (
+                        4,
+                        5,
+                    ),
+                },
+            },
+        ),
+        span: (
+            3,
+            4,
+        ),
+    },
+)

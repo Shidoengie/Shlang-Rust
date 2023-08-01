@@ -12,31 +12,29 @@ Ok(
                         Function(
                             Function {
                                 block: Spanned {
-                                    unspanned: Block(
-                                        Block {
-                                            body: [
-                                                Spanned {
-                                                    unspanned: ResultNode(
-                                                        Spanned {
-                                                            unspanned: Value(
-                                                                Num(
-                                                                    1.0,
-                                                                ),
+                                    unspanned: Block {
+                                        body: [
+                                            Spanned {
+                                                unspanned: ResultNode(
+                                                    Spanned {
+                                                        unspanned: Value(
+                                                            Num(
+                                                                1.0,
                                                             ),
-                                                            span: (
-                                                                11,
-                                                                12,
-                                                            ),
-                                                        },
-                                                    ),
-                                                    span: (
-                                                        11,
-                                                        12,
-                                                    ),
-                                                },
-                                            ],
-                                        },
-                                    ),
+                                                        ),
+                                                        span: (
+                                                            11,
+                                                            12,
+                                                        ),
+                                                    },
+                                                ),
+                                                span: (
+                                                    11,
+                                                    12,
+                                                ),
+                                            },
+                                        ],
+                                    },
                                     span: (
                                         10,
                                         12,

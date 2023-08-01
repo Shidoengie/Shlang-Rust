@@ -3,7 +3,7 @@ use crate::Parser;
 use ast_nodes::*;
 use insta::*;
 use std::*;
-fn parse_full(source: &str) -> Block {
+fn parse_full(source: &str) -> BlockSpan {
     let mut parser = Parser::new(source);
     return parser.batch_parse();
 }
@@ -54,4 +54,6 @@ func_expr:"func(b){1}"
 func_decl_expr:"func a (b){1}"
 nested_block:"func(b){do{1};}"
 nested_block_with_result:"func(b){do{1}1}"
+struct_access:"b.a*2"
+struct_access_call:"a.b().c"
 ));

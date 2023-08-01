@@ -45,6 +45,7 @@ pub enum TokenType {
     PIPE,
     VOID,
     NULL,
+    STRUCT,
     CONTINUE,
     PLUS_EQUAL,
     MINUS_EQUAL,
@@ -109,6 +110,7 @@ pub fn map_keyword(text: String) -> Option<TokenType> {
         "do" => Some(TokenType::DO),
         "void"=>Some(TokenType::VOID),
         "null"=>Some(TokenType::NULL),
+        "struct"=>Some(TokenType::STRUCT),
         "continue"=>Some(TokenType::CONTINUE),
         _ => None,
     }

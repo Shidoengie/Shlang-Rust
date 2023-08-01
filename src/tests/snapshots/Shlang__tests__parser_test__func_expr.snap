@@ -8,31 +8,29 @@ Ok(
             Function(
                 Function {
                     block: Spanned {
-                        unspanned: Block(
-                            Block {
-                                body: [
-                                    Spanned {
-                                        unspanned: ResultNode(
-                                            Spanned {
-                                                unspanned: Value(
-                                                    Num(
-                                                        1.0,
-                                                    ),
+                        unspanned: Block {
+                            body: [
+                                Spanned {
+                                    unspanned: ResultNode(
+                                        Spanned {
+                                            unspanned: Value(
+                                                Num(
+                                                    1.0,
                                                 ),
-                                                span: (
-                                                    8,
-                                                    9,
-                                                ),
-                                            },
-                                        ),
-                                        span: (
-                                            8,
-                                            9,
-                                        ),
-                                    },
-                                ],
-                            },
-                        ),
+                                            ),
+                                            span: (
+                                                8,
+                                                9,
+                                            ),
+                                        },
+                                    ),
+                                    span: (
+                                        8,
+                                        9,
+                                    ),
+                                },
+                            ],
+                        },
                         span: (
                             7,
                             9,

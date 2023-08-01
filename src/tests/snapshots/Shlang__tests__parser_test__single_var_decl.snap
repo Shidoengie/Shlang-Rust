@@ -2,27 +2,33 @@
 source: src/tests/parser_test.rs
 expression: "parse_full(\"var a;\")"
 ---
-Block {
-    body: [
-        Spanned {
-            unspanned: Declaration(
-                Declaration {
-                    var_name: "a",
-                    value: Spanned {
-                        unspanned: Value(
-                            Null,
-                        ),
-                        span: (
-                            4,
-                            5,
-                        ),
+Spanned {
+    unspanned: Block {
+        body: [
+            Spanned {
+                unspanned: Declaration(
+                    Declaration {
+                        var_name: "a",
+                        value: Spanned {
+                            unspanned: Value(
+                                Null,
+                            ),
+                            span: (
+                                4,
+                                5,
+                            ),
+                        },
                     },
-                },
-            ),
-            span: (
-                4,
-                6,
-            ),
-        },
-    ],
+                ),
+                span: (
+                    4,
+                    6,
+                ),
+            },
+        ],
+    },
+    span: (
+        0,
+        5,
+    ),
 }

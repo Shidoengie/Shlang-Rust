@@ -1,11 +1,11 @@
-use crate::spans::*;
+use crate::{spans::*, tokens::TokenType};
 use colored::*;
 #[derive(Clone)]
-pub struct LangError {
+
+pub struct ErrorBuilder {
     pub input: String,
 }
-
-impl LangError {
+impl ErrorBuilder {
     pub fn new(input: String) -> Self {
         Self { input }
     }
@@ -28,7 +28,7 @@ impl LangError {
         );
         let lines: Vec<&str> = marked.lines().collect();
         let line = lines[position - 1];
-        return format!("{} {msg}\n{position} {} {line}","|".blue(),"ERROR!".red(),);
+        return format!("{} {msg}\n{position} {} {line}","ERROR!".red(),"|".blue(),);
     }
     pub fn line_pos(&self, span: Span) -> usize {
         return self.input[..span.0]
@@ -37,4 +37,10 @@ impl LangError {
             .count()
             + 1;
     }
+}
+pub enum ParseError {
+    InvalidToken(TokenType,TokenType),
+    UnexpectedToken(TokenType),
+    UnterminatedParetheses,
+    
 }

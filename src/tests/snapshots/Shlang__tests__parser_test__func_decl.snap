@@ -2,19 +2,19 @@
 source: src/tests/parser_test.rs
 expression: "parse_full(\"func a(b){1}\")"
 ---
-Block {
-    body: [
-        Spanned {
-            unspanned: Declaration(
-                Declaration {
-                    var_name: "a",
-                    value: Spanned {
-                        unspanned: Value(
-                            Function(
-                                Function {
-                                    block: Spanned {
-                                        unspanned: Block(
-                                            Block {
+Spanned {
+    unspanned: Block {
+        body: [
+            Spanned {
+                unspanned: Declaration(
+                    Declaration {
+                        var_name: "a",
+                        value: Spanned {
+                            unspanned: Value(
+                                Function(
+                                    Function {
+                                        block: Spanned {
+                                            unspanned: Block {
                                                 body: [
                                                     Spanned {
                                                         unspanned: ResultNode(
@@ -37,29 +37,33 @@ Block {
                                                     },
                                                 ],
                                             },
-                                        ),
-                                        span: (
-                                            9,
-                                            11,
-                                        ),
+                                            span: (
+                                                9,
+                                                11,
+                                            ),
+                                        },
+                                        args: [
+                                            "b",
+                                        ],
                                     },
-                                    args: [
-                                        "b",
-                                    ],
-                                },
+                                ),
                             ),
-                        ),
-                        span: (
-                            5,
-                            10,
-                        ),
+                            span: (
+                                5,
+                                10,
+                            ),
+                        },
                     },
-                },
-            ),
-            span: (
-                5,
-                10,
-            ),
-        },
-    ],
+                ),
+                span: (
+                    5,
+                    10,
+                ),
+            },
+        ],
+    },
+    span: (
+        0,
+        11,
+    ),
 }

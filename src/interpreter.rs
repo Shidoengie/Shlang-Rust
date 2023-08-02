@@ -16,8 +16,8 @@ impl Interpreter {
     pub fn new(program: BlockSpan, input: String) -> Self {
         let current = Scope {
             parent: None,
-
             vars: defaults::var_map(),
+            structs: HashMap::from([]),
         };
         return Interpreter {
             program,
@@ -34,7 +34,7 @@ impl Interpreter {
 
     fn eval_block(&mut self, block: BlockSpan) -> Result<TypedValue, ()> {
         let cur = Some(Box::new(self.current.clone()));
-        let new_scope = Scope::new(cur, HashMap::from([]));
+        let new_scope = Scope::new(cur, HashMap::from([]), HashMap::from([]));
         self.current = new_scope;
         if block.unspanned.body.len() == 0 {
             return NULL;
@@ -109,7 +109,7 @@ impl Interpreter {
             BinaryOp::OR => Ok(Value::Bool(left_bool || right_bool)),
             BinaryOp::ISEQUAL => Ok(Value::Bool(left == right)),
             BinaryOp::ISDIFERENT => Ok(Value::Bool(left != right)),
-            _=>unimplemented!(),
+            _ => unimplemented!(),
         }
     }
     fn str_calc(&self, node: BinaryNode, left_val: Value, right_val: Value) -> Result<Value, ()> {
@@ -133,38 +133,49 @@ impl Interpreter {
             }
         }
     }
-    fn access_struct(&mut self,left:TypedValue,right:NodeSpan)-> Result<TypedValue, ()>{
+    fn access_struct(&mut self, left: TypedValue, right: NodeSpan) -> Result<TypedValue, ()> {
         let env = self.current.clone();
         match left.0 {
-            Value::Struct(obj)=>{
-                self.current = Scope{
-                    parent:None,
-                    vars:obj.vars
+            Value::Struct(obj) => {
+                self.current = Scope {
+                    parent: Some(Box::new(Scope{
+                        parent:None,
+                        vars:defaults::var_map(),
+                        structs:HashMap::from([]),
+                    })),
+                    vars: obj.vars,
+                    structs: obj.structs,
                 };
                 let result = self.eval_node(&right);
                 self.current = env;
                 return result;
             }
-            Value::Str(obj)=>{
-                self.current = Scope{
-                    parent:None,
-                    vars:defaults::str_struct(obj)
+            Value::Str(obj) => {
+                self.current = Scope {
+                    parent: None,
+                    vars: defaults::str_struct(obj),
+                    structs: HashMap::from([]),
                 };
                 let result = self.eval_node(&right);
                 self.current = env;
                 return result;
             }
-            a=>panic!("{a:?}")
+            a => panic!("{a:?}"),
         }
     }
+
     fn eval_binary_node(&mut self, bin_op: BinaryNode) -> Result<TypedValue, ()> {
         let left = self.eval_node(&*bin_op.left)?.unwrap_result();
-        if left.1 == Type::Never{return Ok(left);}
-        if bin_op.is(&BinaryOp::ACCESS){
-            return self.access_struct(left,*bin_op.right);
+        if left.1 == Type::Never {
+            return Ok(left);
+        }
+        if bin_op.is(&BinaryOp::ACCESS) {
+            return self.access_struct(left, *bin_op.right);
         }
         let right = self.eval_node(&*bin_op.right)?.unwrap_result();
-        if right.1 == Type::Never{return Ok(right);}
+        if right.1 == Type::Never {
+            return Ok(right);
+        }
         match bin_op.kind {
             BinaryOp::ISDIFERENT => return Ok((Value::Bool(left != right), Type::Bool)),
             BinaryOp::ISEQUAL => return Ok((Value::Bool(left == right), Type::Bool)),
@@ -185,7 +196,7 @@ impl Interpreter {
             _ => {}
         }
         self.emit_err(
-            format!("Invalid type in binary operation: {:?}",left.1),
+            format!("Invalid type in binary operation: {:?}", left.1),
             bin_op.left.span,
         );
         return Err(());
@@ -255,7 +266,7 @@ impl Interpreter {
             );
             return Err(());
         }
-        let result = (called.function)(self.current.vars.clone(),arg_values);
+        let result = (called.function)(self.current.vars.clone(), arg_values);
         let result_type = result.get_type();
         return Ok((result, result_type));
     }
@@ -389,6 +400,25 @@ impl Interpreter {
             }
         }
     }
+    fn eval_construct(&mut self, constructor: Construct) -> Result<TypedValue, ()>{
+        todo!();
+    }
+    fn eval_structdef(&mut self, obj: StructDef) -> Result<TypedValue, ()> {
+        let outer = self.current.clone();
+        self.current = Scope::new(None, HashMap::from([]), HashMap::from([]));
+        for field in obj.fields {
+            self.eval_node(&field.to_nodespan())?;
+        }
+        let struct_val = Value::Struct(Struct {
+            id: obj.name.clone(),
+            structs: self.current.structs.clone(),
+            vars: self.current.vars.clone(),
+        });
+        self.current = outer;
+
+        return Ok((struct_val, Type::UserDefined(obj.name)));
+    }
+
     fn eval_node(&mut self, node: &NodeSpan) -> Result<TypedValue, ()> {
         let (span, expr) = (node.span, node.unspanned.clone());
         match expr {
@@ -418,6 +448,7 @@ impl Interpreter {
             Node::While(obj) => self.eval_while_loop(obj),
             Node::Loop(obj) => self.eval_loop(obj),
             Node::DoBlock(block) => self.eval_block(*block.body),
+            Node::StructDef(obj)=>self.eval_structdef(obj),
             _ => {
                 todo!()
             }

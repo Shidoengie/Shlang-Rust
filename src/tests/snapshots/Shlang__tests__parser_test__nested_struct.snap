@@ -1,0 +1,31 @@
+---
+source: src/tests/parser_test.rs
+expression: "parse_expr(\"struct abc{struct dfg{};};\")"
+---
+Ok(
+    Spanned {
+        unspanned: StructDef(
+            StructDef {
+                name: "abc",
+                fields: [
+                    Spanned {
+                        unspanned: StructDef(
+                            StructDef {
+                                name: "dfg",
+                                fields: [],
+                            },
+                        ),
+                        span: (
+                            21,
+                            23,
+                        ),
+                    },
+                ],
+            },
+        ),
+        span: (
+            10,
+            17,
+        ),
+    },
+)

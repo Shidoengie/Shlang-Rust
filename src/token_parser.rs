@@ -286,7 +286,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let first = self.expect(TokenType::LBRACE)?;
         let block = self.parse_block()?;
         self.next();
-        let span = block.span.clone();
+        let span = block.span;
         return Ok(DoBlock {
             body: block.boxed(),
         }
@@ -296,11 +296,30 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let first = self.expect(TokenType::LBRACE)?;
         let block = self.parse_block()?;
         self.next();
-        let span = block.span.clone();
+        let span = block.span;
         return Ok(Loop {
             proc: block.boxed(),
         }
         .to_nodespan((first.span.0, span.1)));
+    }
+
+    fn parse_struct(&mut self) -> Result<NodeSpan, ()> {
+        let name_ident = self.expect(TokenType::IDENTIFIER)?;
+        let name = self.text(&name_ident);
+        self.next();
+        let block = self.parse_block()?;
+        self.next();
+        let span = block.span.clone();
+        let body = *block.unspanned.body;
+        let mut fields: Vec<Spanned<Field>> = vec![];
+        for node in body {
+            fields.push(node.to_feildspan()?);
+        }
+        return Ok(Declaration {
+            var_name: name.clone(),
+            value: StructDef { fields, name }.to_nodespan(span).clone().boxed(),
+        }
+        .to_nodespan(span));
     }
     // parses else if
 
@@ -544,9 +563,10 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::STR => {
                 return Ok(Value::Str(self.escaped_text(&value)).to_nodespan(value.span));
             }
-            TokenType::VAR => {
-                return self.parse_vardef();
-            }
+            TokenType::STRUCT => return self.parse_struct(),
+
+            TokenType::VAR => return self.parse_vardef(),
+
             TokenType::NUM => {
                 return Ok(Value::Num(self.text(&value).parse().unwrap()).to_nodespan(value.span));
             }

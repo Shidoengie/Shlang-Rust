@@ -56,4 +56,6 @@ nested_block:"func(b){do{1};}"
 nested_block_with_result:"func(b){do{1}1}"
 struct_access:"b.a*2"
 struct_access_call:"a.b().c"
+struct_body:"struct abc{};"
+nested_struct:"struct abc{struct dfg{};};"
 ));

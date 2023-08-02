@@ -10,7 +10,7 @@ impl ErrorBuilder {
         Self { input }
     }
     pub fn emit(&self, msg: &str, span: Span) {
-        println!("{}", self.build(msg, span));
+        eprintln!("{}", self.build(msg, span));
     }
     pub fn panic_emit(&self, msg: &str, span: Span) {
         self.emit(msg, span);

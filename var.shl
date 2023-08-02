@@ -1,27 +1,18 @@
 
-func idk(is){
-    println(is);
-}
-var main_a = do {
-    println(4-2-2);
-    var i = 0;
-    var b = idk("a");
-    var duck = "anb "+if true {"9"};
-    println(duck);
-    while i < 10 {
-        i += 1;
 
-        if i%3 == 0 and i%5 == 0{
-            println("FizzBuzz");
+var main_a = do {
+    struct Name {
+        var a = 1;
+        func set(val){
+            a = val;
+            println(a);
         }
-        else if i%3 ==0 {
-            println("Fizz");
-        }
-        else if i%5 ==0 {
-            println("Buzz");
-        }else{
-            println(i);
+        struct Def {
+            var v = 2;
         }
     }
-    void
+    
+    var b = 2;
+    Name.set(4);
+    println(Name.a);
 };

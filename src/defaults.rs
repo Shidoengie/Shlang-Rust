@@ -56,6 +56,14 @@ pub fn str_struct(val: String) -> VarMap {
                 arg_size: 0,
             }),
         ),
+        (
+            "substr".to_string(),
+            Value::BuiltinFunc(BuiltinFunc { function: substr_method, arg_size: 2 })
+        ),
+        (
+            "char_at".to_string(),
+            Value::BuiltinFunc(BuiltinFunc { function: char_at_method, arg_size: 1 })
+        )
     ]);
 }
 pub fn parse_num_method(scope: VarMap, _: ValueStream) -> Value {
@@ -64,6 +72,25 @@ pub fn parse_num_method(scope: VarMap, _: ValueStream) -> Value {
     let Ok(result) = parsed else {return Value::Null;};
     return Value::Num(result);
 }
+
+pub fn substr_method(scope: VarMap, args: ValueStream) -> Value {
+    let Some(Value::Str(value)) = scope.get("v") else { panic!() };
+    let [Value::Num(start), Value::Num(end)] = args[..2] else { panic!() };
+    let sub = &value[start as usize..end as usize];
+    Value::Str(sub.to_string())
+}
+
+pub fn char_at_method(scope: VarMap, args: ValueStream) -> Value {
+    let Some(Value::Str(value)) = scope.get("v") else { panic!() };
+    let Value::Num(index) = &args[0] else {panic!()};
+
+     value
+        .chars()
+        .nth(*index as usize)
+        .map(|c| Value::Str(c.to_string()))
+        .unwrap_or(Value::Null)
+}
+
 fn val_to_str(val: &Value) -> String {
     match val {
         Value::Num(num) => num.to_string(),

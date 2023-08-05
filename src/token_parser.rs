@@ -392,47 +392,39 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     fn compound_assignment(
         &mut self,
         kind: BinaryOp,
-        var_name: String,
+        var: NodeSpan,
         value: NodeSpan,
         span: Span,
     ) -> Result<NodeSpan, ()> {
         Ok(Assignment {
-            var_name: var_name.clone(),
-            value: BinaryNode {
-                kind,
-                left: Variable { name: var_name }.to_nodespan(span).boxed(),
-                right: value.boxed(),
-            }
-            .to_nodespan(span)
-            .boxed(),
+            target: var.clone().boxed(),
+            value: self.binary_node(kind, var, value, span)?.boxed(),
         }
         .to_nodespan(span))
     }
     // Parses tokens into an assignment node
-    fn parse_assignment(&mut self, previous: Token, token: Token) -> Result<NodeSpan, ()> {
-        self.check_valid(TokenType::IDENTIFIER, previous.clone())?;
-        let var_name = self.text(&previous);
+    fn parse_assignment(&mut self, target: NodeSpan, token: Token) -> Result<NodeSpan, ()> {
         let last = self.peek_some()?;
         self.next();
         let value = self.parse_expr()?;
         let span = (token.span.0, last.span.1);
         match last.kind {
             TokenType::PLUS_EQUAL => {
-                return self.compound_assignment(BinaryOp::ADD, var_name, value, span)
+                return self.compound_assignment(BinaryOp::ADD, target, value, span)
             }
             TokenType::MINUS_EQUAL => {
-                return self.compound_assignment(BinaryOp::SUBTRACT, var_name, value, span)
+                return self.compound_assignment(BinaryOp::SUBTRACT, target, value, span)
             }
             TokenType::SLASH_EQUAL => {
-                return self.compound_assignment(BinaryOp::DIVIDE, var_name, value, span)
+                return self.compound_assignment(BinaryOp::DIVIDE, target, value, span)
             }
             TokenType::STAR_EQUAL => {
-                return self.compound_assignment(BinaryOp::MULTIPLY, var_name, value, span)
+                return self.compound_assignment(BinaryOp::MULTIPLY, target, value, span)
             }
             _ => {}
         }
         return Ok(Assignment {
-            var_name,
+            target: target.boxed(),
             value: value.boxed(),
         }
         .to_nodespan(span));
@@ -441,7 +433,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     // Converts tokens into AST nodes
     // = += *= -= /=
     pub fn parse_expr(&mut self) -> Result<NodeSpan, ()> {
-        let previous = self.peek();
         let left = self.or_prec()?;
         let Some(op) = self.peek() else {return Ok(left);};
         match op.kind {
@@ -449,7 +440,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             | TokenType::PLUS_EQUAL
             | TokenType::MINUS_EQUAL
             | TokenType::STAR_EQUAL
-            | TokenType::SLASH_EQUAL => return self.parse_assignment(previous.unwrap(), op),
+            | TokenType::SLASH_EQUAL => return self.parse_assignment(left, op),
             _ => return Ok(left),
         }
     }
@@ -531,14 +522,11 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     fn primary_ops(&mut self, left: NodeSpan) -> Result<NodeSpan, ()> {
         let Some(op) = self.peek() else {return Ok(left);};
-        let kind = match op.kind {
+        match op.kind {
             TokenType::LPAREN => return self.parse_call(left),
-            TokenType::DOT => BinaryOp::ACCESS,
+            TokenType::DOT => return self.parse_feild_acess(left, op.span),
             _ => return Ok(left),
         };
-        self.next();
-        let result = self.primary_prec()?;
-        return self.binary_node(kind, left, result, op.span);
     }
     fn binary_node(
         &self,
@@ -551,6 +539,15 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             kind,
             left: left.boxed(),
             right: right.boxed(),
+        }
+        .to_nodespan(span));
+    }
+    fn parse_feild_acess(&mut self, target: NodeSpan, span: Span) -> Result<NodeSpan, ()> {
+        self.next();
+        let requested = self.primary_prec()?.boxed();
+        return Ok(FieldAccess {
+            target: target.boxed(),
+            requested,
         }
         .to_nodespan(span));
     }

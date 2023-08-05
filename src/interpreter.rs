@@ -109,7 +109,6 @@ impl Interpreter {
             BinaryOp::OR => Ok(Value::Bool(left_bool || right_bool)),
             BinaryOp::ISEQUAL => Ok(Value::Bool(left == right)),
             BinaryOp::ISDIFERENT => Ok(Value::Bool(left != right)),
-            _ => unimplemented!(),
         }
     }
     fn str_calc(&self, node: BinaryNode, left_val: Value, right_val: Value) -> Result<Value, ()> {
@@ -133,33 +132,49 @@ impl Interpreter {
             }
         }
     }
-    fn access_struct(&mut self, left: TypedValue, right: NodeSpan) -> Result<TypedValue, ()> {
-        let env = self.current.clone();
-        match left.0 {
-            Value::Struct(obj) => {
-                self.current = Scope {
-                    parent: Some(Box::new(Scope{
-                        parent:None,
-                        vars:defaults::var_map(),
-                        structs:HashMap::from([]),
-                    })),
-                    vars: obj.vars,
-                    structs: obj.structs,
-                };
-                let result = self.eval_node(&right);
-                self.current = env;
-                return result;
-            }
-            Value::Str(obj) => {
-                self.current = Scope {
-                    parent: None,
-                    vars: defaults::str_struct(obj),
-                    structs: HashMap::from([]),
-                };
-                let result = self.eval_node(&right);
-                self.current = env;
-                return result;
-            }
+    fn eval_access_request(&mut self, requested: NodeSpan) -> Result<Spanned<Variable>, ()> {
+        if let Node::FieldAccess(access) = requested.unspanned {
+            return self.eval_fieldacess(access.clone());
+        }
+        if let Node::Variable(var) = requested.unspanned {
+            return Ok(Spanned {
+                unspanned: var,
+                span: requested.span,
+            });
+        }
+        self.emit_err(
+            format!("Invalid node in access: {:?}", requested.unspanned),
+            requested.span,
+        );
+        Err(())
+    }
+    fn access_struct(&mut self, obj: Struct, requested: NodeSpan) -> Result<Spanned<Variable>, ()> {
+        self.current = Scope {
+            parent: Some(Box::new(Scope {
+                parent: None,
+                vars: defaults::var_map(),
+                structs: HashMap::from([]),
+            })),
+            vars: obj.vars,
+            structs: obj.structs,
+        };
+        let result = self.eval_access_request(requested);
+        return result;
+    }
+    fn access_str(&mut self, value: String, requested: NodeSpan) -> Result<Spanned<Variable>, ()> {
+        self.current = Scope {
+            parent: None,
+            vars: defaults::str_struct(value),
+            structs: HashMap::from([]),
+        };
+        let result = self.eval_access_request(requested);
+        return result;
+    }
+    fn eval_fieldacess(&mut self, request: FieldAccess) -> Result<Spanned<Variable>, ()> {
+        let target = self.eval_node(&request.target)?;
+        match target.0 {
+            Value::Struct(obj) => return self.access_struct(obj, *request.requested),
+            Value::Str(value) => return self.access_str(value, *request.requested),
             a => panic!("{a:?}"),
         }
     }
@@ -168,9 +183,6 @@ impl Interpreter {
         let left = self.eval_node(&*bin_op.left)?.unwrap_result();
         if left.1 == Type::Never {
             return Ok(left);
-        }
-        if bin_op.is(&BinaryOp::ACCESS) {
-            return self.access_struct(left, *bin_op.right);
         }
         let right = self.eval_node(&*bin_op.right)?.unwrap_result();
         if right.1 == Type::Never {
@@ -221,24 +233,40 @@ impl Interpreter {
         self.current.define(request.var_name, unwrapped.0);
         return VOID;
     }
-    fn assign(&mut self, request: Assignment) -> Result<TypedValue, ()> {
-        let init_val = self.eval_node(&*request.value)?;
-
+    fn assign_to_name(
+        &mut self,
+        name: String,
+        value: TypedValue,
+        span: Span,
+    ) -> Result<TypedValue, ()> {
         if self
             .current
-            .assign(
-                request.var_name,
-                self.unwrap_var(init_val, request.value.span)?.0,
-            )
+            .assign(name, self.unwrap_var(value, span)?.0)
             .is_none()
         {
-            self.err_out.emit(
-                "Attempted to assign to a non existent variable",
-                request.value.span,
-            );
+            self.err_out
+                .emit("Attempted to assign to a non existent variable", span);
             return Err(());
         }
         return VOID;
+    }
+    fn assign(&mut self, request: Assignment) -> Result<TypedValue, ()> {
+        let init_val = self.eval_node(&*request.value)?;
+        match request.target.unspanned {
+            Node::Variable(var) => {
+                return self.assign_to_name(var.name, init_val, request.target.span)
+            }
+            Node::FieldAccess(request) => {
+                let env = self.current.clone();
+                let accessed = self.eval_fieldacess(request)?;
+                self.assign_to_name(accessed.unspanned.name, init_val, accessed.span)?;
+                dbg!(&self.current);
+                dbg!(&env);
+                self.current = env;
+                VOID
+            }
+            _ => todo!(),
+        }
     }
     fn eval_var(&mut self, var: Variable, span: Span) -> Result<TypedValue, ()> {
         let maybe_result = self.current.get_var(var.name);
@@ -400,7 +428,7 @@ impl Interpreter {
             }
         }
     }
-    fn eval_construct(&mut self, constructor: Construct) -> Result<TypedValue, ()>{
+    fn eval_construct(&mut self, constructor: Construct) -> Result<TypedValue, ()> {
         todo!();
     }
     fn eval_structdef(&mut self, obj: StructDef) -> Result<TypedValue, ()> {
@@ -448,7 +476,14 @@ impl Interpreter {
             Node::While(obj) => self.eval_while_loop(obj),
             Node::Loop(obj) => self.eval_loop(obj),
             Node::DoBlock(block) => self.eval_block(*block.body),
-            Node::StructDef(obj)=>self.eval_structdef(obj),
+            Node::StructDef(obj) => self.eval_structdef(obj),
+            Node::FieldAccess(request) => {
+                let env = self.current.clone();
+                let accessed = self.eval_fieldacess(request)?;
+                let result = self.eval_var(accessed.unspanned, accessed.span);
+                self.current = env;
+                return result;
+            }
             _ => {
                 todo!()
             }

@@ -6,7 +6,17 @@ Ok(
     Spanned {
         unspanned: Assignment(
             Assignment {
-                var_name: "b",
+                target: Spanned {
+                    unspanned: Variable(
+                        Variable {
+                            name: "b",
+                        },
+                    ),
+                    span: (
+                        0,
+                        1,
+                    ),
+                },
                 value: Spanned {
                     unspanned: Value(
                         Num(

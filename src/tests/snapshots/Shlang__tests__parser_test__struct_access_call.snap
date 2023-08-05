@@ -4,10 +4,9 @@ expression: "parse_expr(\"a.b().c\")"
 ---
 Ok(
     Spanned {
-        unspanned: BinaryNode(
-            BinaryNode {
-                kind: ACCESS,
-                left: Spanned {
+        unspanned: FieldAccess(
+            FieldAccess {
+                target: Spanned {
                     unspanned: Variable(
                         Variable {
                             name: "a",
@@ -18,11 +17,10 @@ Ok(
                         1,
                     ),
                 },
-                right: Spanned {
-                    unspanned: BinaryNode(
-                        BinaryNode {
-                            kind: ACCESS,
-                            left: Spanned {
+                request: Spanned {
+                    unspanned: FieldAccess(
+                        FieldAccess {
+                            target: Spanned {
                                 unspanned: Call(
                                     Call {
                                         callee: Spanned {
@@ -44,7 +42,7 @@ Ok(
                                     5,
                                 ),
                             },
-                            right: Spanned {
+                            request: Spanned {
                                 unspanned: Variable(
                                     Variable {
                                         name: "c",

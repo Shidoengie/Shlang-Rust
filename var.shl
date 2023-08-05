@@ -11,8 +11,6 @@ var main_a = do {
             var v = 2;
         }
     }
-    
-    var b = 2;
-    Name.set(4);
-    println(Name.a);
+    var a = 10;
+    println(Name.a = 10);
 };

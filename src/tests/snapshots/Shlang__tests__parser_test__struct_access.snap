@@ -8,10 +8,9 @@ Ok(
             BinaryNode {
                 kind: MULTIPLY,
                 left: Spanned {
-                    unspanned: BinaryNode(
-                        BinaryNode {
-                            kind: ACCESS,
-                            left: Spanned {
+                    unspanned: FieldAccess(
+                        FieldAccess {
+                            target: Spanned {
                                 unspanned: Variable(
                                     Variable {
                                         name: "b",
@@ -22,7 +21,7 @@ Ok(
                                     1,
                                 ),
                             },
-                            right: Spanned {
+                            request: Spanned {
                                 unspanned: Variable(
                                     Variable {
                                         name: "a",

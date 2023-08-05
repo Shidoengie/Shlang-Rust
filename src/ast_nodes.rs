@@ -131,6 +131,7 @@ pub enum Node {
     DoBlock(DoBlock),
     Construct(Construct),
     StructDef(StructDef),
+    FieldAccess(FieldAccess),
     DontResult,
 }
 impl Node {
@@ -172,7 +173,7 @@ impl NodeSpan {
             Node::StructDef(def) => {
                 return Ok(Spanned::new(Field::StructDef(def.clone()), self.span))
             }
-            _ => {},
+            _ => {}
         }
         eprintln!("invalid node in struct feilds IMPROVE ME");
         return Err(());
@@ -237,7 +238,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { UnaryNode Construct StructDef DoBlock BinaryNode Call Variable Assignment Declaration Branch While Loop}
+nodes_from! { UnaryNode Construct StructDef FieldAccess DoBlock BinaryNode Call Variable Assignment Declaration Branch While Loop}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
@@ -254,7 +255,6 @@ pub enum BinaryOp {
     LESSER,
     GREATER_EQUAL,
     LESSER_EQUAL,
-    ACCESS,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -289,7 +289,7 @@ pub struct Declaration {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Assignment {
-    pub var_name: String,
+    pub target: NodeRef,
     pub value: NodeRef,
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -322,15 +322,21 @@ impl Spanned<Field> {
     }
 }
 #[derive(Clone, Debug, PartialEq)]
+pub struct FieldAccess {
+    pub target: NodeRef,
+    pub requested: NodeRef,
+}
+#[derive(Clone, Debug, PartialEq)]
 pub struct StructDef {
     pub name: String,
     pub fields: Vec<Spanned<Field>>,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct StructAssign {
-    pub obj: String,
+    pub obj: NodeRef,
     pub params: Box<VarMap>,
 }
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct DoBlock {
     pub body: BlockRef,

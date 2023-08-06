@@ -1,4 +1,5 @@
 use crate::ast_nodes;
+use crate::token_parser::ParseResult;
 use crate::Parser;
 use ast_nodes::*;
 use insta::*;
@@ -7,7 +8,7 @@ fn parse_full(source: &str) -> BlockSpan {
     let mut parser = Parser::new(source);
     return parser.batch_parse();
 }
-fn parse_expr(source: &str) -> Result<NodeSpan,()> {
+fn parse_expr(source: &str) -> ParseResult {
     let mut parser = Parser::new(source);
     return parser.parse_expr();
 }

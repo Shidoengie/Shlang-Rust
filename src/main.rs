@@ -6,16 +6,17 @@ use std::*;
 
 pub mod ast_nodes;
 pub mod defaults;
-pub mod token_lexer;
 pub mod interpreter;
+pub mod lang_errors;
+pub mod spans;
+pub mod tests;
+pub mod token_lexer;
 pub mod token_parser;
 pub mod tokens;
-pub mod tests;
-pub mod spans;
-pub mod lang_errors;
-use token_lexer::Lexer;
-use token_parser::Parser;
 use interpreter::Interpreter;
+use lang_errors::ErrorBuilder;
+use lang_errors::*;
+use token_parser::Parser;
 fn input(message: &str) -> String {
     print!("{message} ");
     io::stdout().flush().unwrap();
@@ -35,23 +36,33 @@ fn main() {
     let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
     let mut parser = Parser::new(source.as_str());
     let ast = parser.batch_parse();
-    let mut interpreter = Interpreter::new(ast,source);
+    let mut interpreter = Interpreter::new(ast, source);
     interpreter.execute();
 }
-fn rpl()->Result<ast_nodes::NodeSpan,()>{
+fn rpl() -> Result<ast_nodes::NodeSpan, ()> {
     loop {
         let source = input(">: ");
+        let err_out = ErrorBuilder::new(source.clone());
         let mut parser = Parser::new(source.as_str());
-        let ast = parser.batch_parse_expr()?;
-        let mut interpreter = Interpreter::new(ast,source);
+        let ast_result = parser.batch_parse_expr();
+        let Ok(ast) = ast_result else {
+            ast_result.unwrap_err().msg(err_out); continue;
+        };
+        let mut interpreter = Interpreter::new(ast, source);
         interpreter.execute()?;
     }
 }
-fn test_rpl()->Result<ast_nodes::NodeSpan,()>{
+
+fn test_rpl() -> Result<ast_nodes::NodeSpan, ()> {
     loop {
         let source = input(">: ");
+        let err_out = ErrorBuilder::new(source.clone());
         let mut parser = Parser::new(source.as_str());
-        let ast = parser.parse_expr()?;
+
+        let ast_result = parser.batch_parse_expr();
+        let Ok(ast) = ast_result else {
+            ast_result.unwrap_err().msg(err_out); continue;
+        };
         println!("{ast:#?}");
     }
 }

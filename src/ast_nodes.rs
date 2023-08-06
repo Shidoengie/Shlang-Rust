@@ -55,8 +55,7 @@ impl Value {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Struct {
     pub id: String,
-    pub vars: VarMap,
-    pub structs: HashMap<String, Struct>,
+    pub env: Scope,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -164,19 +163,6 @@ impl NodeSpan {
         Block {
             body: Box::new(vec![self]),
         }
-    }
-    pub fn to_feildspan(&self) -> Result<Spanned<Field>, ()> {
-        match &self.unspanned {
-            Node::Declaration(decl) => {
-                return Ok(Spanned::new(Field::Declaration(decl.clone()), self.span))
-            }
-            Node::StructDef(def) => {
-                return Ok(Spanned::new(Field::StructDef(def.clone()), self.span))
-            }
-            _ => {}
-        }
-        eprintln!("invalid node in struct feilds IMPROVE ME");
-        return Err(());
     }
 }
 pub trait IntoBlock {

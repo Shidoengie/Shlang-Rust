@@ -132,52 +132,6 @@ impl Interpreter {
             }
         }
     }
-    fn eval_access_request(&mut self, requested: NodeSpan) -> Result<Spanned<Variable>, ()> {
-        if let Node::FieldAccess(access) = requested.unspanned {
-            return self.eval_fieldacess(access.clone());
-        }
-        if let Node::Variable(var) = requested.unspanned {
-            return Ok(Spanned {
-                unspanned: var,
-                span: requested.span,
-            });
-        }
-        self.emit_err(
-            format!("Invalid node in access: {:?}", requested.unspanned),
-            requested.span,
-        );
-        Err(())
-    }
-    fn access_struct(&mut self, obj: Struct, requested: NodeSpan) -> Result<Spanned<Variable>, ()> {
-        self.current = Scope {
-            parent: Some(Box::new(Scope {
-                parent: None,
-                vars: defaults::var_map(),
-                structs: HashMap::from([]),
-            })),
-            vars: obj.vars,
-            structs: obj.structs,
-        };
-        let result = self.eval_access_request(requested);
-        return result;
-    }
-    fn access_str(&mut self, value: String, requested: NodeSpan) -> Result<Spanned<Variable>, ()> {
-        self.current = Scope {
-            parent: None,
-            vars: defaults::str_struct(value),
-            structs: HashMap::from([]),
-        };
-        let result = self.eval_access_request(requested);
-        return result;
-    }
-    fn eval_fieldacess(&mut self, request: FieldAccess) -> Result<Spanned<Variable>, ()> {
-        let target = self.eval_node(&request.target)?;
-        match target.0 {
-            Value::Struct(obj) => return self.access_struct(obj, *request.requested),
-            Value::Str(value) => return self.access_str(value, *request.requested),
-            a => panic!("{a:?}"),
-        }
-    }
 
     fn eval_binary_node(&mut self, bin_op: BinaryNode) -> Result<TypedValue, ()> {
         let left = self.eval_node(&*bin_op.left)?.unwrap_result();
@@ -262,7 +216,7 @@ impl Interpreter {
                 self.assign_to_name(accessed.unspanned.name, init_val, accessed.span)?;
                 dbg!(&self.current);
                 dbg!(&env);
-                self.current = env;
+
                 VOID
             }
             _ => todo!(),
@@ -428,6 +382,44 @@ impl Interpreter {
             }
         }
     }
+    fn eval_access_request(&mut self, requested: NodeSpan) -> Result<Spanned<Variable>, ()> {
+        if let Node::FieldAccess(access) = requested.unspanned {
+            return self.eval_fieldacess(access);
+        }
+        if let Node::Variable(var) = requested.unspanned {
+            return Ok(Spanned {
+                unspanned: var,
+                span: requested.span,
+            });
+        }
+        self.emit_err(
+            format!("Invalid node in access: {:?}", requested.unspanned),
+            requested.span,
+        );
+        Err(())
+    }
+    fn access_struct(&mut self, obj: Struct, requested: NodeSpan) -> Result<Spanned<Variable>, ()> {
+        self.current = obj.env;
+        let result = self.eval_access_request(requested);
+        return result;
+    }
+    fn access_str(&mut self, value: String, requested: NodeSpan) -> Result<Spanned<Variable>, ()> {
+        self.current = Scope {
+            parent: None,
+            vars: defaults::str_struct(value),
+            structs: HashMap::from([]),
+        };
+        let result = self.eval_access_request(requested);
+        return result;
+    }
+    fn eval_fieldacess(&mut self, request: FieldAccess) -> Result<Spanned<Variable>, ()> {
+        let target = self.eval_node(&request.target)?;
+        match target.0 {
+            Value::Struct(obj) => return self.access_struct(obj, *request.requested),
+            Value::Str(value) => return self.access_str(value, *request.requested),
+            a => panic!("{a:?}"),
+        }
+    }
     fn eval_construct(&mut self, constructor: Construct) -> Result<TypedValue, ()> {
         todo!();
     }
@@ -437,10 +429,18 @@ impl Interpreter {
         for field in obj.fields {
             self.eval_node(&field.to_nodespan())?;
         }
+        let env = Scope::new(
+            Some(Box::new(Scope::new(
+                None,
+                defaults::var_map(),
+                HashMap::from([]),
+            ))),
+            self.current.vars.clone(),
+            self.current.structs.clone(),
+        );
         let struct_val = Value::Struct(Struct {
             id: obj.name.clone(),
-            structs: self.current.structs.clone(),
-            vars: self.current.vars.clone(),
+            env,
         });
         self.current = outer;
 

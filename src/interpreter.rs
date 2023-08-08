@@ -247,11 +247,20 @@ impl Interpreter {
             _ => todo!(),
         }
     }
-    fn eval_var(&mut self, var: Variable, span: Span) -> Result<TypedValue, ()> {
-        let maybe_result = self.current.get_var(var.name);
-        let Some(result) = maybe_result else{
+    fn default_scope(&mut self, var: Variable, span: Span) -> Result<TypedValue, ()> {
+        let maybe_result =
+            Scope::new(None, defaults::var_map(), HashMap::from([])).get_var(&var.name);
+        let Some(result) = maybe_result else {
             self.emit_err("Non existing variable".to_string(), span);
             return Err(());
+        };
+        let res_type = result.get_type();
+        return Ok((result, res_type.clone()));
+    }
+    fn eval_var(&mut self, var: Variable, span: Span) -> Result<TypedValue, ()> {
+        let maybe_result = self.current.get_var(&var.name);
+        let Some(result) = maybe_result else {
+            return self.default_scope(var, span);
         };
         let res_type = result.get_type();
         return Ok((result, res_type.clone()));
@@ -469,11 +478,7 @@ impl Interpreter {
             self.eval_node(&field.to_nodespan())?;
         }
         let env = Scope::new(
-            Some(Box::new(Scope::new(
-                None,
-                defaults::var_map(),
-                HashMap::from([]),
-            ))),
+            None,
             self.current.vars.clone(),
             self.current.structs.clone(),
         );

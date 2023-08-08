@@ -369,8 +369,8 @@ pub struct Scope {
 }
 
 impl Scope {
-    pub fn get_var(&self, var_name: String) -> Option<Value> {
-        if let Some(var) = self.vars.get(&var_name) {
+    pub fn get_var(&self, var_name: &String) -> Option<Value> {
+        if let Some(var) = self.vars.get(var_name) {
             return Some(var.clone());
         }
         if let Some(parent) = &self.parent {

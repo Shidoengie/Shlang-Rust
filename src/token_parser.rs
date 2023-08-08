@@ -652,6 +652,11 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 self.next();
                 func
             }
+            TokenType::STRUCT => {
+                self.next();
+                let strct = Some(self.parse_struct());
+                strct
+            }
             _ => {
                 return Some(Err(ParseError::UnexpectedToplevel(peeked)));
             }

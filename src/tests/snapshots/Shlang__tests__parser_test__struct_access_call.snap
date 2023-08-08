@@ -17,7 +17,7 @@ Ok(
                         1,
                     ),
                 },
-                request: Spanned {
+                requested: Spanned {
                     unspanned: FieldAccess(
                         FieldAccess {
                             target: Spanned {
@@ -42,7 +42,7 @@ Ok(
                                     5,
                                 ),
                             },
-                            request: Spanned {
+                            requested: Spanned {
                                 unspanned: Variable(
                                     Variable {
                                         name: "c",

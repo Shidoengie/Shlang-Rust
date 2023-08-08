@@ -30,7 +30,7 @@ impl<'a> Lexer<'a> {
         let start = self.index();
         let mut current = self.peek();
         while let Some(val) = current {
-            if !val.is_numeric() && val != '.' {
+            if !val.is_numeric() && val != '.' && val != '_' {
                 break;
             }
             current = self.peek_advance();
@@ -65,6 +65,7 @@ impl<'a> Lexer<'a> {
             }
             last = self.advance();
         }
+
         let stop = self.index() - 1;
         return Some(Token::new(TokenType::STR, (start, stop)));
     }
@@ -99,7 +100,7 @@ impl<'a> Lexer<'a> {
             ']' => Some(Token::new(TokenType::RBRACK, range)),
             '%' => Some(Token::new(TokenType::PERCENT, range)),
             ':' => Some(Token::new(TokenType::COLON, range)),
-            ';' => Some(Token::new(TokenType::EOL, range)),
+            ';' => Some(Token::new(TokenType::SEMICOLON, range)),
             '|' => Some(Token::new(TokenType::PIPE, range)),
             '&' => Some(Token::new(TokenType::AMPERSAND, range)),
             '"' => self.str(),

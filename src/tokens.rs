@@ -4,7 +4,7 @@ pub enum TokenType {
     STR,
     NUM,
     IDENTIFIER,
-    EOL,
+    SEMICOLON,
     PLUS,
     MINUS,
     STAR,
@@ -50,7 +50,8 @@ pub enum TokenType {
     PLUS_EQUAL,
     MINUS_EQUAL,
     STAR_EQUAL,
-    SLASH_EQUAL
+    SLASH_EQUAL,
+    NEW,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
@@ -58,37 +59,34 @@ pub struct Token {
     pub span: (usize, usize),
 }
 pub trait TokenEq {
-    fn is(&self,kind: &TokenType) -> bool;
-    fn isnt(&self,kind: &TokenType) -> bool;
+    fn is(&self, kind: &TokenType) -> bool;
+    fn isnt(&self, kind: &TokenType) -> bool;
 }
 impl Token {
     pub fn new(kind: TokenType, span: Span) -> Self {
-        Token {
-            kind,
-            span,
-        }
+        Token { kind, span }
     }
 }
 impl TokenEq for Token {
-    fn is(&self,kind: &TokenType) -> bool{
+    fn is(&self, kind: &TokenType) -> bool {
         &self.kind == kind
     }
-    fn isnt(&self,kind: &TokenType) -> bool{
+    fn isnt(&self, kind: &TokenType) -> bool {
         &self.kind != kind
     }
 }
 type MaybeToken = Option<Token>;
-impl TokenEq for MaybeToken{
-    fn is(&self,kind: &TokenType) -> bool {
+impl TokenEq for MaybeToken {
+    fn is(&self, kind: &TokenType) -> bool {
         match self.clone() {
-            Some(tok)=>return &tok.kind==kind,
-            None => return false
+            Some(tok) => return &tok.kind == kind,
+            None => return false,
         }
     }
-    fn isnt(&self,kind: &TokenType) -> bool {
+    fn isnt(&self, kind: &TokenType) -> bool {
         match self.clone() {
-            Some(tok)=>return &tok.kind!=kind,
-            None => return false
+            Some(tok) => return &tok.kind != kind,
+            None => return false,
         }
     }
 }
@@ -108,10 +106,11 @@ pub fn map_keyword(text: String) -> Option<TokenType> {
         "not" => Some(TokenType::NOT),
         "or" => Some(TokenType::OR),
         "do" => Some(TokenType::DO),
-        "void"=>Some(TokenType::VOID),
-        "null"=>Some(TokenType::NULL),
-        "struct"=>Some(TokenType::STRUCT),
-        "continue"=>Some(TokenType::CONTINUE),
+        "void" => Some(TokenType::VOID),
+        "null" => Some(TokenType::NULL),
+        "struct" => Some(TokenType::STRUCT),
+        "continue" => Some(TokenType::CONTINUE),
+        "new" => Some(TokenType::NEW),
         _ => None,
     }
 }

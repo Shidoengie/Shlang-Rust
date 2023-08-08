@@ -58,17 +58,23 @@ pub fn str_struct(val: String) -> VarMap {
         ),
         (
             "substr".to_string(),
-            Value::BuiltinFunc(BuiltinFunc { function: substr_method, arg_size: 2 })
+            Value::BuiltinFunc(BuiltinFunc {
+                function: substr_method,
+                arg_size: 2,
+            }),
         ),
         (
             "char_at".to_string(),
-            Value::BuiltinFunc(BuiltinFunc { function: char_at_method, arg_size: 1 })
-        )
+            Value::BuiltinFunc(BuiltinFunc {
+                function: char_at_method,
+                arg_size: 1,
+            }),
+        ),
     ]);
 }
 pub fn parse_num_method(scope: VarMap, _: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else {panic!()};
-    let parsed:Result<f64, _> = value.parse();
+    let parsed: Result<f64, _> = value.parse();
     let Ok(result) = parsed else {return Value::Null;};
     return Value::Num(result);
 }
@@ -84,7 +90,7 @@ pub fn char_at_method(scope: VarMap, args: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else { panic!() };
     let Value::Num(index) = &args[0] else {panic!()};
 
-     value
+    value
         .chars()
         .nth(*index as usize)
         .map(|c| Value::Str(c.to_string()))
@@ -111,6 +117,7 @@ pub fn println_builtin(_: VarMap, args: ValueStream) -> Value {
     for val in args {
         out += format!(" {}", val_to_str(&val)).as_str();
     }
+    out = out.trim().to_string();
     println!("{out}");
     return Value::Void;
 }

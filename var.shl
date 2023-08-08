@@ -3,15 +3,20 @@
 var main_a = do {
     struct Name {
         var a = 1;
-        func set(val){
-            a = val;
-            println(a);
+        func foo(fuck){
+            Name.a +=1;
         }
-        struct Def {
-            var v = 2;
+        struct Name {
+            var a = 1;
+            func foo(fuck){
+                a +=1;
+                println(fuck);
+            }
         }
     }
-    var a = 10;
-    Name.a = 10;
-    println(Name.a);
+    println("1:",Name.a);
+    
+    Name.foo(23);
+    
+    println("2:",Name.Name.a);
 };

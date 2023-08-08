@@ -1,4 +1,5 @@
 use core::panic;
+use std::collections::HashMap;
 use std::iter::Peekable;
 
 use crate::ast_nodes::*;
@@ -89,7 +90,11 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         self.check_valid(expected, token.clone())?;
         return Ok(token);
     }
-
+    fn consume(&mut self, expected: TokenType) -> TokenResult {
+        let token = self.expect(expected)?;
+        self.next();
+        return Ok(token);
+    }
     // Filter DontResult nodes in order to determine if the last expression should or shouldnt result
     fn filter_block(&mut self, body: NodeStream) -> NodeStream {
         let maybe_result = body.last();
@@ -146,11 +151,11 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         .to_nodespan((name_ident.span.0, last.unwrap().span.1)));
     }
     fn parse_vardef(&mut self) -> ParseResult {
-        let ident: Token = self.expect(TokenType::IDENTIFIER)?;
+        let ident = self.expect(TokenType::IDENTIFIER)?;
         let var_name = self.text(&ident);
         self.next();
         match self.peek_some()?.kind {
-            TokenType::EOL => return Ok(self.empty_var_decl(ident, var_name)),
+            TokenType::SEMICOLON => return Ok(self.empty_var_decl(ident, var_name)),
             TokenType::EQUAL => return self.var_decl(var_name, ident),
             _ => {}
         }
@@ -282,37 +287,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         .to_nodespan((first.span.0, span.1)));
     }
-    fn node_to_feildspan(&mut self, node: NodeSpan) -> Result<Spanned<Field>, ParseError> {
-        match node.unspanned {
-            Node::Declaration(decl) => {
-                return Ok(Spanned::new(Field::Declaration(decl.clone()), node.span))
-            }
-            Node::StructDef(def) => {
-                return Ok(Spanned::new(Field::StructDef(def.clone()), node.span))
-            }
-            _ => {}
-        }
-        return Err(ParseError::UnexpectedFieldNode(node));
-    }
-    fn parse_struct(&mut self) -> ParseResult {
-        let name_ident = self.expect(TokenType::IDENTIFIER)?;
-        let name = self.text(&name_ident);
-        self.next();
-        let block = self.parse_block()?;
-        self.next();
-        let span = block.span.clone();
-        let body = *block.unspanned.body;
-        let mut fields: Vec<Spanned<Field>> = vec![];
-        for node in body {
-            fields.push(self.node_to_feildspan(node)?);
-        }
-        return Ok(Declaration {
-            var_name: name.clone(),
-            value: StructDef { fields, name }.to_nodespan(span).clone().boxed(),
-        }
-        .to_nodespan(span));
-    }
-    // parses else if
 
     fn parse_elif(&mut self, condition: NodeSpan, if_block: BlockSpan, span: Span) -> ParseResult {
         self.next();
@@ -362,7 +336,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     fn unary_operator(&mut self, kind: UnaryOp) -> ParseResult {
         let token = self.peek();
         self.next();
-        let right = self.atom_parser(&token)?;
+        let right = self.atom_parser(token.as_ref())?;
         return Ok(UnaryNode {
             kind,
             object: right.boxed(),
@@ -499,14 +473,16 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     fn primary_prec(&mut self) -> ParseResult {
         let value = self.peek();
         self.next();
-        let left = self.atom_parser(&value)?;
+        let left = self.atom_parser(value.as_ref())?;
         return self.primary_ops(left);
     }
     fn primary_ops(&mut self, left: NodeSpan) -> ParseResult {
         let Some(op) = self.peek() else {return Ok(left);};
         match op.kind {
             TokenType::LPAREN => return self.parse_call(left),
-            TokenType::DOT => return self.parse_feild_acess(left, op.span),
+            TokenType::LBRACE => return self.parse_struct_assignment(left),
+
+            TokenType::DOT => return self.parse_field_access(left, op.span),
             _ => return Ok(left),
         };
     }
@@ -524,7 +500,38 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         .to_nodespan(span));
     }
-    fn parse_feild_acess(&mut self, target: NodeSpan, span: Span) -> ParseResult {
+    fn node_to_feildspan(&mut self, node: NodeSpan) -> Result<Spanned<Field>, ParseError> {
+        match node.unspanned {
+            Node::Declaration(decl) => {
+                return Ok(Spanned::new(Field::Declaration(decl.clone()), node.span))
+            }
+            Node::StructDef(def) => {
+                return Ok(Spanned::new(Field::StructDef(def.clone()), node.span))
+            }
+            _ => {}
+        }
+        return Err(ParseError::UnexpectedFieldNode(node));
+    }
+    fn parse_struct(&mut self) -> ParseResult {
+        let name_ident = self.expect(TokenType::IDENTIFIER)?;
+        let name = self.text(&name_ident);
+        self.next();
+        let block = self.parse_block()?;
+        self.next();
+        let span = block.span.clone();
+        let body = *block.unspanned.body;
+        let mut fields: Vec<Spanned<Field>> = vec![];
+        for node in body {
+            fields.push(self.node_to_feildspan(node)?);
+        }
+        return Ok(Declaration {
+            var_name: name.clone(),
+            value: StructDef { fields, name }.to_nodespan(span).clone().boxed(),
+        }
+        .to_nodespan(span));
+    }
+
+    fn parse_field_access(&mut self, target: NodeSpan, span: Span) -> ParseResult {
         self.next();
         let requested = self.primary_prec()?.boxed();
         return Ok(FieldAccess {
@@ -533,12 +540,54 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         .to_nodespan(span));
     }
+    fn struct_params(&mut self) -> Result<HashMap<String, NodeSpan>, ParseError> {
+        self.consume(TokenType::LBRACE)?;
+        let token = self.peek_some()?;
+        let mut body: HashMap<String, NodeSpan> = HashMap::from([]);
+        if token.is(&TokenType::RBRACE) {
+            return Ok(body);
+        }
+        loop {
+            let target = self.consume(TokenType::IDENTIFIER)?;
+            self.consume(TokenType::COLON)?;
+            let expr = self.parse_expr()?;
+            body.insert(self.text(&target), expr);
+            if self.peek().is(&TokenType::COMMA) {
+                self.next();
+            }
+            if self.peek().is(&TokenType::RBRACE) {
+                break;
+            }
+        }
+        return Ok(body);
+    }
+    fn parse_struct_assignment(&mut self, target: NodeSpan) -> ParseResult {
+        let first = self.peek_some()?;
+        let params = self.struct_params()?;
+        let last = self.peek_some()?;
+        self.next();
+        let ass = StructAssign {
+            obj: Box::new(target),
+            params,
+        }
+        .to_nodespan((first.span.0, last.span.1));
+        self.primary_ops(ass)
+    }
+    fn parse_constructor(&mut self) -> ParseResult {
+        let first = self.peek_some()?;
+        let ident = self.consume(TokenType::IDENTIFIER)?;
+        let name = self.text(&ident);
+        let params = self.struct_params()?;
+        let last = self.peek_some()?;
+        self.next();
+        return Ok(Constructor { name, params }.to_nodespan((first.span.0, last.span.1)));
+    }
     // Parses deterministic expressions / atoms
     // these are expressions whose type can be readily known
-    fn atom_parser(&mut self, peeked: &Option<Token>) -> ParseResult {
-        let Some(value) = peeked.clone() else {todo!()};
+    fn atom_parser(&mut self, peeked: Option<&Token>) -> ParseResult {
+        let Some(value) = peeked else {todo!()};
 
-        match value.kind {
+        match &value.kind {
             TokenType::STR => {
                 return Ok(Value::Str(self.escaped_text(&value)).to_nodespan(value.span));
             }
@@ -579,8 +628,9 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::BREAK => return Ok(Node::BreakNode.to_spanned(value.span)),
             TokenType::NOT | TokenType::BANG => return self.unary_operator(UnaryOp::NOT),
             TokenType::MINUS => return self.unary_operator(UnaryOp::NEGATIVE),
-            TokenType::LPAREN => return self.parse_paren(value),
-            TokenType::EOL => return Ok(Spanned::new(Node::DontResult, (0, 0))),
+            TokenType::LPAREN => return self.parse_paren(value.clone()),
+            TokenType::NEW => return self.parse_constructor(),
+            TokenType::SEMICOLON => return Ok(Spanned::new(Node::DontResult, (0, 0))),
             unexpected => {
                 panic!("{unexpected:?}");
             }

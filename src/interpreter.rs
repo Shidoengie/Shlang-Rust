@@ -192,30 +192,45 @@ impl Interpreter {
         request: FieldAccess,
         value: TypedValue,
     ) -> Result<TypedValue, ()> {
-        let (Value::Struct(mut target),target_kind) = self.eval_node(&request.target)? else{panic!()};
+        let (Value::Struct(target),target_kind) = self.eval_node(&request.target)? else{panic!()};
         let env = self.current.clone();
-        self.current = target.env;
-        let (requested, req_span) = (request.requested.unspanned, request.requested.span);
-        if let Node::FieldAccess(access) = requested {
-            self.assign_to_access(access, value)?;
-            let Node::Variable(target_var) = request.target.unspanned else {panic!()};
-            target.env = self.current.clone();
-            self.current = env;
-            let assignment_target = (Value::Struct(target.clone()), target_kind);
-            self.assign_to_name(target_var.name, assignment_target.clone(), req_span)?;
-            return Ok(assignment_target);
+        self.current = target.clone().env;
+        match request.clone().requested.unspanned {
+            Node::FieldAccess(access) => {
+                self.assign_to_access(access, value)?;
+                return self.assign_struct(request, target, env, target_kind);
+            }
+            Node::Variable(var) => {
+                self.assign_to_name(var.name, value, request.requested.span.clone())?;
+                return self.assign_struct(request, target, env, target_kind);
+            }
+            requested => {
+                self.emit_err(
+                    format!("Invalid node in access: {:?}", requested),
+                    request.requested.span,
+                );
+                Err(())
+            }
         }
-        if let Node::Variable(var) = requested {
-            self.assign_to_name(var.name, value, req_span)?;
-            let Node::Variable(target_var) = request.target.unspanned else {panic!()};
-            target.env = dbg!(self.current.clone());
-            self.current = env;
-            let assignment_target = (Value::Struct(target.clone()), target_kind);
-            self.assign_to_name(target_var.name, assignment_target.clone(), req_span)?;
-            return Ok(assignment_target);
-        }
-        self.emit_err(format!("Invalid node in access: {:?}", requested), req_span);
-        Err(())
+    }
+
+    fn assign_struct(
+        &mut self,
+        request: FieldAccess,
+        mut target: Struct,
+        env: Scope,
+        target_kind: Type,
+    ) -> Result<TypedValue, ()> {
+        let Node::Variable(target_var) = request.target.unspanned.clone() else {panic!()};
+        target.env = self.current.clone();
+        self.current = env;
+        let assignment_target = (Value::Struct(target.clone()), target_kind);
+        self.assign_to_name(
+            target_var.name,
+            assignment_target.clone(),
+            request.requested.span,
+        )?;
+        return Ok(assignment_target);
     }
     fn assign_to_name(
         &mut self,

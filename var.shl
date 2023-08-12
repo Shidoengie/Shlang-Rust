@@ -1,16 +1,15 @@
 
 struct Name {
     var a = 1;
-    func inc(){
-        a += 1;
-        return a;
+    func inc(self,ammount){
+        self.a += ammount;
+        return self;
+    }
+    func print_var(thigy){
+        println(thigy);
     }
 }
 var main_a = do {
-    
-    println("1:",Name.a);
-    
-    Name.a = Name.inc();
-    Name.inc();
-    println("2:",Name.a);
+    var i = 10;
+    Name.println(i);
 };

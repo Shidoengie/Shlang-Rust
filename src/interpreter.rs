@@ -262,7 +262,7 @@ impl Interpreter {
             _ => todo!(),
         }
     }
-    fn default_scope(&mut self, var: Variable, span: Span) -> Result<TypedValue, ()> {
+    fn default_scope(&self, var: Variable, span: Span) -> Result<TypedValue, ()> {
         let maybe_result =
             Scope::new(None, defaults::var_map(), HashMap::from([])).get_var(&var.name);
         let Some(result) = maybe_result else {
@@ -272,8 +272,8 @@ impl Interpreter {
         let res_type = result.get_type();
         return Ok((result, res_type.clone()));
     }
-    fn eval_var(&mut self, var: Variable, span: Span) -> Result<TypedValue, ()> {
-        let maybe_result = self.current.get_var(&var.name);
+    fn eval_var(&self, var: Variable, span: Span, env: &Scope) -> Result<TypedValue, ()> {
+        let maybe_result = env.get_var(&var.name);
         let Some(result) = maybe_result else {
             return self.default_scope(var, span);
         };
@@ -359,7 +359,7 @@ impl Interpreter {
             }
         }
     }
-    fn eval_call(&mut self, request: Call) -> Result<TypedValue, ()> {
+    fn eval_call(&mut self, request: Call, env: Scope) -> Result<TypedValue, ()> {
         let (func_val, kind) = self.eval_node(&request.callee)?;
         if kind != Type::Function {
             self.emit_err(
@@ -371,11 +371,14 @@ impl Interpreter {
         let call_args = *request.args;
         let mut arg_values: ValueStream = vec![];
         let mut arg_spans: Vec<Span> = vec![];
-        for a in call_args {
-            arg_spans.push(a.span);
-            let argument = self.eval_node(&a)?.0;
+        let prev = self.current.clone();
+        self.current = env;
+        for arg in call_args {
+            arg_spans.push(arg.span);
+            let argument = self.eval_node(&arg)?.0;
             arg_values.push(argument);
         }
+        self.current = prev;
         let arg_span = if !arg_spans.is_empty() {
             (request.callee.span.1 + 1, arg_spans.last().unwrap().1)
         } else {
@@ -431,35 +434,50 @@ impl Interpreter {
             }
         }
     }
-    fn eval_access_request(&mut self, requested: NodeSpan) -> Result<TypedValue, ()> {
-        if let Node::FieldAccess(access) = requested.unspanned {
-            return self.eval_fieldacess(access);
+    fn eval_access_request(
+        &mut self,
+        requested: NodeSpan,
+        base_env: Scope,
+    ) -> Result<TypedValue, ()> {
+        match requested.unspanned {
+            Node::FieldAccess(access) => return self.eval_fieldacess(access, base_env),
+            Node::Call(request) => return self.eval_call(request, base_env),
+            _ => return self.eval_node(&requested),
         }
-        return self.eval_node(&requested);
     }
-    fn access_struct(&mut self, obj: Struct, requested: NodeSpan) -> Result<TypedValue, ()> {
+    fn access_struct(
+        &mut self,
+        obj: Struct,
+        requested: NodeSpan,
+        base_env: Scope,
+    ) -> Result<TypedValue, ()> {
         let env = self.current.clone();
         self.current = obj.env;
-        let result = self.eval_access_request(requested)?;
+        let result = self.eval_access_request(requested, base_env)?;
         self.current = env;
         return Ok(result);
     }
-    fn access_str(&mut self, value: String, requested: NodeSpan) -> Result<TypedValue, ()> {
+    fn access_str(
+        &mut self,
+        value: String,
+        requested: NodeSpan,
+        base_env: Scope,
+    ) -> Result<TypedValue, ()> {
         let env = self.current.clone();
         self.current = Scope {
             parent: None,
             vars: defaults::str_struct(value),
             structs: HashMap::from([]),
         };
-        let result = self.eval_access_request(requested);
+        let result = self.eval_access_request(requested, base_env);
         self.current = env;
         return result;
     }
-    fn eval_fieldacess(&mut self, request: FieldAccess) -> Result<TypedValue, ()> {
+    fn eval_fieldacess(&mut self, request: FieldAccess, base_env: Scope) -> Result<TypedValue, ()> {
         let target = self.eval_node(&request.target)?;
         match target.0 {
-            Value::Struct(obj) => return self.access_struct(obj, *request.requested),
-            Value::Str(value) => return self.access_str(value, *request.requested),
+            Value::Struct(obj) => return self.access_struct(obj, *request.requested, base_env),
+            Value::Str(value) => return self.access_str(value, *request.requested, base_env),
             a => panic!("{a:?}"),
         }
     }
@@ -481,10 +499,6 @@ impl Interpreter {
     fn eval_constructor(&mut self, constructor: Constructor) -> Result<TypedValue, ()> {
         let Some(request) = self.current.structs.get(&constructor.name) else {panic!("Attempted to construct a non existent struct")};
         self.assign_fields(request.clone(), constructor.params)
-    }
-    fn eval_struct_assign(&mut self, op: StructAssign) -> Result<TypedValue, ()> {
-        let (Value::Struct(target),_) = self.eval_node(&op.obj)? else {panic!("invalid struct assign")};
-        self.assign_fields(target, op.params)
     }
     fn eval_structdef(&mut self, obj: StructDef) -> Result<TypedValue, ()> {
         let outer = self.current.clone();
@@ -514,8 +528,8 @@ impl Interpreter {
                 Ok((*val, kind))
             }
             Node::Block(body) => self.eval_block(body),
-            Node::Variable(var) => self.eval_var(var, span),
-            Node::Call(request) => self.eval_call(request),
+            Node::Variable(var) => self.eval_var(var, span, &self.current),
+            Node::Call(request) => self.eval_call(request, self.current.clone()),
             Node::UnaryNode(unary_op) => {
                 let (target, target_type) = self.eval_node(&*unary_op.object)?;
                 self.unary_calc(unary_op, (target, target_type))
@@ -539,9 +553,8 @@ impl Interpreter {
             Node::Loop(obj) => self.eval_loop(obj),
             Node::DoBlock(block) => self.eval_block(*block.body),
             Node::StructDef(obj) => self.eval_structdef(obj),
-            Node::StructAssign(op) => self.eval_struct_assign(op),
             Node::Constructor(op) => self.eval_constructor(op),
-            Node::FieldAccess(request) => self.eval_fieldacess(request),
+            Node::FieldAccess(request) => self.eval_fieldacess(request, self.current.clone()),
 
             _ => {
                 todo!()

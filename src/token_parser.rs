@@ -480,8 +480,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let Some(op) = self.peek() else {return Ok(left);};
         match op.kind {
             TokenType::LPAREN => return self.parse_call(left),
-            TokenType::LBRACE => return self.parse_struct_assignment(left),
-
             TokenType::DOT => return self.parse_field_access(left, op.span),
             _ => return Ok(left),
         };
@@ -560,18 +558,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             }
         }
         return Ok(body);
-    }
-    fn parse_struct_assignment(&mut self, target: NodeSpan) -> ParseResult {
-        let first = self.peek_some()?;
-        let params = self.struct_params()?;
-        let last = self.peek_some()?;
-        self.next();
-        let ass = StructAssign {
-            obj: Box::new(target),
-            params,
-        }
-        .to_nodespan((first.span.0, last.span.1));
-        self.primary_ops(ass)
     }
     fn parse_constructor(&mut self) -> ParseResult {
         let first = self.peek_some()?;

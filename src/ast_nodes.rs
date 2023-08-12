@@ -130,7 +130,6 @@ pub enum Node {
     DoBlock(DoBlock),
     Constructor(Constructor),
     StructDef(StructDef),
-    StructAssign(StructAssign),
     FieldAccess(FieldAccess),
     DontResult,
 }
@@ -225,7 +224,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { UnaryNode Constructor StructDef StructAssign FieldAccess DoBlock BinaryNode Call Variable Assignment Declaration Branch While Loop}
+nodes_from! { UnaryNode Constructor StructDef  FieldAccess DoBlock BinaryNode Call Variable Assignment Declaration Branch While Loop}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
@@ -311,11 +310,6 @@ pub struct FieldAccess {
 pub struct StructDef {
     pub name: String,
     pub fields: Vec<Spanned<Field>>,
-}
-#[derive(Clone, Debug, PartialEq)]
-pub struct StructAssign {
-    pub obj: NodeRef,
-    pub params: HashMap<String, NodeSpan>,
 }
 #[derive(Clone, Debug, PartialEq)]
 

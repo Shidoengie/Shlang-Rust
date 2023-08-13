@@ -3,7 +3,13 @@ use ast_nodes::*;
 use std::collections::HashMap;
 use std::io;
 use std::io::Write;
-
+pub fn default_scope() -> Scope {
+    Scope {
+        parent: None,
+        vars: var_map(),
+        structs: HashMap::from([]),
+    }
+}
 pub fn var_map() -> VarMap {
     let map = HashMap::from([
         ("noice".to_string(), Value::Num(69.0)),

@@ -386,6 +386,13 @@ impl Scope {
             structs,
         }
     }
+    pub fn new_child_in(parent: Scope) -> Self {
+        Scope {
+            parent: Some(Box::new(parent)),
+            vars: HashMap::from([]),
+            structs: HashMap::from([]),
+        }
+    }
     pub fn travel(&mut self) {
         let Some(parent) = self.parent.clone() else {panic!()};
         let grandpa = parent.clone().parent;

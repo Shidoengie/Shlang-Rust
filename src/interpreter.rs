@@ -32,18 +32,21 @@ impl Interpreter {
         }
         let body = *block.unspanned.body;
         for node in body {
-            let Value::Control(result) = self.eval_node(&node,&mut new_scope)?.0 else {continue;};
-            let Some(_) = new_scope.parent else {
-                self.err_out.emit("Invalid control outside block", node.span);
-                return Err(());
+            let Value::Control(result) = self.eval_node(&node,&mut new_scope)?.0 else {
+                continue;
             };
+            if new_scope.parent.is_none() {
+                self.err_out
+                    .emit("Invalid control outside block", node.span);
+                return Err(());
+            }
             return Ok((Value::Control(result), Type::Never));
         }
 
-        let Some(_) = new_scope.parent else {
-            self.err_out.emit("Invalid control outside block",(0,0));
+        if new_scope.parent.is_none() {
+            self.err_out.emit("Invalid control outside block", (0, 0));
             return Err(());
-        };
+        }
         return NULL;
     }
     fn num_convert(&self, num: Value, span: Span) -> Result<(f64, bool), ()> {

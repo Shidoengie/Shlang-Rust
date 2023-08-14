@@ -2,3 +2,4 @@
 *.exe
 *.pdb
 /.idea
+var.shl

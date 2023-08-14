@@ -26,27 +26,26 @@ impl Interpreter {
     }
 
     fn eval_block(&mut self, block: BlockSpan, parent: &mut Scope) -> Result<TypedValue, ()> {
-        let mut new_scope = Scope::new_child_in(*parent);
+        let mut new_scope = Scope::new_child_in(parent.clone());
         if block.unspanned.body.len() == 0 {
             return NULL;
         }
         let body = *block.unspanned.body;
         for node in body {
-            let Value::Control(result) = self.eval_node(&node,&mut new_scope)?.0 else {
-                continue;
-            };
+            let Value::Control(result) = self.eval_node(&node,&mut new_scope)?.0 else {continue;};
             if new_scope.parent.is_none() {
                 self.err_out
                     .emit("Invalid control outside block", node.span);
                 return Err(());
-            }
+            };
             return Ok((Value::Control(result), Type::Never));
         }
 
-        if new_scope.parent.is_none() {
-            self.err_out.emit("Invalid control outside block", (0, 0));
+        let Some(mod_parent) = new_scope.parent else {
+            self.err_out.emit("Invalid control outside block",(0,0));
             return Err(());
-        }
+        };
+        *parent = *mod_parent;
         return NULL;
     }
     fn num_convert(&self, num: Value, span: Span) -> Result<(f64, bool), ()> {
@@ -189,6 +188,25 @@ impl Interpreter {
         value: TypedValue,
         parent: &mut Scope,
     ) -> Result<TypedValue, ()> {
+        let (mut target, _) = self.eval_node(&request.target, parent)?;
+        let mut obj = match target {
+            Value::Struct(mut obj) => obj,
+            _ => return todo!(),
+        };
+        dbg!(&obj);
+        match request.requested.unspanned {
+            Node::FieldAccess(access) => {
+                self.assign_to_access(access, value, &mut obj.env)?;
+                return VOID;
+            }
+            Node::Variable(var) => {
+                dbg!(&parent);
+                self.assign_to_name(var.name, value, request.requested.span, &mut obj.env)?;
+                dbg!(&parent);
+                return VOID;
+            }
+            _ => panic!(),
+        }
         todo!()
     }
 

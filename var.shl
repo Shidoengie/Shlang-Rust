@@ -1,18 +1,19 @@
-
-struct Name {
-    var a = 1;
-    func inc_self(self,ammount){
-        self.a += ammount;
-        return self;
-    }
-    func inc(ammount){
-        a += ammount;
-    }
-    func print_var(thigy){
-        println(thigy);
-    }
+struct fuck {
+    var a = "a";
+}
+func foo(abc){
+    println(abc);
 }
 var main_a = do {
-   Name.inc(1);
-   println(a);
+    var a = 1;
+    
+    println(fuck.a);
+    fuck.a = "v";
+    println(fuck.a);
+    while a < 10 {
+        
+        println(a);
+        a+=1;
+    }
+
 };

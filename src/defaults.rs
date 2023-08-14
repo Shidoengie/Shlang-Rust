@@ -51,7 +51,14 @@ pub fn var_map() -> VarMap {
     ]);
     map
 }
-pub fn str_struct(val: String) -> VarMap {
+pub fn str_struct(val: String) -> Struct {
+    let env = str_structmap(val);
+    Struct {
+        id: "str".to_string(),
+        env: Scope::new(None, env, HashMap::from([])),
+    }
+}
+pub fn str_structmap(val: String) -> VarMap {
     return HashMap::from([
         ("nice".to_string(), Value::Num(69.0)),
         ("v".to_string(), Value::Str(val)),

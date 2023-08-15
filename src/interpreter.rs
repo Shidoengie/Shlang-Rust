@@ -10,12 +10,14 @@ const NULL: Result<TypedValue, ()> = Ok((Value::Null, Type::Null));
 pub struct Interpreter {
     program: BlockSpan,
     err_out: ErrorBuilder,
+    heap: HashMap<u32, Value>,
 }
 impl Interpreter {
     pub fn new(program: BlockSpan, input: String) -> Self {
         return Interpreter {
             program,
             err_out: ErrorBuilder::new(input),
+            heap: HashMap::from([]),
         };
     }
     fn emit_err(&self, msg: String, span: Span) {
@@ -473,7 +475,18 @@ impl Interpreter {
         parent: &mut Scope,
     ) -> Result<TypedValue, ()> {
         let Some(request) = parent.structs.get(&constructor.name) else {panic!("Attempted to construct a non existent struct")};
-        self.assign_fields(request.clone(), constructor.params, parent)
+        let struct_val = self
+            .assign_fields(request.clone(), constructor.params, parent)?
+            .0;
+        let id = self
+            .heap
+            .keys()
+            .max()
+            .and_then(|v| Some(v + 1))
+            .or(Some(0))
+            .unwrap();
+        self.heap.insert(id, struct_val);
+        return Ok((Value::StructRef(id), Type::Ref(id)));
     }
     fn eval_structdef(&mut self, obj: StructDef) -> Result<TypedValue, ()> {
         let mut struct_env = Scope::new(None, HashMap::from([]), HashMap::from([]));

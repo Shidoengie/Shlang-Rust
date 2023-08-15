@@ -21,6 +21,7 @@ pub enum Value {
     Function(Function),
     BuiltinFunc(BuiltinFunc),
     Struct(Struct),
+    StructRef(u32),
 }
 pub trait ControlUnwrap {
     fn unwrap_result(self) -> Self;
@@ -46,6 +47,7 @@ impl Value {
             Value::Num(_) => return Type::Num,
             Value::Control(_) => return Type::Never,
             Value::Struct(s) => return Type::UserDefined(s.id.clone()),
+            Value::StructRef(id) => return Type::Ref(*id),
         }
     }
     pub fn to_nodespan(&self, span: Span) -> NodeSpan {
@@ -96,6 +98,7 @@ pub enum Type {
     Str,
     Function,
     Never,
+    Ref(u32),
     UserDefined(String),
 }
 impl Type {

@@ -50,6 +50,17 @@ impl Interpreter {
         *parent = *mod_parent;
         return NULL;
     }
+    fn heap_insert(&mut self, value: Value) -> u32 {
+        let ref_id = self
+            .heap
+            .keys()
+            .max()
+            .and_then(|v| Some(v + 1))
+            .or(Some(0))
+            .unwrap();
+        self.heap.insert(ref_id, value);
+        return ref_id;
+    }
     fn num_convert(&self, num: Value, span: Span) -> Result<(f64, bool), ()> {
         match num {
             Value::Num(val) => Ok((val, val != 0.0)),
@@ -432,11 +443,13 @@ impl Interpreter {
     }
     fn access_struct(
         &mut self,
-        obj: &mut Struct,
+        id: u32,
         requested: NodeSpan,
         base_env: &mut Scope,
     ) -> Result<TypedValue, ()> {
+        let Value::Struct(mut obj) = self.heap.get(&id).unwrap().clone() else {panic!("IMPROVE ME")};
         let result = self.eval_access_request(requested, base_env, &mut obj.env)?;
+        self.heap.insert(id, Value::Struct(obj));
         return Ok(result);
     }
     fn eval_fieldacess(
@@ -447,9 +460,7 @@ impl Interpreter {
     ) -> Result<TypedValue, ()> {
         let target = self.eval_node(&request.target, parent)?;
         match target.0 {
-            Value::Struct(mut obj) => {
-                return self.access_struct(&mut obj, *request.requested, base_env)
-            }
+            Value::StructRef(id) => return self.access_struct(id, *request.requested, base_env),
             a => panic!("{a:?}"),
         }
     }
@@ -478,17 +489,10 @@ impl Interpreter {
         let struct_val = self
             .assign_fields(request.clone(), constructor.params, parent)?
             .0;
-        let id = self
-            .heap
-            .keys()
-            .max()
-            .and_then(|v| Some(v + 1))
-            .or(Some(0))
-            .unwrap();
-        self.heap.insert(id, struct_val);
+        let id = self.heap_insert(struct_val);
         return Ok((Value::StructRef(id), Type::Ref(id)));
     }
-    fn eval_structdef(&mut self, obj: StructDef) -> Result<TypedValue, ()> {
+    fn eval_structdef(&mut self, obj: StructDef, parent: &mut Scope) -> Result<TypedValue, ()> {
         let mut struct_env = Scope::new(None, HashMap::from([]), HashMap::from([]));
         for field in obj.fields {
             self.eval_node(&field.to_nodespan(), &mut struct_env)?;
@@ -497,7 +501,9 @@ impl Interpreter {
             id: obj.name.clone(),
             env: struct_env,
         });
-        return Ok((struct_val, Type::UserDefined(obj.name)));
+        parent.define(obj.name, struct_val.clone());
+        let id = self.heap_insert(struct_val);
+        return Ok((Value::StructRef(id), Type::Ref(id)));
     }
 
     fn eval_node(&mut self, node: &NodeSpan, parent: &mut Scope) -> Result<TypedValue, ()> {
@@ -532,7 +538,7 @@ impl Interpreter {
             Node::While(obj) => self.eval_while_loop(obj, parent),
             Node::Loop(obj) => self.eval_loop(obj, parent),
             Node::DoBlock(block) => self.eval_block(*block.body, parent),
-            Node::StructDef(obj) => self.eval_structdef(obj),
+            Node::StructDef(obj) => self.eval_structdef(obj, parent),
             Node::Constructor(op) => self.eval_constructor(op, parent),
             Node::FieldAccess(request) => {
                 self.eval_fieldacess(request, &mut parent.clone(), parent)

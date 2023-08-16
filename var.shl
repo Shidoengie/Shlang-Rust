@@ -1,19 +1,42 @@
-struct fuck {
-    var a = "a";
+struct Node {
+    var next;
+    var data = null;
+    var index = -1;
+    func push(new_data){
+        if data == null {
+            data = new_data;
+            index = 0;
+        }        
+        if next != null{
+            next.push(new_data)
+        }
+        if data != new_data{
+            var new_node = new Self{
+                next:null,
+                data:new_data,
+                index:index+1
+            };
+            next = new_node;
+        }
+    }
+    func get(pos){
+        if index == pos{
+            return data;
+        }
+        if next == null{
+            println("Index out of bounds");
+            return;
+        }
+        return next.get(pos);
+    }
 }
-func foo(abc){
-    println(abc);
+func abc(){
+    return;
 }
 var main_a = do {
-    var a = 1;
+    println("Hello World!");
+    Node.push(1);
+    Node.push(10);
+    println(Node.get(1));
     
-    println(fuck.a);
-    fuck.a = "v";
-    println(fuck.a);
-    while a < 10 {
-        
-        println(a);
-        a+=1;
-    }
-
 };

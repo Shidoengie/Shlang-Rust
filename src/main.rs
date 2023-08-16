@@ -27,15 +27,32 @@ fn input(message: &str) -> String {
     return String::from(result.trim());
 }
 fn main() {
-    // let args: Vec<String> = env::args().collect();
-    // if args.len() <= 1 {
-    //     test_rpl();
-    //     return;
-    // }
-    // open_file(&args[0]);
-    open_file("var.shl")
+    let args: Vec<String> = env::args().collect();
+    if args.len() <= 1 {
+        test_rpl();
+        return;
+    }
+    match args.len() {
+        0 | 1 => test_rpl(),
+        2 => execute_file(args),
+        3 => AST_from_file(args),
+        _ => panic!("invalid commands"),
+    }
 }
-fn open_file(file_path: &str) {
+
+fn AST_from_file(args: Vec<String>) {
+    match args[1].to_lowercase().as_str() {
+        "ast" | "a" => {}
+        _ => panic!("Invalid"),
+    }
+    let file_path = &args[2];
+    let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
+    let mut parser = Parser::new(source.as_str());
+    let ast = parser.batch_parse();
+    println!("{ast:#?}");
+}
+fn execute_file(args: Vec<String>) {
+    let file_path = &args[1];
     let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
     let mut parser = Parser::new(source.as_str());
     let ast = parser.batch_parse();
@@ -56,7 +73,7 @@ fn rpl() -> Result<ast_nodes::NodeSpan, ()> {
     }
 }
 
-fn test_rpl() -> Result<ast_nodes::NodeSpan, ()> {
+fn test_rpl() {
     loop {
         let source = input(">: ");
         let err_out = ErrorBuilder::new(source.clone());

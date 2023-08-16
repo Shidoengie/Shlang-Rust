@@ -608,8 +608,13 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::DO => return self.parse_do(),
             TokenType::LOOP => return self.parse_loop(),
             TokenType::RETURN => {
-                let expr = self.parse_expr()?.boxed();
-                return Ok(Node::ReturnNode(expr).to_spanned(value.span));
+                let expr = self.parse_expr()?;
+                let filtered = if expr.unspanned == Node::DontResult {
+                    Value::Null.to_nodespan(expr.span)
+                } else {
+                    expr
+                };
+                return Ok(Node::ReturnNode(filtered.boxed()).to_spanned(value.span));
             }
             TokenType::BREAK => return Ok(Node::BreakNode.to_spanned(value.span)),
             TokenType::NOT | TokenType::BANG => return self.unary_operator(UnaryOp::NOT),

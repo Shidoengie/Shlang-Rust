@@ -373,7 +373,15 @@ impl Scope {
         if let Some(parent) = &self.parent {
             return parent.get_var(var_name);
         }
-
+        None
+    }
+    pub fn get_struct(&self, struct_name: &String) -> Option<Struct> {
+        if let Some(obj) = self.structs.get(struct_name) {
+            return Some(obj.clone());
+        }
+        if let Some(parent) = &self.parent {
+            return parent.get_struct(struct_name);
+        }
         None
     }
     pub fn define(&mut self, var_name: String, val: Value) {

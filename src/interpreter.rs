@@ -212,7 +212,6 @@ impl Interpreter {
         let target = self.eval_node(&request.target, parent)?.0;
         let id = self.get_struct_id(&target);
         let mut obj = self.struct_from_heap(id);
-        dbg!(&obj);
         match request.requested.unspanned {
             Node::FieldAccess(access) => {
                 self.assign_to_access(access, value, &mut obj.env)?;
@@ -490,7 +489,7 @@ impl Interpreter {
         constructor: Constructor,
         parent: &mut Scope,
     ) -> Result<TypedValue, ()> {
-        let Some(request) = parent.structs.get(&constructor.name) else {panic!("Attempted to construct a non existent struct")};
+        let Some(request) = parent.get_struct(&constructor.name) else {panic!("Attempted to construct a non existent struct")};
         let struct_val = self
             .assign_fields(request.clone(), constructor.params, parent)?
             .0;
@@ -502,10 +501,12 @@ impl Interpreter {
         for field in obj.fields {
             self.eval_node(&field.to_nodespan(), &mut struct_env)?;
         }
-        let struct_val = Value::Struct(Struct {
+        let mut strct = Struct {
             id: obj.name.clone(),
             env: struct_env,
-        });
+        };
+        strct.env.structs.insert("Self".to_string(), strct.clone());
+        let struct_val = Value::Struct(strct.clone());
         parent.define(obj.name, struct_val.clone());
         let id = self.heap_define(struct_val);
         return Ok((Value::StructRef(id), Type::Ref(id)));
@@ -515,8 +516,13 @@ impl Interpreter {
         let (span, expr) = (node.span, node.unspanned.clone());
         match expr {
             Node::Value(val) => {
+                // let kind = val.clone().get_type();
+                // Ok((*val, kind))
                 let kind = val.clone().get_type();
-                Ok((*val, kind))
+                let Type::Ref(id) = kind else {return Ok((*val, kind));};
+                let new_val = self.heap.get(&id).unwrap();
+                let new_kind = val.clone().get_type();
+                return Ok((new_val.clone(), new_kind));
             }
             Node::Block(body) => self.eval_block(body, parent),
             Node::Variable(var) => self.eval_var(var, span, parent),

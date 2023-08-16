@@ -49,6 +49,12 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     pub fn text(&mut self, token: &Token) -> String {
         return self.input[token.span.0..token.span.1].to_string();
     }
+    pub fn parse_num(&mut self, token: &Token) -> Value {
+        let mut text = self.input[token.span.0..token.span.1].to_string();
+        let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
+        text = String::from_iter(idk);
+        return Value::Num(text.parse().unwrap());
+    }
     // A hack used to fix most escape charaters
     pub fn escaped_text(&mut self, token: &Token) -> String {
         let raw = format!(r"{}", self.input[token.span.0..token.span.1].to_string())
@@ -582,7 +588,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::VAR => return self.parse_vardef(),
 
             TokenType::NUM => {
-                return Ok(Value::Num(self.text(&value).parse().unwrap()).to_nodespan(value.span));
+                return Ok(self.parse_num(&value).to_nodespan(value.span));
             }
             TokenType::FALSE => {
                 return Ok(Value::Bool(false).to_nodespan(value.span));
@@ -609,12 +615,11 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::LOOP => return self.parse_loop(),
             TokenType::RETURN => {
                 let expr = self.parse_expr()?;
-                let filtered = if expr.unspanned == Node::DontResult {
-                    Value::Null.to_nodespan(expr.span)
-                } else {
-                    expr
-                };
-                return Ok(Node::ReturnNode(filtered.boxed()).to_spanned(value.span));
+                if expr.unspanned == Node::DontResult {
+                    return Ok(Node::ReturnNode(Value::Null.to_nodespan(expr.span).boxed())
+                        .to_spanned(value.span));
+                }
+                return Ok(Node::ReturnNode(expr.boxed()).to_spanned(value.span));
             }
             TokenType::BREAK => return Ok(Node::BreakNode.to_spanned(value.span)),
             TokenType::NOT | TokenType::BANG => return self.unary_operator(UnaryOp::NOT),

@@ -6,18 +6,17 @@ struct Node {
         if data == null {
             data = new_data;
             index = 0;
+            return;
         }        
         if next != null{
             next.push(new_data)
         }
-        if data != new_data{
-            var new_node = new Self{
-                next:null,
-                data:new_data,
-                index:index+1
-            };
-            next = new_node;
-        }
+        var new_node = new Self{
+            next:null,
+            data:new_data,
+            index:index+1
+        };
+        next = new_node;
     }
     func get(pos){
         if index == pos{

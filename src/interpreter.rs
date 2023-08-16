@@ -35,11 +35,12 @@ impl Interpreter {
         let body = *block.unspanned.body;
         for node in body {
             let Value::Control(result) = self.eval_node(&node,&mut new_scope)?.0 else {continue;};
-            if new_scope.parent.is_none() {
+            let Some(mod_parent) = new_scope.parent else {
                 self.err_out
                     .emit("Invalid control outside block", node.span);
                 return Err(());
             };
+            *parent = *mod_parent;
             return Ok((Value::Control(result), Type::Never));
         }
 

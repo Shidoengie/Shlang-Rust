@@ -48,6 +48,13 @@ pub fn var_map() -> VarMap {
                 arg_size: 1,
             }),
         ),
+        (
+            "typeof".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: typeof_node,
+                arg_size: 1,
+            }),
+        ),
     ]);
     map
 }
@@ -57,6 +64,25 @@ pub fn str_struct(val: String) -> Struct {
         id: "str".to_string(),
         env: Scope::new(None, env, HashMap::from([])),
     }
+}
+pub fn num_struct(val: f64) -> Struct {
+    let env = num_structmap(val);
+    Struct {
+        id: "num".to_string(),
+        env: Scope::new(None, env, HashMap::from([])),
+    }
+}
+pub fn num_structmap(val: f64) -> VarMap {
+    return HashMap::from([
+        ("v".to_string(), Value::Num(val)),
+        (
+            "to_string".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: num_to_str,
+                arg_size: 0,
+            }),
+        ),
+    ]);
 }
 pub fn str_structmap(val: String) -> VarMap {
     return HashMap::from([
@@ -85,13 +111,17 @@ pub fn str_structmap(val: String) -> VarMap {
         ),
     ]);
 }
+
 pub fn parse_num_method(scope: VarMap, _: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else {panic!()};
     let parsed: Result<f64, _> = value.parse();
     let Ok(result) = parsed else {return Value::Null;};
     return Value::Num(result);
 }
-
+pub fn num_to_str(scope: VarMap, _: ValueStream) -> Value {
+    let Some(Value::Num(value)) = scope.get("v") else {panic!()};
+    return Value::Str(format!("{value}"));
+}
 pub fn substr_method(scope: VarMap, args: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else { panic!() };
     let [Value::Num(start), Value::Num(end)] = args[..2] else { panic!() };
@@ -149,7 +179,22 @@ pub fn print_builtin(_: VarMap, args: ValueStream) -> Value {
     io::stdout().flush().unwrap();
     return Value::Void;
 }
-
+pub fn typeof_node(_: VarMap, args: ValueStream) -> Value {
+    use Type::*;
+    let out = match args[0].get_type() {
+        Void => "void",
+        Null => "null",
+        Function => "func",
+        Never => "!",
+        Bool => "bool",
+        Num => "num",
+        Str => "str",
+        UserDefined(id) => return Value::Str(id.to_string()),
+        Ref(_) => "ref",
+    }
+    .to_string();
+    return Value::Str(out);
+}
 pub fn parse_num(_: VarMap, args: ValueStream) -> Value {
     let Value::Str(input) = &args[0] else {panic!()};
     Value::Num(input.parse().unwrap())

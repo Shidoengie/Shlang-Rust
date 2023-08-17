@@ -136,7 +136,7 @@ impl Interpreter {
             _ => {}
         }
         if left.1 != right.1 && !(left.1.is_numeric() && right.1.is_numeric()) {
-            panic!("mixed types: {left:?} {right:?}")
+            return Err(IError::MixedTypes(left.1, right.1,(bin_op.left.span.0,bin_op.right.span.1)));
         }
         match left.1 {
             Type::Num | Type::Bool => {
@@ -408,6 +408,7 @@ impl Interpreter {
         let target = self.eval_node(&request.target, parent)?;
         match target.0 {
             Value::StructRef(id) => return self.access_struct(id, *request.requested, base_env),
+            Value::Str(val) => return self.eval_access_request(*request.requested, base_env, &mut defaults::str_struct(val).env),
             a => panic!("{a:?}"),
         }
     }

@@ -660,15 +660,14 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     // Parses input and collects it into a block ast node
     // This is done so the interpreter can evaluate all the expressions
-    pub fn batch_parse(&mut self) -> BlockSpan {
+    pub fn batch_parse(&mut self) -> Result<BlockSpan, ParseError> {
         let mut body: NodeStream = vec![];
         loop {
             let Some(parsed) = self.parse_top() else {break;};
-            let Ok(parsed_2) = parsed else {break;};
-            body.push(parsed_2);
+            body.push(parsed?);
         }
 
-        return body.to_blockspan((0, self.input.len().saturating_sub(1)));
+        return Ok(body.to_blockspan((0, self.input.len().saturating_sub(1))));
     }
     // Parses input as expressions and collects it into a block ast node
     pub fn batch_parse_expr(&mut self) -> Result<BlockSpan, ParseError> {

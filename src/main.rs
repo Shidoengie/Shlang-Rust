@@ -28,12 +28,8 @@ fn input(message: &str) -> String {
 }
 fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() <= 1 {
-        test_rpl();
-        return;
-    }
     match args.len() {
-        0 | 1 => test_rpl(),
+        0 | 1 => rpl(),
         2 => execute_file(args),
         3 => AST_from_file(args),
         _ => panic!("invalid commands"),
@@ -52,14 +48,24 @@ fn AST_from_file(args: Vec<String>) {
     println!("{ast:#?}");
 }
 fn execute_file(args: Vec<String>) {
+    match args[1].to_lowercase().as_str() {
+        "ast" | "a" => test_rpl(),
+        _ => {}
+    }
     let file_path = &args[1];
+
     let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
+    let err_out = ErrorBuilder::new(source.clone());
     let mut parser = Parser::new(source.as_str());
-    let ast = parser.batch_parse();
-    let mut interpreter = Interpreter::new(ast, source);
-    interpreter.execute();
+    let ast_result = parser.batch_parse();
+    let Ok(ast) = ast_result else {
+        ast_result.unwrap_err().msg(err_out);
+        return;
+    };
+    let mut interpreter = Interpreter::new(ast);
+    interpreter.execute().map_err(|e| e.msg(err_out));
 }
-fn rpl() -> Result<ast_nodes::NodeSpan, ()> {
+fn rpl() {
     loop {
         let source = input(">: ");
         let err_out = ErrorBuilder::new(source.clone());
@@ -68,8 +74,8 @@ fn rpl() -> Result<ast_nodes::NodeSpan, ()> {
         let Ok(ast) = ast_result else {
             ast_result.unwrap_err().msg(err_out); continue;
         };
-        let mut interpreter = Interpreter::new(ast, source);
-        interpreter.execute()?;
+        let mut interpreter = Interpreter::new(ast);
+        interpreter.execute().map_err(|e| e.msg(err_out));
     }
 }
 

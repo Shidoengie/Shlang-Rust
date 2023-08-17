@@ -5,29 +5,27 @@ use crate::spans::*;
 use ast_nodes::*;
 use std::collections::HashMap;
 use std::*;
-const VOID: Result<TypedValue, ()> = Ok((Value::Void, Type::Void));
-const NULL: Result<TypedValue, ()> = Ok((Value::Null, Type::Null));
+type IError = InterpreterError;
+type EvalResult = Result<TypedValue, InterpreterError>;
+const VOID: EvalResult = Ok((Value::Void, Type::Void));
+const NULL: EvalResult = Ok((Value::Null, Type::Null));
+
 pub struct Interpreter {
     program: BlockSpan,
-    err_out: ErrorBuilder,
     heap: HashMap<u32, Value>,
 }
 impl Interpreter {
-    pub fn new(program: BlockSpan, input: String) -> Self {
+    pub fn new(program: BlockSpan) -> Self {
         return Interpreter {
             program,
-            err_out: ErrorBuilder::new(input),
             heap: HashMap::from([]),
         };
     }
-    fn emit_err(&self, msg: String, span: Span) {
-        self.err_out.emit(msg.as_str(), span);
-    }
-    pub fn execute(&mut self) -> Result<TypedValue, ()> {
+    pub fn execute(&mut self) -> EvalResult {
         return self.eval_block(self.program.clone(), &mut defaults::default_scope());
     }
 
-    fn eval_block(&mut self, block: BlockSpan, parent: &mut Scope) -> Result<TypedValue, ()> {
+    fn eval_block(&mut self, block: BlockSpan, parent: &mut Scope) -> EvalResult {
         let mut new_scope = Scope::new_child_in(parent.clone());
         if block.unspanned.body.len() == 0 {
             return NULL;
@@ -36,17 +34,15 @@ impl Interpreter {
         for node in body {
             let Value::Control(result) = self.eval_node(&node,&mut new_scope)?.0 else {continue;};
             let Some(mod_parent) = new_scope.parent else {
-                self.err_out
-                    .emit("Invalid control outside block", node.span);
-                return Err(());
+                
+                return Err(IError::InvalidControl(node.span));
             };
             *parent = *mod_parent;
             return Ok((Value::Control(result), Type::Never));
         }
 
         let Some(mod_parent) = new_scope.parent else {
-            self.err_out.emit("Invalid control outside block",(0,0));
-            return Err(());
+            return Err(IError::InvalidControl((0,0)));
         };
         *parent = *mod_parent;
         return NULL;
@@ -62,25 +58,18 @@ impl Interpreter {
         self.heap.insert(ref_id, value);
         return ref_id;
     }
-    fn num_convert(&self, num: Value, span: Span) -> Result<(f64, bool), ()> {
+    fn num_convert(&self, num: Value, span: Span) -> Result<(f64, bool), IError> {
         match num {
             Value::Num(val) => Ok((val, val != 0.0)),
             Value::Bool(cond) => Ok((cond as i8 as f64, cond)),
-            invalid => {
-                self.emit_err(format!("Invalid type{invalid:?}"), span);
-                return Err(());
-            }
+            invalid => Err(IError::InvalidType(vec![Type::Num,Type::Bool],invalid.get_type(),span)),
         }
     }
-    fn unary_calc(&self, node: UnaryNode, target: TypedValue) -> Result<TypedValue, ()> {
+    fn unary_calc(&self, node: UnaryNode, target: TypedValue) -> EvalResult {
         match node.kind {
             UnaryOp::NEGATIVE => {
                 let Value::Num(val) = target.0 else {
-                    self.emit_err(
-                        format!("Invalid Type expected Num but got {:?}",target.1),
-                        node.object.span
-                    );
-                    return Err(());
+                    return Err(IError::InvalidType(vec![Type::Num],target.1, node.object.span));
                 };
                 return Ok((Value::Num(-val), Type::Num));
             }
@@ -97,7 +86,7 @@ impl Interpreter {
         node: BinaryNode,
         left_val: Value,
         right_val: Value,
-    ) -> Result<Value, ()> {
+    ) -> Result<Value, IError> {
         let (left, left_bool) = self.num_convert(left_val, node.left.span)?;
         let (right, right_bool) = self.num_convert(right_val, node.right.span)?;
         match node.kind {
@@ -116,9 +105,9 @@ impl Interpreter {
             BinaryOp::ISDIFERENT => Ok(Value::Bool(left != right)),
         }
     }
-    fn str_calc(&self, node: BinaryNode, left_val: Value, right_val: Value) -> Result<Value, ()> {
-        let Value::Str(left) = left_val else {return Err(());};
-        let Value::Str(right) = right_val else {return Err(());};
+    fn str_calc(&self, node: BinaryNode, left_val: Value, right_val: Value) -> Result<Value, IError> {
+        let Value::Str(left) = left_val else {unreachable!()};
+        let Value::Str(right) = right_val else {unreachable!()};
 
         match node.kind {
             BinaryOp::ADD => Ok(Value::Str(left + &right)),
@@ -128,21 +117,11 @@ impl Interpreter {
             BinaryOp::LESSER_EQUAL => Ok(Value::Bool(left <= right)),
             BinaryOp::ISEQUAL => Ok(Value::Bool(left == right)),
             BinaryOp::ISDIFERENT => Ok(Value::Bool(left != right)),
-            op => {
-                self.emit_err(
-                    format!("Cant do {op:?} operation with strings"),
-                    (node.left.span.1, node.right.span.0),
-                );
-                Err(())
-            }
+            op => Err(IError::InvalidOp(op, Type::Str, (node.left.span.1, node.right.span.0)))
         }
     }
 
-    fn eval_binary_node(
-        &mut self,
-        bin_op: BinaryNode,
-        parent: &mut Scope,
-    ) -> Result<TypedValue, ()> {
+    fn eval_binary_node(&mut self, bin_op: BinaryNode, parent: &mut Scope) -> EvalResult {
         let left = self.eval_node(&*bin_op.left, parent)?.unwrap_result();
         if left.1 == Type::Never {
             return Ok(left);
@@ -170,27 +149,23 @@ impl Interpreter {
             }
             _ => {}
         }
-        self.emit_err(
-            format!("Invalid type in binary operation: {:?}", left.1),
-            bin_op.left.span,
-        );
-        return Err(());
+        
+        return Err(IError::InvalidBinary(left.1, bin_op.left.span));
     }
-    fn unwrap_var(&self, value: TypedValue, span: Span) -> Result<TypedValue, ()> {
+    fn unwrap_var(&self, value: TypedValue, span: Span) -> EvalResult {
+        let err = Err(IError::VoidAssignment(span));
         if value.1 == Type::Void {
-            self.err_out.emit("Cannot assign void to variable", span);
-            return Err(());
+            return err;
         }
         let Value::Control(Control::Result(res_val,res_type)) = value.0 else {
             return Ok(value);
         };
         if res_type == Type::Void {
-            self.err_out.emit("Cannot assign void to variable", span);
-            return Err(());
+            return err;
         }
         return Ok((*res_val, res_type));
     }
-    fn declare(&mut self, request: Declaration, parent: &mut Scope) -> Result<TypedValue, ()> {
+    fn declare(&mut self, request: Declaration, parent: &mut Scope) -> EvalResult {
         let init_val = self.eval_node(&*request.value, parent)?;
         let unwrapped = self.unwrap_var(init_val, request.value.span)?;
         parent.define(request.var_name, unwrapped.0);
@@ -209,7 +184,7 @@ impl Interpreter {
         request: FieldAccess,
         value: TypedValue,
         parent: &mut Scope,
-    ) -> Result<TypedValue, ()> {
+    ) -> EvalResult {
         let target = self.eval_node(&request.target, parent)?.0;
         let id = self.get_struct_id(&target);
         let mut obj = self.struct_from_heap(id);
@@ -234,18 +209,16 @@ impl Interpreter {
         value: TypedValue,
         span: Span,
         target: &mut Scope,
-    ) -> Result<TypedValue, ()> {
+    ) -> EvalResult {
         if target
-            .assign(name, self.unwrap_var(value, span)?.0)
+            .assign(name.clone(), self.unwrap_var(value, span)?.0)
             .is_none()
         {
-            self.err_out
-                .emit("Attempted to assign to a non existent variable", span);
-            return Err(());
+            return Err(IError::InvalidAssignment(name, span));
         }
         return VOID;
     }
-    fn assign(&mut self, request: Assignment, parent: &mut Scope) -> Result<TypedValue, ()> {
+    fn assign(&mut self, request: Assignment, parent: &mut Scope) -> EvalResult {
         let init_val = self.eval_node(&*request.value, parent)?;
         match request.clone().target.unspanned {
             Node::Variable(var) => {
@@ -258,17 +231,16 @@ impl Interpreter {
             _ => todo!(),
         }
     }
-    fn default_scope(&self, var: Variable, span: Span) -> Result<TypedValue, ()> {
+    fn default_scope(&self, var: Variable, span: Span) -> EvalResult {
         let maybe_result =
             Scope::new(None, defaults::var_map(), HashMap::from([])).get_var(&var.name);
         let Some(result) = maybe_result else {
-            self.emit_err("Non existing variable".to_string(), span);
-            return Err(());
+            return Err(IError::NonExistentVar(var.name, span));
         };
         let res_type = result.get_type();
         return Ok((result, res_type.clone()));
     }
-    fn eval_var(&self, var: Variable, span: Span, env: &Scope) -> Result<TypedValue, ()> {
+    fn eval_var(&self, var: Variable, span: Span, env: &Scope) -> EvalResult {
         let maybe_result = env.get_var(&var.name);
         let Some(result) = maybe_result else {
             return self.default_scope(var, span);
@@ -282,17 +254,9 @@ impl Interpreter {
         arg_values: ValueStream,
         span: Span,
         parent: &mut Scope,
-    ) -> Result<TypedValue, ()> {
+    ) -> EvalResult {
         if called.arg_size != -1 && arg_values.len() as i16 != called.arg_size {
-            self.emit_err(
-                format!(
-                    "Not enough arguments expected {:?} but got {:?}",
-                    called.arg_size,
-                    arg_values.len()
-                ),
-                span,
-            );
-            return Err(());
+            return Err(IError::InvalidArgSize(called.arg_size as u32, arg_values.len() as u32, span));
         }
         let result = (called.function)(parent.vars.clone(), arg_values);
         let result_type = result.get_type();
@@ -327,17 +291,9 @@ impl Interpreter {
         arg_spans: Vec<Span>,
         span: Span,
         parent: &mut Scope,
-    ) -> Result<TypedValue, ()> {
+    ) -> EvalResult {
         if arg_values.len() != called.args.len() {
-            self.emit_err(
-                format!(
-                    "Not enough arguments expected {:?} but got {:?}",
-                    called.args.len(),
-                    arg_values.len()
-                ),
-                span,
-            );
-            return Err(());
+            return Err(IError::InvalidArgSize(called.args.len() as u32, arg_values.len() as u32, span));
         }
         called.block = self.build_args(&called, arg_spans, arg_values).boxed();
         let (result, result_type) = self.eval_block(*called.block, parent)?;
@@ -352,24 +308,15 @@ impl Interpreter {
                 return Ok((*val, kind));
             }
             _ => {
-                self.err_out.emit("Unexpected control flow node", span);
-                return Err(());
+                
+                return Err(IError::InvalidControl(span));
             }
         }
     }
-    fn eval_call(
-        &mut self,
-        request: Call,
-        base_env: &mut Scope,
-        parent: &mut Scope,
-    ) -> Result<TypedValue, ()> {
+    fn eval_call(&mut self, request: Call, base_env: &mut Scope, parent: &mut Scope) -> EvalResult {
         let (func_val, kind) = self.eval_node(&request.callee, parent)?;
         if kind != Type::Function {
-            self.emit_err(
-                format!("Invalid Function call expected a function but got {kind:?}"),
-                request.callee.span,
-            );
-            return Err(());
+            return Err(IError::InvalidType(vec![Type::Function], kind, request.callee.span,));
         }
         let call_args = *request.args;
         let mut arg_values: ValueStream = vec![];
@@ -394,7 +341,7 @@ impl Interpreter {
             _ => panic!(),
         }
     }
-    fn branch(&mut self, branch: Branch, parent: &mut Scope) -> Result<TypedValue, ()> {
+    fn branch(&mut self, branch: Branch, parent: &mut Scope) -> EvalResult {
         let if_block = *branch.if_block;
         let condition = self.eval_node(&*branch.condition, parent)?;
         let cond_val = self.num_convert(condition.0, branch.condition.span)?.1;
@@ -407,7 +354,7 @@ impl Interpreter {
         };
         return self.eval_block(*else_block, parent);
     }
-    fn eval_loop(&mut self, loop_node: Loop, parent: &mut Scope) -> Result<TypedValue, ()> {
+    fn eval_loop(&mut self, loop_node: Loop, parent: &mut Scope) -> EvalResult {
         loop {
             let (result, result_type) = self.eval_block(*loop_node.proc.clone(), parent)?;
             let Value::Control(flow) = result.clone() else {continue;};
@@ -418,7 +365,7 @@ impl Interpreter {
             }
         }
     }
-    fn eval_while_loop(&mut self, loop_node: While, parent: &mut Scope) -> Result<TypedValue, ()> {
+    fn eval_while_loop(&mut self, loop_node: While, parent: &mut Scope) -> EvalResult {
         loop {
             let condition = self.eval_node(&*loop_node.condition, parent)?;
             let cond_val = self.num_convert(condition.0, loop_node.condition.span)?.1;
@@ -439,19 +386,14 @@ impl Interpreter {
         requested: NodeSpan,
         base_env: &mut Scope,
         parent: &mut Scope,
-    ) -> Result<TypedValue, ()> {
+    ) -> EvalResult {
         match requested.unspanned {
             Node::FieldAccess(access) => return self.eval_fieldacess(access, base_env, parent),
             Node::Call(request) => return self.eval_call(request, base_env, parent),
             _ => return self.eval_node(&requested, parent),
         }
     }
-    fn access_struct(
-        &mut self,
-        id: u32,
-        requested: NodeSpan,
-        base_env: &mut Scope,
-    ) -> Result<TypedValue, ()> {
+    fn access_struct(&mut self, id: u32, requested: NodeSpan, base_env: &mut Scope) -> EvalResult {
         let Value::Struct(mut obj) = self.heap.get(&id).unwrap().clone() else {panic!("IMPROVE ME")};
         let result = self.eval_access_request(requested, base_env, &mut obj.env)?;
         self.heap.insert(id, Value::Struct(obj));
@@ -462,7 +404,7 @@ impl Interpreter {
         request: FieldAccess,
         base_env: &mut Scope,
         parent: &mut Scope,
-    ) -> Result<TypedValue, ()> {
+    ) -> EvalResult {
         let target = self.eval_node(&request.target, parent)?;
         match target.0 {
             Value::StructRef(id) => return self.access_struct(id, *request.requested, base_env),
@@ -474,7 +416,7 @@ impl Interpreter {
         target: Struct,
         params: HashMap<String, NodeSpan>,
         parent: &mut Scope,
-    ) -> Result<TypedValue, ()> {
+    ) -> EvalResult {
         let mut obj = target.clone();
         for (k, v) in params {
             if !obj.env.vars.contains_key(&k) {
@@ -485,11 +427,7 @@ impl Interpreter {
         }
         return Ok((Value::Struct(obj.clone()), Type::UserDefined(obj.id)));
     }
-    fn eval_constructor(
-        &mut self,
-        constructor: Constructor,
-        parent: &mut Scope,
-    ) -> Result<TypedValue, ()> {
+    fn eval_constructor(&mut self, constructor: Constructor, parent: &mut Scope) -> EvalResult {
         let Some(request) = parent.get_struct(&constructor.name) else {panic!("Attempted to construct a non existent struct")};
         let struct_val = self
             .assign_fields(request.clone(), constructor.params, parent)?
@@ -497,7 +435,7 @@ impl Interpreter {
         let id = self.heap_define(struct_val);
         return Ok((Value::StructRef(id), Type::Ref(id)));
     }
-    fn eval_structdef(&mut self, obj: StructDef, parent: &mut Scope) -> Result<TypedValue, ()> {
+    fn eval_structdef(&mut self, obj: StructDef, parent: &mut Scope) -> EvalResult {
         let mut struct_env = Scope::new(None, HashMap::from([]), HashMap::from([]));
         for field in obj.fields {
             self.eval_node(&field.to_nodespan(), &mut struct_env)?;
@@ -513,7 +451,7 @@ impl Interpreter {
         return Ok((Value::StructRef(id), Type::Ref(id)));
     }
 
-    fn eval_node(&mut self, node: &NodeSpan, parent: &mut Scope) -> Result<TypedValue, ()> {
+    fn eval_node(&mut self, node: &NodeSpan, parent: &mut Scope) -> EvalResult {
         let (span, expr) = (node.span, node.unspanned.clone());
         match expr {
             Node::Value(val) => {

@@ -42,6 +42,7 @@ impl ErrorBuilder {
 pub trait LangError {
     fn msg(&self, err_out: ErrorBuilder);
 }
+
 #[derive(Clone, Debug)]
 pub enum ParseError {
     InvalidToken(TokenType, Token),
@@ -67,6 +68,71 @@ impl LangError for ParseError {
             ),
             UnterminatedParetheses(paren) => err_out.emit("Unterminated parentheses", paren.span),
             UnexpectedFieldNode(node) => err_out.emit("Invalid Node in struct feilds", node.span),
+        }
+    }
+}
+pub enum InterpreterError {
+    MixedTypes(Type, Type, Span),
+    InvalidType(Vec<Type>, Type, Span),
+    InvalidControl(Span),
+    VoidAssignment(Span),
+    NonExistentVar(String, Span),
+    InvalidAssignment(String, Span),
+    InvalidConstructor(Span),
+    InvalidOp(BinaryOp, Type, Span),
+    InvalidArgSize(u32, u32, Span),
+    InvalidBinary(Type, Span),
+}
+impl LangError for InterpreterError {
+    fn msg(&self, err_out: ErrorBuilder) {
+        use InterpreterError::*;
+        match &self {
+            MixedTypes(first, last, span) => err_out.emit(
+                format!("Mixed types: {first:?} and {last:?}").as_str(),
+                *span,
+            ),
+            InvalidType(accepted, got, span) => {
+                let opts = String::from_iter(
+                    format!("{accepted:?}")
+                        .chars()
+                        .filter(|c| c != &'[' && c != &']'),
+                )
+                .replace(",", " or ");
+                err_out.emit(
+                    format!("Invalid Types expected: {opts:?} but got {got:?}").as_str(),
+                    *span,
+                )
+            }
+            InvalidControl(span) => err_out.emit("Invalid control flow node", *span),
+            VoidAssignment(span) => err_out.emit("Attempted to assign void to a variable", *span),
+            NonExistentVar(name, span) => err_out.emit(
+                ("Couldnt find variable with name: ".to_string() + name.as_str()).as_str(),
+                *span,
+            ),
+            InvalidAssignment(name, span) => err_out.emit(
+                ("Attempted to assign to non existent variable with name: ".to_string()
+                    + name.as_str())
+                .as_str(),
+                *span,
+            ),
+            InvalidConstructor(span) => {
+                err_out.emit("Attempted to construct a non existent struct", *span)
+            }
+            InvalidOp(op, inv, span) => err_out.emit(
+                format!("Cant do {op:?} operation with type {inv:?}").as_str(),
+                *span,
+            ),
+            InvalidArgSize(expected, got, span) => err_out.emit(
+                format!(
+                    "Invalid args size expected {expected:?} arguments but got {got:?} arguments"
+                )
+                .as_str(),
+                *span,
+            ),
+            InvalidBinary(got, span) => err_out.emit(
+                format!("Invalid type in binary operation: {:?}", got).as_str(),
+                *span,
+            ),
         }
     }
 }

@@ -6,7 +6,7 @@ use insta::*;
 use std::*;
 fn parse_full(source: &str) -> BlockSpan {
     let mut parser = Parser::new(source);
-    return parser.batch_parse();
+    return parser.batch_parse().unwrap();
 }
 fn parse_expr(source: &str) -> ParseResult {
     let mut parser = Parser::new(source);

@@ -1,8 +1,12 @@
 use crate::ast_nodes;
+use crate::Interpreter;
+use crate::Parser;
 use ast_nodes::*;
 use std::collections::HashMap;
 use std::io;
 use std::io::Write;
+
+const NULL: Value = Value::Null;
 pub fn default_scope() -> Scope {
     Scope {
         parent: None,
@@ -52,6 +56,13 @@ pub fn var_map() -> VarMap {
             "typeof".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
                 function: typeof_node,
+                arg_size: 1,
+            }),
+        ),
+        (
+            "eval".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: eval,
                 arg_size: 1,
             }),
         ),
@@ -114,7 +125,7 @@ pub fn str_structmap(val: String) -> VarMap {
 pub fn parse_num_method(scope: VarMap, _: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else {panic!()};
     let parsed: Result<f64, _> = String::from_iter(value.chars().filter(|&c| c != '_')).parse();
-    let Ok(result) = parsed else {return Value::Null;};
+    let Ok(result) = parsed else {return NULL;};
     return Value::Num(result);
 }
 pub fn num_to_str(scope: VarMap, _: ValueStream) -> Value {
@@ -123,14 +134,14 @@ pub fn num_to_str(scope: VarMap, _: ValueStream) -> Value {
 }
 pub fn substr_method(scope: VarMap, args: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else { panic!() };
-    let [Value::Num(start), Value::Num(end)] = args[..2] else { panic!() };
+    let [Value::Num(start), Value::Num(end)] = args[..2] else { return NULL; };
     let sub = &value[start as usize..end as usize];
     Value::Str(sub.to_string())
 }
 
 pub fn char_at_method(scope: VarMap, args: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else { panic!() };
-    let Value::Num(index) = &args[0] else {panic!()};
+    let Value::Num(index) = &args[0] else {return NULL;};
 
     value
         .chars()
@@ -139,7 +150,7 @@ pub fn char_at_method(scope: VarMap, args: ValueStream) -> Value {
         .unwrap_or(Value::Null)
 }
 
-fn val_to_str(val: &Value) -> String {
+pub fn val_to_str(val: &Value) -> String {
     match val {
         Value::Num(num) => num.to_string(),
         Value::Bool(cond) => cond.to_string(),
@@ -178,6 +189,7 @@ pub fn print_builtin(_: VarMap, args: ValueStream) -> Value {
     io::stdout().flush().unwrap();
     return Value::Void;
 }
+
 pub fn typeof_node(_: VarMap, args: ValueStream) -> Value {
     use Type::*;
     let out = match args[0].get_type() {
@@ -195,7 +207,7 @@ pub fn typeof_node(_: VarMap, args: ValueStream) -> Value {
     return Value::Str(out);
 }
 pub fn parse_num(_: VarMap, args: ValueStream) -> Value {
-    let Value::Str(input) = &args[0] else {panic!()};
+    let Value::Str(input) = &args[0] else {return NULL;};
     Value::Num(input.parse().unwrap())
 }
 pub fn to_str(_: VarMap, args: ValueStream) -> Value {
@@ -213,4 +225,21 @@ pub fn input_builtin(_: VarMap, args: ValueStream) -> Value {
         result = "".to_string()
     }
     return Value::Str(String::from(result.trim()));
+}
+pub fn eval(_: VarMap, args: ValueStream) -> Value {
+    let Value::Str(source) = &args[0] else {return Value::Str("Expected a string".to_string());};
+    let mut parser = Parser::new(source.as_str());
+    let ast_result = parser.batch_parse_expr();
+    let Ok(ast) = ast_result else {
+        return Value::Null;
+    };
+
+    let Ok(result) = Interpreter::execute_node(ast) else {return Value::Null;};
+    let Value::Control(nevah) = result.0 else {return result.0;};
+
+    match nevah {
+        Control::Result(val, _) => return *val,
+        Control::Return(val, _) => return *val,
+        _ => return Value::Null,
+    }
 }

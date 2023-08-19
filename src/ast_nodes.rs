@@ -171,6 +171,7 @@ impl NodeSpan {
 pub trait IntoBlock {
     fn to_block(self) -> Block;
     fn to_blockspan(self, span: Span) -> BlockSpan;
+    fn to_nodespan(self, span: Span) -> NodeSpan;
 }
 pub type NodeStream = Vec<NodeSpan>;
 impl IntoBlock for NodeStream {
@@ -186,6 +187,9 @@ impl IntoBlock for NodeStream {
             },
             span,
         )
+    }
+    fn to_nodespan(self, span: Span) -> NodeSpan {
+        Spanned::new(Node::Block(self.to_blockspan(span.clone())), span)
     }
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -403,12 +407,6 @@ impl Scope {
             vars: HashMap::from([]),
             structs: HashMap::from([]),
         }
-    }
-    pub fn travel(&mut self) {
-        let Some(parent) = self.parent.clone() else {panic!()};
-        let grandpa = parent.clone().parent;
-        self.parent = grandpa;
-        self.vars = parent.vars;
     }
     pub fn assign(&mut self, var_name: String, value: Value) -> Option<Value> {
         if let Some(var) = self.vars.get_mut(&var_name) {

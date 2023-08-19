@@ -33,9 +33,6 @@ func abc(){
     return;
 }
 var main_a = do {
-    println("Hello World!");
-    Node.push(1);
-    Node.push(10);
-    println(Node.get(1));
     
+    println(eval("if true {1}"));
 };

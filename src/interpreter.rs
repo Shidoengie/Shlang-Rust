@@ -9,7 +9,7 @@ type IError = InterpreterError;
 type EvalResult = Result<TypedValue, InterpreterError>;
 const VOID: EvalResult = Ok((Value::Void, Type::Void));
 const NULL: EvalResult = Ok((Value::Null, Type::Null));
-
+#[derive(Debug)]
 pub struct Interpreter {
     program: BlockSpan,
     heap: HashMap<u32, Value>,
@@ -24,7 +24,13 @@ impl Interpreter {
     pub fn execute(&mut self) -> EvalResult {
         return self.eval_block(self.program.clone(), &mut defaults::default_scope());
     }
-
+    pub fn execute_node(node:NodeSpan) -> EvalResult {
+        return Self{
+            program:vec![Node::DontResult.to_spanned((0,0))].to_blockspan((0,0)),
+            heap:HashMap::from([]),
+        }.eval_node(&node, &mut Scope::new_child_in(defaults::default_scope()));
+        
+    }
     fn eval_block(&mut self, block: BlockSpan, parent: &mut Scope) -> EvalResult {
         let mut new_scope = Scope::new_child_in(parent.clone());
         if block.unspanned.body.len() == 0 {

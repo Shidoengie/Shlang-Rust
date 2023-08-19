@@ -1,4 +1,3 @@
-use core::panic;
 use std::collections::HashMap;
 use std::iter::Peekable;
 
@@ -577,7 +576,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     // Parses deterministic expressions / atoms
     // these are expressions whose type can be readily known
     fn atom_parser(&mut self, peeked: Option<&Token>) -> ParseResult {
-        let Some(value) = peeked else {todo!()};
+        let Some(value) = peeked else {return Err(ParseError::UnexpectedStreamEnd);};
 
         match &value.kind {
             TokenType::STR => {
@@ -626,8 +625,8 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::LPAREN => return self.parse_paren(value.clone()),
             TokenType::NEW => return self.parse_constructor(),
             TokenType::SEMICOLON => return Ok(Spanned::new(Node::DontResult, (0, 0))),
-            unexpected => {
-                panic!("{unexpected:?}");
+            _ => {
+                return Err(ParseError::UnexpectedToken(value.clone()));
             }
         };
     }
@@ -669,13 +668,18 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         return Ok(body.to_blockspan((0, self.input.len().saturating_sub(1))));
     }
     // Parses input as expressions and collects it into a block ast node
-    pub fn batch_parse_expr(&mut self) -> Result<BlockSpan, ParseError> {
+    pub fn batch_parse_expr(&mut self) -> ParseResult {
+        let len = self.input.len().saturating_sub(1);
         let mut body: NodeStream = vec![];
         while self.peek().is_some() {
             let expr = self.parse_expr()?;
             body.push(expr);
             self.next();
         }
-        return Ok(body.to_blockspan((0, self.input.len().saturating_sub(1))));
+        if body.len() == 1 {
+            Ok(body[0].clone())
+        } else {
+            Ok(body.to_nodespan((0, len.clone())))
+        }
     }
 }

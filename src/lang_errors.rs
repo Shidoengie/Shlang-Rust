@@ -40,7 +40,8 @@ impl ErrorBuilder {
     }
 }
 pub trait LangError {
-    fn msg(&self, err_out: ErrorBuilder);
+    fn print_msg(&self, err_out: ErrorBuilder);
+    fn msg(&self) -> String;
 }
 
 #[derive(Clone, Debug)]
@@ -53,24 +54,37 @@ pub enum ParseError {
     UnexpectedFieldNode(NodeSpan),
 }
 impl LangError for ParseError {
-    fn msg(&self, err_out: ErrorBuilder) {
+    fn msg(&self) -> String {
         use ParseError::*;
         match &self {
-            InvalidToken(expected, got) => err_out.emit(
-                format!("expected token {expected:?} but got token {:?}", got.kind).as_str(),
-                got.span,
-            ),
-            UnexpectedToken(token) => err_out.emit("Unexpected token", token.span),
-            UnexpectedToplevel(token) => err_out.emit("Unexpected token at toplevel", token.span),
-            UnexpectedStreamEnd => eprintln!(
-                "{} Expected To find another token but none was found",
-                "ERROR".red()
-            ),
-            UnterminatedParetheses(paren) => err_out.emit("Unterminated parentheses", paren.span),
-            UnexpectedFieldNode(node) => err_out.emit("Invalid Node in struct feilds", node.span),
+            InvalidToken(expected, got) => {
+                format!("expected token {expected:?} but got token {:?}", got.kind)
+            }
+            UnexpectedToken(_) => "Unexpected token".to_string(),
+            UnexpectedToplevel(_) => "Unexpected token at toplevel".to_string(),
+            UnexpectedStreamEnd => "Expected To find another token but none was found".to_string(),
+            UnterminatedParetheses(_) => "Unterminated parentheses".to_string(),
+            UnexpectedFieldNode(_) => "Invalid Node in struct feilds".to_string(),
         }
     }
+    fn print_msg(&self, err_out: ErrorBuilder) {
+        use ParseError::*;
+
+        let span = match &self {
+            InvalidToken(_, got) => got.span,
+            UnexpectedToken(token) => token.span,
+            UnexpectedToplevel(token) => token.span,
+            UnexpectedStreamEnd => {
+                eprintln!("{} {}", "ERROR".red(), self.msg());
+                return;
+            }
+            UnterminatedParetheses(paren) => paren.span,
+            UnexpectedFieldNode(node) => node.span,
+        };
+        err_out.emit(self.msg().as_str(), span);
+    }
 }
+#[derive(Debug)]
 pub enum InterpreterError {
     MixedTypes(Type, Type, Span),
     InvalidType(Vec<Type>, Type, Span),
@@ -84,55 +98,51 @@ pub enum InterpreterError {
     InvalidBinary(Type, Span),
 }
 impl LangError for InterpreterError {
-    fn msg(&self, err_out: ErrorBuilder) {
+    fn msg(&self) -> String {
         use InterpreterError::*;
         match &self {
-            MixedTypes(first, last, span) => err_out.emit(
-                format!("Mixed types: {first:?} and {last:?}").as_str(),
-                *span,
-            ),
-            InvalidType(accepted, got, span) => {
+            MixedTypes(first, last, _) => format!("Mixed types: {first:?} and {last:?}"),
+
+            InvalidType(accepted, got, _) => {
                 let opts = String::from_iter(
                     format!("{accepted:?}")
                         .chars()
                         .filter(|c| c != &'[' && c != &']'),
                 )
                 .replace(",", " or ");
-                err_out.emit(
-                    format!("Invalid Types expected: {opts:?} but got {got:?}").as_str(),
-                    *span,
-                )
+                return format!("Invalid Types expected: {opts:?} but got {got:?}").to_string();
             }
-            InvalidControl(span) => err_out.emit("Invalid control flow node", *span),
-            VoidAssignment(span) => err_out.emit("Attempted to assign void to a variable", *span),
-            NonExistentVar(name, span) => err_out.emit(
-                ("Couldnt find variable with name: ".to_string() + name.as_str()).as_str(),
-                *span,
-            ),
-            InvalidAssignment(name, span) => err_out.emit(
-                ("Attempted to assign to non existent variable with name: ".to_string()
-                    + name.as_str())
-                .as_str(),
-                *span,
-            ),
-            InvalidConstructor(span) => {
-                err_out.emit("Attempted to construct a non existent struct", *span)
+            InvalidControl(_) => "Invalid control flow node".to_string(),
+            VoidAssignment(_) => "Attempted to assign void to a variable".to_string(),
+            NonExistentVar(name, _) => {
+                "Couldnt find variable with name: ".to_string() + name.as_str()
             }
-            InvalidOp(op, inv, span) => err_out.emit(
-                format!("Cant do {op:?} operation with type {inv:?}").as_str(),
-                *span,
+            InvalidAssignment(name, _) => {
+                "Attempted to assign to non existent variable with name: ".to_string()
+                    + name.as_str()
+            }
+            InvalidConstructor(_) => "Attempted to construct a non existent struct".to_string(),
+            InvalidOp(op, inv, _) => format!("Cant do {op:?} operation with type {inv:?}"),
+            InvalidArgSize(expected, got, _) => format!(
+                "Invalid args size expected {expected:?} arguments but got {got:?} arguments"
             ),
-            InvalidArgSize(expected, got, span) => err_out.emit(
-                format!(
-                    "Invalid args size expected {expected:?} arguments but got {got:?} arguments"
-                )
-                .as_str(),
-                *span,
-            ),
-            InvalidBinary(got, span) => err_out.emit(
-                format!("Invalid type in binary operation: {:?}", got).as_str(),
-                *span,
-            ),
+            InvalidBinary(got, _) => format!("Invalid type in binary operation: {:?}", got),
         }
+    }
+    fn print_msg(&self, err_out: ErrorBuilder) {
+        use InterpreterError::*;
+        let span = match &self {
+            MixedTypes(_, _, span) => span,
+            InvalidType(_, _, span) => span,
+            InvalidControl(span) => span,
+            VoidAssignment(span) => span,
+            NonExistentVar(_, span) => span,
+            InvalidAssignment(_, span) => span,
+            InvalidConstructor(span) => span,
+            InvalidOp(_, _, span) => span,
+            InvalidArgSize(_, _, span) => span,
+            InvalidBinary(_, span) => span,
+        };
+        err_out.emit(self.msg().as_str(), *span);
     }
 }

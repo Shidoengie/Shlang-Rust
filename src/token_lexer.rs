@@ -53,14 +53,18 @@ impl<'a> Lexer<'a> {
         };
         return Token::new(keyword, (start, stop));
     }
-    fn str(&mut self) -> Option<Token> {
+    fn str(&mut self, quote: char) -> Option<Token> {
         let start = self.index();
         let mut last = self.advance();
         let mut escaped = false;
         loop {
             match (escaped, last?) {
-                (false, '"') => break,
                 (false, '\\') => escaped = true,
+                (false, q) => {
+                    if q == quote {
+                        break;
+                    }
+                }
                 _ => escaped = false,
             }
             last = self.advance();
@@ -103,7 +107,8 @@ impl<'a> Lexer<'a> {
             ';' => Some(Token::new(TokenType::SEMICOLON, range)),
             '|' => Some(Token::new(TokenType::PIPE, range)),
             '&' => Some(Token::new(TokenType::AMPERSAND, range)),
-            '"' => self.str(),
+            '"' => self.str('"'),
+            '\'' => self.str('\''),
             '+' => self.multi_char_token('=', TokenType::PLUS, TokenType::PLUS_EQUAL, start),
             '*' => self.multi_char_token('=', TokenType::STAR, TokenType::STAR_EQUAL, start),
             '/' => self.multi_char_token('=', TokenType::SLASH, TokenType::SLASH_EQUAL, start),
@@ -120,7 +125,10 @@ impl<'a> Lexer<'a> {
             }
 
             ' ' | '\t' | '\r' | '\n' => self.next(),
-            last => Some(self.ident_or_num(last).expect("Unexpected Char")),
+            last => Some(
+                self.ident_or_num(last)
+                    .expect(format!("Unexpected Char {last}").as_str()),
+            ),
         }
     }
     fn ident_or_num(&mut self, expected: char) -> Option<Token> {

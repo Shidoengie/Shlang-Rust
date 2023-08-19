@@ -596,7 +596,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::TRUE => {
                 return Ok(Value::Bool(true).to_nodespan(value.span));
             }
-            TokenType::VOID => return Ok(Value::Void.to_nodespan(value.span)),
             TokenType::NULL => return Ok(Value::Null.to_nodespan(value.span)),
             TokenType::FUNC => {
                 let func = self.parse_funcdef()?;

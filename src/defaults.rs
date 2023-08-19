@@ -86,7 +86,6 @@ pub fn num_structmap(val: f64) -> VarMap {
 }
 pub fn str_structmap(val: String) -> VarMap {
     return HashMap::from([
-        ("nice".to_string(), Value::Num(69.0)),
         ("v".to_string(), Value::Str(val)),
         (
             "parse_num".to_string(),
@@ -114,7 +113,7 @@ pub fn str_structmap(val: String) -> VarMap {
 
 pub fn parse_num_method(scope: VarMap, _: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else {panic!()};
-    let parsed: Result<f64, _> = value.parse();
+    let parsed: Result<f64, _> = String::from_iter(value.chars().filter(|&c| c != '_')).parse();
     let Ok(result) = parsed else {return Value::Null;};
     return Value::Num(result);
 }

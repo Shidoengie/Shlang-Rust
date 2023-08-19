@@ -21,11 +21,22 @@ therefore only 2 keywords existed `print` and `input`, as more work was put on t
 - `return`
 - `true`
 - `var`
-- `void`
 - `while`
+- `struct`
+- `new`
 # The language
 Shlangs has no statements as so everything is an expression
 
+
+
+## Variables
+Variables are a way of storing values in named containers, can be declared using `var`, as shlang is dynamic it doesnt have type annotation.
+```swift
+var a = 1;
+# or
+var a;
+```
+By default a variable will have `null`
 ## Numbers
 In shlang all numbers are floats, meaning that all numbers can have decimal points
 ```swift
@@ -33,6 +44,7 @@ In shlang all numbers are floats, meaning that all numbers can have decimal poin
 9
 104.32
 ```
+
 ## Strings
 Strings are a way of representing text
 ```swift
@@ -49,7 +61,44 @@ In shlang you can use `and`,`or`,`not` or `&`,`|`,`!` for boolean algebra.
 (true and false) or (true & false) and (not true) | (!true)
 ```
 ## Nothing
-Shlang has 2 types of nothing `void` and `null`, `null` can be assigned to varaibles while `void` cant.
+Shlang has 2 types of nothing `void` and `null`, `null` can be assigned to variables while `void` cant.
+## Custom data types
+User definable data types can be created using the `struct` block
+```swift
+struct foo {
+    var msg;
+    func hello(){
+        println(hi);
+    }
+}
+```
+Each struct field can be accessed using `.`
+```swift
+foo.msg = "hello world!";
+foo.hello();
+```
+To construct the struct ie: making a new instance of that struct you use the `new` keyword
+```swift
+var new_foo = new foo{msg:1};
+```
+Note modifying the instance with `.` will not modify its definiton
+```swift
+foo.msg = "hey";
+var new_foo = new foo{};
+# msg is stil null
+```
+To construct a struct inside of itself you pass in `Self` in the struct name
+```swift
+struct foo {
+    var msg;
+    func hello(){
+        println(hi);
+    }
+    func make(_msg){
+        return new Self{msg:_msg};
+    }
+}
+```
 ## Comments
 Coments are lines of code that are used for documentation, and are completly ignored.
 - Single line comments
@@ -62,21 +111,13 @@ Coments are lines of code that are used for documentation, and are completly ign
 weeee
 *#
 ```
-
-## Variables
-Variables are a way of storing values in named containers, can be declared using `var`, as shlang is dynamic it doesnt have type annotation.
-```swift
-var a = 1;
-# or
-var a;
-```
 ### Compound Assignment
 In shlang there many ways to assign a variable the most common being `a = 1;`, but there exist shorthands to further facilitate these tasks.
 - `+=` assigns the added value of the variable and the value of the expression.
 - `-=` assigns the subtracted value of the variable and value of the expression.
 - `*=` assigns the multiplies value of the variable and value of the expression.
 - `/=` assigns the divided value of the variable and value of the expression.
-- ## Blocks
+## Blocks
 A block is a list of expression that are envolved by `{}`
 ```swift
 do{
@@ -102,6 +143,7 @@ func foo(bar){
 }
 foo();
 ```
+
 ## Results and returns
 ### Return
 `return` is used to return values from functions.
@@ -189,6 +231,7 @@ while a < 10 {
 }
 ```
 # Language Defaults
+
 ## Functions
 - `println()` takes in n arguments and logs them to the console with a space on each argument, and flushes with a newline
 ```swift
@@ -212,4 +255,33 @@ var b = input();
 # hey hoahoy
 ```
 - `parse_num()` parses numbers from strings
-- `to_str()` converts a value to a string
+- `to_str(val)` converts a value to a string
+- `typeof(val)` returns the type of a value as a string
+```swift
+
+typeof(1)           # "num"
+typeof(true)        # "bool"
+typeof("s")         # "str"
+typeof(1)           # "num"
+typeof(null)        # "null"
+typeof(println)     # "func"
+typeof(var a = 1)   # "void"
+```
+## String methods
+- `.char_at(index)` returns a character from a specified index returning `null` if the index is out of bounds
+```swift
+"abc".char_at(1); # "b"
+"a".char_at(9); # null
+```
+- `.substr(start,length)` returns a slice of the string that starts at the start index and towards a length, returning null if either value is invalid
+```swift
+"hello world".substr(0,4); # "hello"
+"a".substr(1,4); # null
+```
+- `.parse_num()` parses a number from a value returning null if the number is invalid
+```swift
+"1_000.1".parse_num(); # 1000.1
+"abc".parse_num() # null
+```
+## Number methods
+- `.to_string()` converts a number to a string

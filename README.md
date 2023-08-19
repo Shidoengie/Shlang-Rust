@@ -285,3 +285,6 @@ typeof(var a = 1)   # "void"
 ```
 ## Number methods
 - `.to_string()` converts a number to a string
+```swift
+9.to_string() # "9"
+```

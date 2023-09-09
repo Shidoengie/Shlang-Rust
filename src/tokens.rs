@@ -3,6 +3,8 @@ use crate::spans::*;
 pub enum TokenType {
     STR,
     NUM,
+    INT,
+    FLOAT,
     IDENTIFIER,
     SEMICOLON,
     PLUS,
@@ -78,14 +80,14 @@ type MaybeToken = Option<Token>;
 impl TokenEq for MaybeToken {
     fn is(&self, kind: &TokenType) -> bool {
         match self.clone() {
-            Some(tok) => return &tok.kind == kind,
-            None => return false,
+            Some(tok) => &tok.kind == kind,
+            None => false,
         }
     }
     fn isnt(&self, kind: &TokenType) -> bool {
         match self.clone() {
-            Some(tok) => return &tok.kind != kind,
-            None => return false,
+            Some(tok) => &tok.kind != kind,
+            None => false,
         }
     }
 }

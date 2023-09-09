@@ -18,7 +18,7 @@ impl ErrorBuilder {
         panic!()
     }
     pub fn build(&self, msg: &str, span: Span) -> String {
-        let position = self.line_pos(span.clone());
+        let position = self.line_pos(span);
         let (start, stop) = (
             self.input[..span.0].to_string(),
             self.input[span.1..].to_string(),
@@ -29,7 +29,7 @@ impl ErrorBuilder {
         );
         let lines: Vec<&str> = marked.lines().collect();
         let line = lines[position - 1];
-        return format!("{} {msg}\n{position} {} {line}", "ERROR!".red(), "|".blue(),);
+        format!("{} {msg}\n{position} {} {line}", "ERROR!".red(), "|".blue(),)
     }
     pub fn line_pos(&self, span: Span) -> usize {
         return self.input[..span.0]
@@ -109,8 +109,8 @@ impl LangError for InterpreterError {
                         .chars()
                         .filter(|c| c != &'[' && c != &']'),
                 )
-                .replace(",", " or ");
-                return format!("Invalid Types expected: {opts:?} but got {got:?}").to_string();
+                .replace(',', " or ");
+                format!("Invalid Types expected: {opts:?} but got {got:?}")
             }
             InvalidControl(_) => "Invalid control flow node".to_string(),
             VoidAssignment(_) => "Attempted to assign void to a variable".to_string(),

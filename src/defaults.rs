@@ -15,7 +15,7 @@ pub fn default_scope() -> Scope {
     }
 }
 pub fn var_map() -> VarMap {
-    let map = HashMap::from([
+    HashMap::from([
         ("noice".to_string(), Value::Num(69.0)),
         (
             "input".to_string(),
@@ -66,8 +66,7 @@ pub fn var_map() -> VarMap {
                 arg_size: 1,
             }),
         ),
-    ]);
-    map
+    ])
 }
 pub fn str_struct(val: String) -> Struct {
     let env = str_structmap(val);
@@ -84,7 +83,7 @@ pub fn num_struct(val: f64) -> Struct {
     }
 }
 pub fn num_structmap(val: f64) -> VarMap {
-    return HashMap::from([
+    HashMap::from([
         ("v".to_string(), Value::Num(val)),
         (
             "to_string".to_string(),
@@ -93,10 +92,10 @@ pub fn num_structmap(val: f64) -> VarMap {
                 arg_size: 0,
             }),
         ),
-    ]);
+    ])
 }
 pub fn str_structmap(val: String) -> VarMap {
-    return HashMap::from([
+    HashMap::from([
         ("v".to_string(), Value::Str(val)),
         (
             "parse_num".to_string(),
@@ -119,18 +118,18 @@ pub fn str_structmap(val: String) -> VarMap {
                 arg_size: 1,
             }),
         ),
-    ]);
+    ])
 }
 
 pub fn parse_num_method(scope: VarMap, _: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else {panic!()};
     let parsed: Result<f64, _> = String::from_iter(value.chars().filter(|&c| c != '_')).parse();
     let Ok(result) = parsed else {return NULL;};
-    return Value::Num(result);
+    Value::Num(result)
 }
 pub fn num_to_str(scope: VarMap, _: ValueStream) -> Value {
     let Some(Value::Num(value)) = scope.get("v") else {panic!()};
-    return Value::Str(format!("{value}"));
+    Value::Str(format!("{value}"))
 }
 pub fn substr_method(scope: VarMap, args: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else { panic!() };
@@ -164,7 +163,7 @@ pub fn val_to_str(val: &Value) -> String {
 
 pub fn println_builtin(_: VarMap, args: ValueStream) -> Value {
     if args.is_empty() {
-        println!("");
+        println!();
     }
     let mut out = "".to_string();
     for val in args {
@@ -172,13 +171,13 @@ pub fn println_builtin(_: VarMap, args: ValueStream) -> Value {
     }
     out = out.trim().to_string();
     println!("{out}");
-    return Value::Void;
+    Value::Null
 }
 pub fn print_builtin(_: VarMap, args: ValueStream) -> Value {
     if args.is_empty() {
         print!("");
         io::stdout().flush().unwrap();
-        return Value::Void;
+        return Value::Null;
     }
     let mut out = "".to_string();
     for val in args {
@@ -187,7 +186,7 @@ pub fn print_builtin(_: VarMap, args: ValueStream) -> Value {
     out = out.trim().to_string();
     print!("{out}");
     io::stdout().flush().unwrap();
-    return Value::Void;
+    Value::Null
 }
 
 pub fn typeof_node(_: VarMap, args: ValueStream) -> Value {
@@ -199,24 +198,26 @@ pub fn typeof_node(_: VarMap, args: ValueStream) -> Value {
         Never => "!",
         Bool => "bool",
         Num => "num",
+        Int => "int",
+        Float => "float",
         Str => "str",
-        UserDefined(id) => return Value::Str(id.to_string()),
+        UserDefined(id) => return Value::Str(id),
         Ref(_) => "ref",
     }
     .to_string();
-    return Value::Str(out);
+    Value::Str(out)
 }
 pub fn parse_num(_: VarMap, args: ValueStream) -> Value {
     let Value::Str(input) = &args[0] else {return NULL;};
     Value::Num(input.parse().unwrap())
 }
 pub fn to_str(_: VarMap, args: ValueStream) -> Value {
-    return Value::Str(val_to_str(&args[0]));
+    Value::Str(val_to_str(&args[0]))
 }
 pub fn input_builtin(_: VarMap, args: ValueStream) -> Value {
     if !args.is_empty() {
         let message = &args[0];
-        print!("{}", val_to_str(&message));
+        print!("{}", val_to_str(message));
         io::stdout().flush().unwrap();
     }
     let mut result = String::new();
@@ -238,8 +239,8 @@ pub fn eval(_: VarMap, args: ValueStream) -> Value {
     let Value::Control(nevah) = result.0 else {return result.0;};
 
     match nevah {
-        Control::Result(val, _) => return *val,
-        Control::Return(val, _) => return *val,
-        _ => return Value::Null,
+        Control::Result(val, _) => *val,
+        Control::Return(val, _) => *val,
+        _ => Value::Null,
     }
 }

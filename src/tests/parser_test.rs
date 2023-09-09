@@ -6,11 +6,11 @@ use insta::*;
 use std::*;
 fn parse_full(source: &str) -> BlockSpan {
     let mut parser = Parser::new(source);
-    return parser.batch_parse().unwrap();
+    parser.batch_parse().unwrap()
 }
 fn parse_expr(source: &str) -> ParseResult {
     let mut parser = Parser::new(source);
-    return parser.parse_expr();
+    parser.parse_expr()
 }
 macro_rules! test_func {
     ($func:expr,($($name:ident : $input:expr)*)) => {

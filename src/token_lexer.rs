@@ -27,13 +27,24 @@ impl<'a> Lexer<'a> {
     }
 
     fn num(&mut self) -> Token {
+        let mut dot_count: u16 = 0;
         let start = self.index();
         let mut current = self.peek();
         while let Some(val) = current {
             if !val.is_numeric() && val != '.' && val != '_' {
                 break;
             }
+            if val.eq(&'.') {
+                dot_count += 1;
+            }
             current = self.peek_advance();
+        }
+        if dot_count > 1 {
+            panic!("Invalid Float");
+        }
+        let is_float = dot_count != 0;
+        if is_float {
+            return Token::new(TokenType::NUM, (start - 1, self.index()));
         }
         Token::new(TokenType::NUM, (start - 1, self.index()))
     }
@@ -51,7 +62,7 @@ impl<'a> Lexer<'a> {
         let Some(keyword) = tokens::map_keyword(span.to_string()) else {
             return Token::new(TokenType::IDENTIFIER, (start, stop));
         };
-        return Token::new(keyword, (start, stop));
+        Token::new(keyword, (start, stop))
     }
     fn str(&mut self, quote: char) -> Option<Token> {
         let start = self.index();
@@ -71,7 +82,7 @@ impl<'a> Lexer<'a> {
         }
 
         let stop = self.index() - 1;
-        return Some(Token::new(TokenType::STR, (start, stop)));
+        Some(Token::new(TokenType::STR, (start, stop)))
     }
     fn push_advance(&mut self, kind: TokenType, range: (usize, usize)) -> Token {
         self.advance();
@@ -87,9 +98,9 @@ impl<'a> Lexer<'a> {
         if self.current_is(expected) {
             return Some(self.push_advance(long_token, (range_start, self.index())));
         }
-        return Some(Token::new(short_token, (range_start, range_start + 1)));
+        Some(Token::new(short_token, (range_start, range_start + 1)))
     }
-    pub fn next(&mut self) -> Option<Token> {
+    pub fn next_tok(&mut self) -> Option<Token> {
         let start = self.index();
         let last = self.advance()?;
         let range = (start, start + 1);
@@ -124,7 +135,7 @@ impl<'a> Lexer<'a> {
                 self.single_comment()
             }
 
-            ' ' | '\t' | '\r' | '\n' => self.next(),
+            ' ' | '\t' | '\r' | '\n' => self.next_tok(),
             last => Some(
                 self.ident_or_num(last)
                     .expect(format!("Unexpected Char {last}").as_str()),
@@ -132,7 +143,7 @@ impl<'a> Lexer<'a> {
         }
     }
     fn ident_or_num(&mut self, expected: char) -> Option<Token> {
-        if expected.is_digit(10) {
+        if expected.is_ascii_digit() {
             return Some(self.num());
         } else if expected.is_alphanumeric() {
             return Some(self.ident());
@@ -152,7 +163,7 @@ impl<'a> Lexer<'a> {
             }
         }
         self.advance();
-        return nest;
+        nest
     }
     fn multi_comment(&mut self) -> Option<Token> {
         self.advance();
@@ -166,7 +177,7 @@ impl<'a> Lexer<'a> {
             let next = self.peek_advance()?;
             nest = self.matches_comment(nest, advanced, next);
         }
-        self.next()
+        self.next_tok()
     }
     fn single_comment(&mut self) -> Option<Token> {
         loop {
@@ -175,7 +186,7 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        self.next()
+        self.next_tok()
     }
     pub fn new(src: &'a str) -> Self {
         return Self {

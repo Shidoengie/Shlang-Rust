@@ -16,6 +16,8 @@ pub enum Value {
     Void,
     Control(Control),
     Num(f64),
+    Int(i64),
+    Float(f64),
     Bool(bool),
     Str(String),
     Function(Function),
@@ -32,26 +34,30 @@ impl ControlUnwrap for TypedValue {
         let Value::Control(Control::Result(res_val,res_type)) = self.0 else {
             return self;
         };
-        return (*res_val, res_type);
+        (*res_val, res_type)
     }
 }
 pub type ValueStream = Vec<Value>;
 impl Value {
     pub fn get_type(&self) -> Type {
         match self {
-            Value::Bool(_) => return Type::Bool,
-            Value::BuiltinFunc(_) | Value::Function(_) => return Type::Function,
-            Value::Null => return Type::Null,
-            Value::Void => return Type::Void,
-            Value::Str(_) => return Type::Str,
-            Value::Num(_) => return Type::Num,
-            Value::Control(_) => return Type::Never,
-            Value::Struct(s) => return Type::UserDefined(s.id.clone()),
-            Value::StructRef(id) => return Type::Ref(*id),
+            Value::Bool(_) => Type::Bool,
+            Value::BuiltinFunc(_) | Value::Function(_) => Type::Function,
+            Value::Null => Type::Null,
+            Value::Void => Type::Void,
+            Value::Str(_) => Type::Str,
+            Value::Num(_) => Type::Num,
+            Value::Int(_) => Type::Int,
+            Value::Float(_) => Type::Float,
+            Value::Control(_) => Type::Never,
+            Value::Struct(s) => Type::UserDefined(s.id.clone()),
+            Value::StructRef(id) => Type::Ref(*id),
         }
     }
-    pub fn to_nodespan(&self, span: Span) -> NodeSpan {
-        Spanned::new(Node::Value(Box::new(self.clone())), span)
+}
+impl IntoNodespan for Value {
+    fn to_nodespan(self, span: Span) -> NodeSpan {
+        Spanned::new(Node::Value(Box::new(self)), span)
     }
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -94,6 +100,8 @@ pub enum Type {
     Null,
     Void,
     Num,
+    Float,
+    Int,
     Bool,
     Str,
     Function,
@@ -106,10 +114,7 @@ impl Type {
         self == &Self::Void
     }
     pub fn is_numeric(&self) -> bool {
-        match self {
-            Self::Bool | Self::Num => return true,
-            _ => return false,
-        }
+        matches!(self, Self::Bool | Self::Num | Self::Int | Self::Float)
     }
 }
 
@@ -138,17 +143,17 @@ pub enum Node {
 }
 impl Node {
     pub fn to_spanned(&self, span: Span) -> NodeSpan {
-        return NodeSpan::new(self.clone(), span);
+        NodeSpan::new(self.clone(), span)
     }
     pub fn can_result(&self) -> bool {
-        match self.clone() {
+        matches!(
+            self.clone(),
             Self::Value(_)
-            | Self::BinaryNode(_)
-            | Self::UnaryNode(_)
-            | Self::Variable(_)
-            | Self::Call(_) => true,
-            _ => false,
-        }
+                | Self::BinaryNode(_)
+                | Self::UnaryNode(_)
+                | Self::Variable(_)
+                | Self::Call(_)
+        )
     }
 }
 
@@ -168,10 +173,12 @@ impl NodeSpan {
         }
     }
 }
+pub trait IntoNodespan {
+    fn to_nodespan(self, span: Span) -> NodeSpan;
+}
 pub trait IntoBlock {
     fn to_block(self) -> Block;
     fn to_blockspan(self, span: Span) -> BlockSpan;
-    fn to_nodespan(self, span: Span) -> NodeSpan;
 }
 pub type NodeStream = Vec<NodeSpan>;
 impl IntoBlock for NodeStream {
@@ -188,8 +195,10 @@ impl IntoBlock for NodeStream {
             span,
         )
     }
+}
+impl IntoNodespan for NodeStream {
     fn to_nodespan(self, span: Span) -> NodeSpan {
-        Spanned::new(Node::Block(self.to_blockspan(span.clone())), span)
+        Spanned::new(Node::Block(self.to_blockspan(span)), span)
     }
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -222,8 +231,8 @@ macro_rules! nodes_from {
                     Self::$name(node)
                 }
             }
-            impl $name {
-                pub fn to_nodespan(&self,span:Span) -> NodeSpan {
+            impl IntoNodespan for $name {
+                fn to_nodespan(self,span:Span) -> NodeSpan {
                     Spanned::new(Node::$name(self.clone()),span)
                 }
 
@@ -258,10 +267,10 @@ pub struct BinaryNode {
 }
 impl BinaryNode {
     pub fn is(&self, kind: &BinaryOp) -> bool {
-        return self.kind.eq(kind);
+        self.kind.eq(kind)
     }
     pub fn isnt(&self, kind: &BinaryOp) -> bool {
-        return self.kind.ne(kind);
+        self.kind.ne(kind)
     }
 }
 #[derive(Clone, Debug, PartialEq)]

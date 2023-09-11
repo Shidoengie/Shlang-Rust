@@ -17,6 +17,7 @@ use colored::Colorize;
 use interpreter::Interpreter;
 use lang_errors::ErrorBuilder;
 use lang_errors::*;
+use token_lexer::Lexer;
 use token_parser::Parser;
 fn input(message: &str) -> String {
     print!("{message} ");
@@ -47,6 +48,7 @@ fn AST_from_file(file_path: String) {
 fn len2(args: Vec<String>) {
     match args[1].to_lowercase().as_str() {
         "ast" | "a" => test_repl(),
+        "lex" | "lexer" | "l" => lexer_repl(),
         "help" | "h" => help(),
         _ => execute_file(args),
     }
@@ -54,6 +56,7 @@ fn len2(args: Vec<String>) {
 fn len3(args: Vec<String>) {
     match args[1].to_lowercase().as_str() {
         "ast" | "a" => AST_from_file(args[2].clone()),
+        "lex" | "lexer" | "l" => lex_file(args[2].clone()),
         _ => panic!("Invalid"),
     }
 }
@@ -101,6 +104,22 @@ fn test_repl() {
         println!("{ast:#?}");
     }
 }
+fn lexer_repl() {
+    loop {
+        let source = input(">: ");
+        lex_from(source);
+    }
+}
+fn lex_file(file_path: String) {
+    let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
+    lex_from(source);
+}
+fn lex_from(source: String) {
+    let mut lexer = Lexer::new(&source);
+    while let Some(token) = lexer.next_tok() {
+        println!("{} <-> {token:#?}", &source[token.span.0..token.span.1]);
+    }
+}
 fn help() {
     println!(
         "Help
@@ -108,6 +127,8 @@ fn help() {
 no args - starts the repl
 <file path> - runs the file
 <ast,a> <optional file path> - reads input either from the repl or from a file and outputs the AST as text
+<lex,lexer,l> <optional file path> - reads input either from the repl or from a file and lexes it printing it to stdout
+
 "
 );
 }

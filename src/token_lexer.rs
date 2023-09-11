@@ -16,6 +16,11 @@ impl<'a> Lexer<'a> {
         self.advance();
         self.peek()
     }
+    fn peek_next(&mut self) -> Option<char> {
+        let mut cur_chars = self.chars.clone();
+        cur_chars.next();
+        cur_chars.next()
+    }
     fn advance(&mut self) -> Option<char> {
         self.chars.next()
     }
@@ -34,13 +39,20 @@ impl<'a> Lexer<'a> {
             if !val.is_numeric() && val != '.' && val != '_' {
                 break;
             }
+
             if val.eq(&'.') {
+                let Some(next) = self.peek_next() else {
+                    panic!("Invalid Number");
+                };
+                if !next.is_ascii_digit() {
+                    break;
+                }
                 dot_count += 1;
             }
             current = self.peek_advance();
         }
         if dot_count > 1 {
-            panic!("Invalid Float");
+            panic!("Invalid Number");
         }
         let is_float = dot_count != 0;
         if is_float {

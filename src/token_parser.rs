@@ -58,13 +58,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         Value::Num(text.parse().unwrap())
     }
 
-    pub fn parse_float(&mut self, token: &Token) -> Value {
-        Value::Float(self.filtered_text(token, '_').parse().unwrap())
-    }
-    pub fn parse_int(&mut self, token: &Token) -> Value {
-        Value::Int(self.filtered_text(token, '_').parse().unwrap())
-    }
-
     // A hack used to fix most escape charaters
     pub fn escaped_text(&mut self, token: &Token) -> String {
         self.input[token.span.0..token.span.1]
@@ -130,13 +123,12 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     // Parses and collects expressions into a Block node
     // this is used for expressions with blocks like if
-    fn parse_block(&mut self) -> Result<BlockSpan, ParseError> {
-        let first = self.expect(TokenType::LBRACE)?;
+    fn parse_block(&mut self) -> Result<NodeStream, ParseError> {
         let mut body: NodeStream = vec![];
         self.next().unwrap();
         let token = self.peek_some()?;
         if token.is(&TokenType::RBRACE) {
-            return Ok(body.to_blockspan((first.span.0, token.span.1)));
+            return Ok(body);
         }
         loop {
             let expr = self.parse_expr()?;
@@ -146,7 +138,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             }
         }
         body = self.filter_block(body);
-        Ok(body.to_blockspan((first.span.0, token.span.1)))
+        Ok(body)
     }
     // These Parse variable definitions/declarations
     fn empty_var_decl(&mut self, first: Token, var_name: String) -> NodeSpan {
@@ -157,7 +149,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         .to_nodespan((first.span.0, last.span.1))
     }
-    fn var_decl(&mut self, var_name: String, name_ident: Token) -> ParseResult {
+    fn var_decl(&mut self, var_name: String, name_ident: Token) -> Result<NodeSpan, ParseError> {
         let last = self.next();
         let val = self.parse_expr()?;
         Ok(Declaration {
@@ -166,7 +158,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         .to_nodespan((name_ident.span.0, last.unwrap().span.1)))
     }
-    fn parse_vardef(&mut self) -> ParseResult {
+    fn parse_vardef(&mut self) -> Result<NodeSpan, ParseError> {
         let ident = self.expect(TokenType::IDENTIFIER)?;
         let var_name = self.text(&ident);
         self.next();
@@ -207,7 +199,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
 
     // This creates a function object and creates a Declaration Node
     // this is so it can then be cast into a variable
-    fn parse_named_func(&mut self, name_ident: &Token) -> ParseResult {
+    fn parse_named_func(&mut self, name_ident: &Token) -> Result<NodeSpan, ParseError> {
         let func_name = self.text(name_ident);
         self.next();
         let params = self.parse_func_params()?;
@@ -229,14 +221,14 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     // This uses build_func to create the function and then converts it into a nodespan
     // this is so it can be used in a block
-    fn parse_anon_func(&mut self, first: &Token) -> ParseResult {
+    fn parse_anon_func(&mut self, first: &Token) -> Result<NodeSpan, ParseError> {
         let func = self.build_func()?;
         let last = self.peek_some()?;
         let func_span = (first.span.0, last.span.1);
         Ok(func.to_nodespan(func_span))
     }
     // Takes the aformentioned function and combines them to alow the current function syntax
-    fn parse_funcdef(&mut self) -> ParseResult {
+    fn parse_funcdef(&mut self) -> Result<NodeSpan, ParseError> {
         let first = self.peek_some()?;
         match first.kind {
             TokenType::IDENTIFIER => return self.parse_named_func(&first),
@@ -270,7 +262,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         Ok(params)
     }
-    fn parse_call(&mut self, callee: NodeSpan) -> ParseResult {
+    fn parse_call(&mut self, callee: NodeSpan) -> Result<NodeSpan, ParseError> {
         let first = self.next().unwrap();
         let token = self.peek_some()?;
         let params = self.parse_expr_list(&token, TokenType::RPAREN)?;
@@ -283,47 +275,42 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         .to_nodespan((first.span.0, last.span.1));
         self.primary_ops(call)
     }
-    fn parse_while_loop(&mut self) -> ParseResult {
+    fn parse_while_loop(&mut self) -> Result<NodeSpan, ParseError> {
         let first = self.peek_some()?;
         let condition = self.parse_expr()?.boxed();
         let last = self.peek_some()?;
-        let proc = self.parse_block()?.boxed();
+        let proc = self.parse_block()?;
         self.next();
         Ok(While { condition, proc }.to_nodespan((first.span.0, last.span.1)))
     }
 
-    fn parse_do(&mut self) -> ParseResult {
+    fn parse_do(&mut self) -> Result<NodeSpan, ParseError> {
         let first = self.expect(TokenType::LBRACE)?;
         let block = self.parse_block()?;
-        self.next();
-        let span = block.span;
-        Ok(DoBlock {
-            body: block.boxed(),
-        }
-        .to_nodespan((first.span.0, span.1)))
+        let last = self.next().unwrap();
+        Ok(Node::DoBlock(block).to_spanned((first.span.0, last.span.1)))
     }
-    fn parse_loop(&mut self) -> ParseResult {
+    fn parse_loop(&mut self) -> Result<NodeSpan, ParseError> {
         let first = self.expect(TokenType::LBRACE)?;
         let block = self.parse_block()?;
-        self.next();
-        let span = block.span;
-        Ok(Loop {
-            proc: block.boxed(),
-        }
-        .to_nodespan((first.span.0, span.1)))
+        let last = self.next().unwrap();
+        Ok(Node::Loop(block).to_spanned((first.span.0, last.span.1)))
     }
-
-    fn parse_elif(&mut self, condition: NodeSpan, if_block: BlockSpan, span: Span) -> ParseResult {
+    fn parse_elif(
+        &mut self,
+        condition: NodeSpan,
+        if_block: NodeStream,
+        span: Span,
+    ) -> Result<NodeSpan, ParseError> {
         self.next();
         let elif = self.parse_branch()?;
-        let elif_span = elif.span;
-        let elif_body: NodeStream = vec![elif];
-        let elif_block = elif_body.to_blockspan(elif_span);
+
+        let elif_block: NodeStream = vec![elif];
         Ok(Branch::new(condition, if_block, elif_block).to_nodespan(span))
     }
     // parses if expressions
 
-    fn parse_branch(&mut self) -> ParseResult {
+    fn parse_branch(&mut self) -> Result<NodeSpan, ParseError> {
         let first = self.peek_some()?;
         let condition = self.parse_expr()?;
         let last = self.peek_some()?;
@@ -346,7 +333,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         Ok(Branch::new(condition, if_block, else_block).to_nodespan(span))
     }
     // parses parentheses/groupings
-    fn parse_paren(&mut self, paren: Token) -> ParseResult {
+    fn parse_paren(&mut self, paren: Token) -> Result<NodeSpan, ParseError> {
         let expr = self.parse_expr()?;
         let Some(end) = self.peek() else {
             return Err(ParseError::UnterminatedParetheses(paren));
@@ -358,7 +345,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
 
     //parses unary operators:
     // ! not -
-    fn unary_operator(&mut self, kind: UnaryOp) -> ParseResult {
+    fn unary_operator(&mut self, kind: UnaryOp) -> Result<NodeSpan, ParseError> {
         let token = self.peek();
         self.next();
         let right = self.atom_parser(token.as_ref())?;
@@ -376,7 +363,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         var: NodeSpan,
         value: NodeSpan,
         span: Span,
-    ) -> ParseResult {
+    ) -> Result<NodeSpan, ParseError> {
         Ok(Assignment {
             target: var.clone().boxed(),
             value: self.binary_node(kind, var, value, span)?.boxed(),
@@ -384,7 +371,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         .to_nodespan(span))
     }
     // Parses tokens into an assignment node
-    fn parse_assignment(&mut self, target: NodeSpan, token: Token) -> ParseResult {
+    fn parse_assignment(&mut self, target: NodeSpan, token: Token) -> Result<NodeSpan, ParseError> {
         let last = self.peek_some()?;
         self.next();
         let value = self.parse_expr()?;
@@ -413,7 +400,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     // Lowest level of operator precedence used for assignment
     // Converts tokens into AST nodes
     // = += *= -= /=
-    pub fn parse_expr(&mut self) -> ParseResult {
+    pub fn parse_expr(&mut self) -> Result<NodeSpan, ParseError> {
         let left = self.or_prec()?;
         let Some(op) = self.peek() else {return Ok(left);};
         match op.kind {
@@ -426,7 +413,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
     }
     // a level of precedence for logic or
-    fn or_prec(&mut self) -> ParseResult {
+    fn or_prec(&mut self) -> Result<NodeSpan, ParseError> {
         let left = self.and_prec()?;
         let Some(op) = self.peek() else {return Ok(left);};
         if op.isnt(&TokenType::OR) && op.isnt(&TokenType::PIPE) {
@@ -437,7 +424,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         self.binary_node(BinaryOp::OR, left, result, op.span)
     }
     // a level of precedence for logic and
-    fn and_prec(&mut self) -> ParseResult {
+    fn and_prec(&mut self) -> Result<NodeSpan, ParseError> {
         let left = self.eq_prec()?;
         let Some(op) = self.peek() else {return Ok(left);};
         if op.isnt(&TokenType::AND) && op.isnt(&TokenType::AMPERSAND) {
@@ -449,7 +436,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     // a level of precedence for:
     // >= > < <= == !=
-    fn eq_prec(&mut self) -> ParseResult {
+    fn eq_prec(&mut self) -> Result<NodeSpan, ParseError> {
         let left = self.add_prec()?;
         let Some(op) = self.peek() else {return Ok(left);};
         let kind = match op.kind {
@@ -467,7 +454,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     // a level of precedence for:
     // + -
-    fn add_prec(&mut self) -> ParseResult {
+    fn add_prec(&mut self) -> Result<NodeSpan, ParseError> {
         let left = self.prod_prec()?;
         let Some(op) = self.peek() else {return Ok(left);};
         let kind = match op.kind {
@@ -481,7 +468,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     // a level of precedence for:
     // * / %
-    fn prod_prec(&mut self) -> ParseResult {
+    fn prod_prec(&mut self) -> Result<NodeSpan, ParseError> {
         let left = self.primary_prec()?;
         let Some(op) = self.peek() else {return Ok(left);};
         let kind = match op.kind {
@@ -495,13 +482,13 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         self.binary_node(kind, left, result, op.span)
     }
 
-    fn primary_prec(&mut self) -> ParseResult {
+    fn primary_prec(&mut self) -> Result<NodeSpan, ParseError> {
         let value = self.peek();
         self.next();
         let left = self.atom_parser(value.as_ref())?;
         self.primary_ops(left)
     }
-    fn primary_ops(&mut self, left: NodeSpan) -> ParseResult {
+    fn primary_ops(&mut self, left: NodeSpan) -> Result<NodeSpan, ParseError> {
         let Some(op) = self.peek() else {return Ok(left);};
         match op.kind {
             TokenType::LPAREN => self.parse_call(left),
@@ -515,7 +502,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         left: NodeSpan,
         right: NodeSpan,
         span: Span,
-    ) -> ParseResult {
+    ) -> Result<NodeSpan, ParseError> {
         Ok(BinaryNode {
             kind,
             left: left.boxed(),
@@ -533,16 +520,16 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         Err(ParseError::UnexpectedFieldNode(node))
     }
-    fn parse_struct(&mut self) -> ParseResult {
+    fn parse_struct(&mut self) -> Result<NodeSpan, ParseError> {
         let name_ident = self.expect(TokenType::IDENTIFIER)?;
         let name = self.text(&name_ident);
         self.next();
         let block = self.parse_block()?;
-        self.next();
-        let span = block.span;
-        let body = *block.unspanned.body;
+        let last = self.next().unwrap();
+
+        let span = (name_ident.span.0, last.span.1);
         let mut fields: Vec<Spanned<Field>> = vec![];
-        for node in body {
+        for node in block {
             fields.push(self.node_to_feildspan(node)?);
         }
         Ok(Declaration {
@@ -552,7 +539,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         .to_nodespan(span))
     }
 
-    fn parse_field_access(&mut self, target: NodeSpan, span: Span) -> ParseResult {
+    fn parse_field_access(&mut self, target: NodeSpan, span: Span) -> Result<NodeSpan, ParseError> {
         self.next();
         let requested = self.primary_prec()?.boxed();
         Ok(FieldAccess {
@@ -582,7 +569,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         }
         Ok(body)
     }
-    fn parse_constructor(&mut self) -> ParseResult {
+    fn parse_constructor(&mut self) -> Result<NodeSpan, ParseError> {
         let first = self.peek_some()?;
         let ident = self.consume(TokenType::IDENTIFIER)?;
         let name = self.text(&ident);
@@ -593,7 +580,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     // Parses deterministic expressions / atoms
     // these are expressions whose type can be readily known
-    fn atom_parser(&mut self, peeked: Option<&Token>) -> ParseResult {
+    fn atom_parser(&mut self, peeked: Option<&Token>) -> Result<NodeSpan, ParseError> {
         let Some(value) = peeked else {return Err(ParseError::UnexpectedStreamEnd);};
 
         match &value.kind {
@@ -601,8 +588,6 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             TokenType::STRUCT => self.parse_struct(),
             TokenType::VAR => self.parse_vardef(),
             TokenType::NUM => Ok(self.parse_num(value).to_nodespan(value.span)),
-            TokenType::INT => Ok(self.parse_int(value).to_nodespan(value.span)),
-            TokenType::FLOAT => Ok(self.parse_float(value).to_nodespan(value.span)),
             TokenType::FALSE => Ok(Value::Bool(false).to_nodespan(value.span)),
             TokenType::TRUE => Ok(Value::Bool(true).to_nodespan(value.span)),
             TokenType::NULL => Ok(Value::Null.to_nodespan(value.span)),
@@ -611,11 +596,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 self.next();
                 Ok(func)
             }
-            TokenType::IDENTIFIER => Ok(Variable {
-                name: self.text(value),
-            }
-            .to_nodespan(value.span)),
-
+            TokenType::IDENTIFIER => Ok(Node::Variable(self.text(value)).to_spanned(value.span)),
             TokenType::WHILE => self.parse_while_loop(),
             TokenType::IF => self.parse_branch(),
             TokenType::DO => self.parse_do(),
@@ -629,16 +610,18 @@ impl<'input> Parser<'input, TokenIter<'input>> {
                 Ok(Node::ReturnNode(expr.boxed()).to_spanned(value.span))
             }
             TokenType::BREAK => Ok(Node::BreakNode.to_spanned(value.span)),
+            TokenType::CONTINUE => Ok(Node::ContinueNode.to_spanned(value.span)),
             TokenType::NOT | TokenType::BANG => self.unary_operator(UnaryOp::NOT),
             TokenType::MINUS => self.unary_operator(UnaryOp::NEGATIVE),
             TokenType::LPAREN => self.parse_paren(value.clone()),
+
             TokenType::NEW => self.parse_constructor(),
             TokenType::SEMICOLON => Ok(Spanned::new(Node::DontResult, (0, 0))),
             _ => Err(ParseError::UnexpectedToken(value.clone())),
         }
     }
     // Parses toplevel expressions
-    fn parse_top(&mut self) -> Option<ParseResult> {
+    fn parse_top(&mut self) -> Option<Result<NodeSpan, ParseError>> {
         let peeked = self.peek()?;
         match peeked.clone().kind {
             TokenType::VAR => {
@@ -662,28 +645,23 @@ impl<'input> Parser<'input, TokenIter<'input>> {
     }
     // Parses input and collects it into a block ast node
     // This is done so the interpreter can evaluate all the expressions
-    pub fn batch_parse(&mut self) -> Result<BlockSpan, ParseError> {
+    pub fn batch_parse(&mut self) -> Result<NodeStream, ParseError> {
         let mut body: NodeStream = vec![];
         loop {
             let Some(parsed) = self.parse_top() else {break;};
             body.push(parsed?);
         }
 
-        Ok(body.to_blockspan((0, self.input.len().saturating_sub(1))))
+        Ok(body)
     }
-    // Parses input as expressions and collects it into a block ast node
-    pub fn batch_parse_expr(&mut self) -> ParseResult {
-        let len = self.input.len().saturating_sub(1);
+    // Parses input as expressions and collects it into a block
+    pub fn batch_parse_expr(&mut self) -> Result<NodeStream, ParseError> {
         let mut body: NodeStream = vec![];
         while self.peek().is_some() {
             let expr = self.parse_expr()?;
             body.push(expr);
             self.next();
         }
-        if body.len() == 1 {
-            Ok(body[0].clone())
-        } else {
-            Ok(body.to_nodespan((0, len)))
-        }
+        Ok(body)
     }
 }

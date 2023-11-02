@@ -11,11 +11,11 @@ const VOID: EvalResult = Ok((Value::Void, Type::Void));
 const NULL: EvalResult = Ok((Value::Null, Type::Null));
 #[derive(Debug)]
 pub struct Interpreter {
-    program: BlockSpan,
+    program: NodeStream,
     heap: HashMap<u32, Value>,
 }
 impl Interpreter {
-    pub fn new(program: BlockSpan) -> Self {
+    pub fn new(program: NodeStream) -> Self {
         Self {
             program,
             heap: HashMap::from([]),
@@ -26,17 +26,18 @@ impl Interpreter {
     }
     pub fn execute_node(node:NodeSpan) -> EvalResult {
         Self{
-            program:vec![Node::DontResult.to_spanned((0,0))].to_blockspan((0,0)),
+            program:vec![Node::DontResult.to_spanned((0,0))],
             heap:HashMap::from([]),
         }.eval_node(&node, &mut Scope::new_child_in(defaults::default_scope()))
         
     }
-    fn eval_block(&mut self, block: BlockSpan, parent: &mut Scope) -> EvalResult {
+    
+    fn eval_block(&mut self, block: NodeStream, parent: &mut Scope) -> EvalResult {
         let mut new_scope = Scope::new_child_in(parent.clone());
-        if block.unspanned.body.len() == 0 {
+        if block.len() == 0 {
             return NULL;
         }
-        let body = *block.unspanned.body;
+        let body = block;
         for node in body {
             let Value::Control(result) = self.eval_node(&node,&mut new_scope)?.0 else {continue;};
             let Some(mod_parent) = new_scope.parent else {
@@ -76,37 +77,11 @@ impl Interpreter {
                 Ok((Value::Num(-val), Type::Num))
             }
             UnaryOp::NOT => Ok((
-                    Value::Bool(!self.num_convert(target.0, node.object.span)?.1),
-                    Type::Bool,
-                ))
-            
+                Value::Bool(!self.num_convert(target.0, node.object.span)?.1),
+                Type::Bool,
+            ))
         }
     }
-    // fn generic_calc<T>(
-    //     &self,
-    //     node: BinaryNode,
-    //     left_val: Value,
-    //     right_val: Value,
-    // ) -> Result<Value, IError> {
-        
-    //     let (left, left_bool) = self.num_convert(left_val, node.left.span)?;
-    //     let (right, right_bool) = self.num_convert(right_val, node.right.span)?;
-    //     match node.kind {
-    //         BinaryOp::ADD => Ok(Value::Num(left + right)),
-    //         BinaryOp::SUBTRACT => Ok(Value::Num(left - right)),
-    //         BinaryOp::MULTIPLY => Ok(Value::Num(left * right)),
-    //         BinaryOp::DIVIDE => Ok(Value::Num(left / right)),
-    //         BinaryOp::MODULO => Ok(Value::Num(left % right)),
-    //         BinaryOp::GREATER => Ok(Value::Bool(left > right)),
-    //         BinaryOp::GREATER_EQUAL => Ok(Value::Bool(left >= right)),
-    //         BinaryOp::LESSER => Ok(Value::Bool(left < right)),
-    //         BinaryOp::LESSER_EQUAL => Ok(Value::Bool(left <= right)),
-    //         BinaryOp::AND => Ok(Value::Bool(left_bool && right_bool)),
-    //         BinaryOp::OR => Ok(Value::Bool(left_bool || right_bool)),
-    //         BinaryOp::ISEQUAL => Ok(Value::Bool(left == right)),
-    //         BinaryOp::ISDIFERENT => Ok(Value::Bool(left != right)),
-    //     }
-    // }
     fn binary_calc(
         &self,
         node: BinaryNode,
@@ -221,7 +196,7 @@ impl Interpreter {
                 VOID
             }
             Node::Variable(var) => {
-                self.assign_to_name(var.name, value, request.requested.span, &mut obj.env)?;
+                self.assign_to_name(var, value, request.requested.span, &mut obj.env)?;
                 self.heap.insert(id, Value::Struct(obj));
                 VOID
             }
@@ -248,7 +223,7 @@ impl Interpreter {
         let init_val = self.eval_node(&request.value, parent)?;
         match request.clone().target.unspanned {
             Node::Variable(var) => 
-                self.assign_to_name(var.name, init_val, request.target.span, parent),
+                self.assign_to_name(var, init_val, request.target.span, parent),
             
             Node::FieldAccess(field) => {
                 self.assign_to_access(field, init_val, parent)?;
@@ -257,19 +232,19 @@ impl Interpreter {
             _ => todo!(),
         }
     }
-    fn default_scope(&self, var: Variable, span: Span) -> EvalResult {
+    fn default_scope(&self, name: String, span: Span) -> EvalResult {
         let maybe_result =
-            Scope::new(None, defaults::var_map(), HashMap::from([])).get_var(&var.name);
+            Scope::new(None, defaults::var_map(), HashMap::from([])).get_var(&name);
         let Some(result) = maybe_result else {
-            return Err(IError::NonExistentVar(var.name, span));
+            return Err(IError::NonExistentVar(name, span));
         };
         let res_type = result.get_type();
         Ok((result, res_type))
     }
-    fn eval_var(&self, var: Variable, span: Span, env: &Scope) -> EvalResult {
-        let maybe_result = env.get_var(&var.name);
+    fn eval_var(&self, name: String, span: Span, env: &Scope) -> EvalResult {
+        let maybe_result = env.get_var(&name);
         let Some(result) = maybe_result else {
-            return self.default_scope(var, span);
+            return self.default_scope(name, span);
         };
         let res_type = result.get_type();
         Ok((result, res_type))
@@ -293,9 +268,9 @@ impl Interpreter {
         func: &Function,
         arg_spans: Vec<Span>,
         arg_values: ValueStream,
-    ) -> BlockSpan {
+    ) -> NodeStream {
         let mut arg_decl: NodeStream = vec![];
-        let mut func_block = func.block.unspanned.clone();
+        let mut func_block = func.block.clone();
         for (index, name) in func.args.iter().enumerate() {
             let span = arg_spans[index];
             let var = Box::new(NodeSpan::new(arg_values[index].clone().into(), span));
@@ -307,8 +282,8 @@ impl Interpreter {
                 .to_nodespan(span),
             );
         }
-        arg_decl.append(&mut func_block.body);
-        arg_decl.to_blockspan(func.block.span)
+        arg_decl.append(&mut func_block);
+        arg_decl
     }
     fn call_func(
         &mut self,
@@ -321,8 +296,8 @@ impl Interpreter {
         if arg_values.len() != called.args.len() {
             return Err(IError::InvalidArgSize(called.args.len() as u32, arg_values.len() as u32, span));
         }
-        called.block = self.build_args(&called, arg_spans, arg_values).boxed();
-        let (result, result_type) = self.eval_block(*called.block, parent)?;
+        called.block = self.build_args(&called, arg_spans, arg_values);
+        let (result, result_type) = self.eval_block(called.block, parent)?;
         let Value::Control(flow) = result else {
             return Ok((result,result_type));
         };
@@ -358,21 +333,22 @@ impl Interpreter {
         }
     }
     fn branch(&mut self, branch: Branch, parent: &mut Scope) -> EvalResult {
-        let if_block = *branch.if_block;
+        
         let condition = self.eval_node(&branch.condition, parent)?;
         let cond_val = self.num_convert(condition.0, branch.condition.span)?.1;
 
         if cond_val {
-            return self.eval_block(if_block, parent);
+            return self.eval_block(branch.if_block, parent);
         }
         let Some(else_block) = branch.else_block else {
             return NULL;
         };
-        self.eval_block(*else_block, parent)
+        self.eval_block(else_block, parent)
     }
-    fn eval_loop(&mut self, loop_node: Loop, parent: &mut Scope) -> EvalResult {
+    fn eval_loop(&mut self, loop_block: NodeStream, parent: &mut Scope) -> EvalResult {
+        
         loop {
-            let (result, result_type) = self.eval_block(*loop_node.proc.clone(), parent)?;
+            let (result, result_type) = self.eval_block(loop_block.clone(), parent)?;
             let Value::Control(flow) = result.clone() else {continue;};
             match flow {
                 Control::Break => return NULL,
@@ -388,7 +364,7 @@ impl Interpreter {
             if !cond_val {
                 return NULL;
             }
-            let (result, result_type) = self.eval_block(*loop_node.proc.clone(), parent)?;
+            let (result, result_type) = self.eval_block(loop_node.proc.clone(), parent)?;
             let Value::Control(flow) = result.clone() else {continue;};
             match flow {
                 Control::Break => return NULL,
@@ -423,8 +399,22 @@ impl Interpreter {
     ) -> EvalResult {
         let target = self.eval_node(&request.target, parent)?;
         match target.0 {
-            Value::StructRef(id) => self.access_struct(id, *request.requested, base_env),
-            Value::Str(val) => self.eval_access_request(*request.requested, base_env, &mut defaults::str_struct(val).env),
+            Value::StructRef(id) => self.access_struct(
+                id, 
+                *request.requested, 
+                base_env
+            ),
+            Value::Str(val) => self.eval_access_request(
+                *request.requested, 
+                base_env, 
+                &mut defaults::str_struct(val).env
+            ),
+            Value::Num(val) => self.eval_access_request(
+                *request.requested, 
+                base_env, 
+                &mut defaults::num_struct(val).env
+            ),
+            
             a => panic!("{a:?}"),
         }
     }
@@ -475,12 +465,12 @@ impl Interpreter {
                 // let kind = val.clone().get_type();
                 // Ok((*val, kind))
                 let kind = val.get_type();
-                let Type::Ref(id) = kind else {return Ok((*val, kind));};
+                let Type::Ref(id) = kind else {return Ok((val, kind));};
                 let new_val = self.heap.get(&id).unwrap();
                 let new_kind = val.get_type();
                 Ok((new_val.clone(), new_kind))
             }
-            Node::Block(body) => self.eval_block(body, parent),
+            
             Node::Variable(var) => self.eval_var(var, span, parent),
             Node::Call(request) => self.eval_call(request, &mut parent.clone(), parent),
             Node::UnaryNode(unary_op) => {
@@ -500,11 +490,12 @@ impl Interpreter {
                 Ok((result, Type::Never))
             }
             Node::BreakNode => Ok((Control::Break.into(), Type::Never)),
+            Node::ContinueNode => Ok((Control::Continue.into(),Type::Never)),
             Node::Declaration(declaration) => self.declare(declaration, parent),
             Node::Assignment(ass) => self.assign(ass, parent),
             Node::While(obj) => self.eval_while_loop(obj, parent),
             Node::Loop(obj) => self.eval_loop(obj, parent),
-            Node::DoBlock(block) => self.eval_block(*block.body, parent),
+            Node::DoBlock(block) => self.eval_block(block, parent),
             Node::StructDef(obj) => self.eval_structdef(obj, parent),
             Node::Constructor(op) => self.eval_constructor(op, parent),
             Node::FieldAccess(request) => {

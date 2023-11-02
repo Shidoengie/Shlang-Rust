@@ -82,7 +82,7 @@ fn repl() {
         let Ok(ast) = ast_result else {
             ast_result.unwrap_err().print_msg(err_out); continue;
         };
-        let init_result = Interpreter::execute_node(ast);
+        let init_result = Interpreter::new(ast).execute();
         let Ok((result,_)) = init_result else{
             init_result.unwrap_err().print_msg(err_out);
             continue;

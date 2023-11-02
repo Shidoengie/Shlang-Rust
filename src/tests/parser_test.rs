@@ -4,7 +4,7 @@ use crate::Parser;
 use ast_nodes::*;
 use insta::*;
 use std::*;
-fn parse_full(source: &str) -> BlockSpan {
+fn parse_full(source: &str) -> NodeStream {
     let mut parser = Parser::new(source);
     parser.batch_parse().unwrap()
 }

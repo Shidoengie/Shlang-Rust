@@ -2,68 +2,52 @@
 source: src/tests/parser_test.rs
 expression: "parse_full(\"var a = func(b){1}\")"
 ---
-Spanned {
-    unspanned: Block {
-        body: [
-            Spanned {
-                unspanned: Declaration(
-                    Declaration {
-                        var_name: "a",
-                        value: Spanned {
-                            unspanned: Value(
-                                Function(
-                                    Function {
-                                        block: Spanned {
-                                            unspanned: Block {
-                                                body: [
-                                                    Spanned {
-                                                        unspanned: ResultNode(
-                                                            Spanned {
-                                                                unspanned: Value(
-                                                                    Num(
-                                                                        1.0,
-                                                                    ),
-                                                                ),
-                                                                span: (
-                                                                    16,
-                                                                    17,
-                                                                ),
-                                                            },
-                                                        ),
-                                                        span: (
-                                                            16,
-                                                            17,
-                                                        ),
-                                                    },
-                                                ],
+[
+    Spanned {
+        unspanned: Declaration(
+            Declaration {
+                var_name: "a",
+                value: Spanned {
+                    unspanned: Value(
+                        Function(
+                            Function {
+                                block: [
+                                    Spanned {
+                                        unspanned: ResultNode(
+                                            Spanned {
+                                                unspanned: Value(
+                                                    Num(
+                                                        1.0,
+                                                    ),
+                                                ),
+                                                span: (
+                                                    16,
+                                                    17,
+                                                ),
                                             },
-                                            span: (
-                                                15,
-                                                17,
-                                            ),
-                                        },
-                                        args: [
-                                            "b",
-                                        ],
+                                        ),
+                                        span: (
+                                            16,
+                                            17,
+                                        ),
                                     },
-                                ),
-                            ),
-                            span: (
-                                12,
-                                18,
-                            ),
-                        },
-                    },
-                ),
-                span: (
-                    4,
-                    7,
-                ),
+                                ],
+                                args: [
+                                    "b",
+                                ],
+                            },
+                        ),
+                    ),
+                    span: (
+                        12,
+                        18,
+                    ),
+                },
             },
-        ],
+        ),
+        span: (
+            4,
+            7,
+        ),
     },
-    span: (
-        0,
-        17,
-    ),
-}
+]

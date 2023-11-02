@@ -16,8 +16,7 @@ pub enum Value {
     Void,
     Control(Control),
     Num(f64),
-    Int(i64),
-    Float(f64),
+
     Bool(bool),
     Str(String),
     Function(Function),
@@ -47,8 +46,6 @@ impl Value {
             Value::Void => Type::Void,
             Value::Str(_) => Type::Str,
             Value::Num(_) => Type::Num,
-            Value::Int(_) => Type::Int,
-            Value::Float(_) => Type::Float,
             Value::Control(_) => Type::Never,
             Value::Struct(s) => Type::UserDefined(s.id.clone()),
             Value::StructRef(id) => Type::Ref(*id),
@@ -57,7 +54,7 @@ impl Value {
 }
 impl IntoNodespan for Value {
     fn to_nodespan(self, span: Span) -> NodeSpan {
-        Spanned::new(Node::Value(Box::new(self)), span)
+        Spanned::new(Node::Value(self), span)
     }
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -68,15 +65,12 @@ pub struct Struct {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
-    pub block: BlockRef,
+    pub block: NodeStream,
     pub args: Vec<String>,
 }
 impl Function {
-    pub fn new(block: BlockSpan, args: Vec<String>) -> Self {
-        Self {
-            block: Box::new(block),
-            args,
-        }
+    pub fn new(block: NodeStream, args: Vec<String>) -> Self {
+        Self { block, args }
     }
 }
 
@@ -100,8 +94,7 @@ pub enum Type {
     Null,
     Void,
     Num,
-    Float,
-    Int,
+
     Bool,
     Str,
     Function,
@@ -114,14 +107,13 @@ impl Type {
         self == &Self::Void
     }
     pub fn is_numeric(&self) -> bool {
-        matches!(self, Self::Bool | Self::Num | Self::Int | Self::Float)
+        matches!(self, Self::Bool | Self::Num)
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
-    Value(Box<Value>),
-    Block(BlockSpan),
+    Value(Value),
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
     ResultNode(Box<NodeSpan>),
@@ -130,12 +122,12 @@ pub enum Node {
     ContinueNode,
     Declaration(Declaration),
     Assignment(Assignment),
-    Variable(Variable),
+    Variable(String),
     Call(Call),
     Branch(Branch),
-    Loop(Loop),
+    Loop(NodeStream),
     While(While),
-    DoBlock(DoBlock),
+    DoBlock(NodeStream),
     Constructor(Constructor),
     StructDef(StructDef),
     FieldAccess(FieldAccess),
@@ -158,7 +150,7 @@ impl Node {
 }
 
 pub type NodeSpan = Spanned<Node>;
-pub type NodeRef = Box<NodeSpan>;
+pub type NodeRef = Box<Spanned<Node>>;
 impl NodeSpan {
     pub fn wrap_in_result(&self) -> Self {
         let value = self.clone();
@@ -167,60 +159,20 @@ impl NodeSpan {
     pub fn boxed(self) -> Box<Self> {
         Box::new(self)
     }
-    pub fn to_block(self) -> Block {
-        Block {
-            body: Box::new(vec![self]),
-        }
-    }
 }
 pub trait IntoNodespan {
     fn to_nodespan(self, span: Span) -> NodeSpan;
 }
-pub trait IntoBlock {
-    fn to_block(self) -> Block;
-    fn to_blockspan(self, span: Span) -> BlockSpan;
-}
-pub type NodeStream = Vec<NodeSpan>;
-impl IntoBlock for NodeStream {
-    fn to_block(self) -> Block {
-        Block {
-            body: Box::new(self),
-        }
-    }
-    fn to_blockspan(self, span: Span) -> BlockSpan {
-        Spanned::new(
-            Block {
-                body: Box::new(self),
-            },
-            span,
-        )
-    }
-}
-impl IntoNodespan for NodeStream {
-    fn to_nodespan(self, span: Span) -> NodeSpan {
-        Spanned::new(Node::Block(self.to_blockspan(span)), span)
-    }
-}
-#[derive(Clone, Debug, PartialEq)]
-pub struct Block {
-    pub body: Box<NodeStream>,
-}
-pub type BlockSpan = Spanned<Block>;
-pub type BlockRef = Box<Spanned<Block>>;
-impl BlockSpan {
-    pub fn boxed(self) -> Box<Self> {
-        Box::new(self)
-    }
-}
 
+pub type NodeStream = Vec<Spanned<Node>>;
 impl From<Control> for Node {
     fn from(x: Control) -> Self {
-        Node::Value(Box::new(Value::Control(x)))
+        Node::Value(Value::Control(x))
     }
 }
 impl From<Value> for Node {
     fn from(x: Value) -> Self {
-        Node::Value(Box::new(x))
+        Node::Value(x)
     }
 }
 macro_rules! nodes_from {
@@ -240,7 +192,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { UnaryNode Constructor StructDef  FieldAccess DoBlock BinaryNode Call Variable Assignment Declaration Branch While Loop}
+nodes_from! { UnaryNode Constructor StructDef  FieldAccess BinaryNode Call Assignment Declaration Branch While}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
@@ -294,10 +246,7 @@ pub struct Assignment {
     pub target: NodeRef,
     pub value: NodeRef,
 }
-#[derive(Clone, Debug, PartialEq)]
-pub struct Variable {
-    pub name: String,
-}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Call {
     pub callee: NodeRef,
@@ -334,53 +283,44 @@ pub struct Constructor {
     pub params: HashMap<String, NodeSpan>,
 }
 #[derive(Clone, Debug, PartialEq)]
-pub struct DoBlock {
-    pub body: BlockRef,
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct Branch {
     pub condition: NodeRef,
-    pub if_block: BlockRef,
-    pub else_block: Option<BlockRef>,
+    pub if_block: NodeStream,
+    pub else_block: Option<NodeStream>,
 }
 impl Branch {
-    pub fn new_single(condition: NodeSpan, block: BlockSpan) -> Self {
+    pub fn new_single(condition: NodeSpan, block: NodeStream) -> Self {
         Self {
             condition: Box::new(condition),
-            if_block: Box::new(block),
+            if_block: block,
             else_block: None,
         }
     }
-    pub fn new(condition: NodeSpan, if_block: BlockSpan, else_block: BlockSpan) -> Self {
+    pub fn new(condition: NodeSpan, if_block: NodeStream, else_block: NodeStream) -> Self {
         Self {
             condition: Box::new(condition),
-            if_block: Box::new(if_block),
-            else_block: Some(Box::new(else_block)),
+            if_block,
+            else_block: Some(else_block),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Loop {
-    pub proc: BlockRef,
-}
-#[derive(Clone, Debug, PartialEq)]
 pub struct While {
     pub condition: NodeRef,
-    pub proc: BlockRef,
+    pub proc: NodeStream,
 }
 pub type VarMap = HashMap<String, Value>;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Scope {
     pub parent: Option<Box<Scope>>,
-    pub vars: VarMap,
+    pub vars: HashMap<String, Value>,
     pub structs: HashMap<String, Struct>,
 }
 
 impl Scope {
-    pub fn get_var(&self, var_name: &String) -> Option<Value> {
-        if let Some(var) = self.vars.get(var_name) {
+    pub fn get_var(&self, var_name: impl AsRef<str>) -> Option<Value> {
+        if let Some(var) = self.vars.get(var_name.as_ref()) {
             return Some(var.clone());
         }
         if let Some(parent) = &self.parent {
@@ -403,7 +343,11 @@ impl Scope {
         }
         self.vars.insert(var_name, val);
     }
-    pub fn new(parent: Option<Box<Scope>>, vars: VarMap, structs: HashMap<String, Struct>) -> Self {
+    pub fn new(
+        parent: Option<Box<Scope>>,
+        vars: HashMap<String, Value>,
+        structs: HashMap<String, Struct>,
+    ) -> Self {
         Scope {
             parent,
             vars,

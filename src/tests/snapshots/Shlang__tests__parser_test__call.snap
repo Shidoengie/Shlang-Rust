@@ -8,9 +8,7 @@ Ok(
             Call {
                 callee: Spanned {
                     unspanned: Variable(
-                        Variable {
-                            name: "a",
-                        },
+                        "a",
                     ),
                     span: (
                         0,

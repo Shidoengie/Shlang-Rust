@@ -33,6 +33,10 @@ func abc(){
     return;
 }
 var main_a = do {
-    
-    println(eval("if true {1}"));
+    println("hello world!");
+    while true {
+        println("hsysdadszxc");
+        println("hey");
+
+    }
 };

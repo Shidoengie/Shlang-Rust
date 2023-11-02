@@ -3,9 +3,9 @@ use crate::Interpreter;
 use crate::Parser;
 use ast_nodes::*;
 use std::collections::HashMap;
+use std::f64::consts::PI;
 use std::io;
 use std::io::Write;
-
 const NULL: Value = Value::Null;
 pub fn default_scope() -> Scope {
     Scope {
@@ -17,6 +17,7 @@ pub fn default_scope() -> Scope {
 pub fn var_map() -> VarMap {
     HashMap::from([
         ("noice".to_string(), Value::Num(69.0)),
+        ("pi".to_string(), Value::Num(PI)),
         (
             "input".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
@@ -64,6 +65,55 @@ pub fn var_map() -> VarMap {
             Value::BuiltinFunc(BuiltinFunc {
                 function: eval,
                 arg_size: 1,
+            }),
+        ),
+        (
+            "min".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: min,
+                arg_size: 2,
+            }),
+        ),
+        (
+            "max".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: max,
+                arg_size: 2,
+            }),
+        ),
+        (
+            "sqrt".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: sqrt,
+                arg_size: 1,
+            }),
+        ),
+        (
+            "cos".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: cos,
+                arg_size: 1,
+            }),
+        ),
+        (
+            "sin".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: sin,
+                arg_size: 1,
+            }),
+        ),
+        (
+            "tan".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: tan,
+                arg_size: 1,
+            }),
+        ),
+        (
+            "pow".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: pow,
+                arg_size: 2,
             }),
         ),
     ])
@@ -131,14 +181,14 @@ pub fn num_to_str(scope: VarMap, _: ValueStream) -> Value {
     let Some(Value::Num(value)) = scope.get("v") else {panic!()};
     Value::Str(format!("{value}"))
 }
-pub fn substr_method(scope: VarMap, args: ValueStream) -> Value {
+fn substr_method(scope: VarMap, args: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else { panic!() };
     let [Value::Num(start), Value::Num(end)] = args[..2] else { return NULL; };
     let sub = &value[start as usize..end as usize];
     Value::Str(sub.to_string())
 }
 
-pub fn char_at_method(scope: VarMap, args: ValueStream) -> Value {
+fn char_at_method(scope: VarMap, args: ValueStream) -> Value {
     let Some(Value::Str(value)) = scope.get("v") else { panic!() };
     let Value::Num(index) = &args[0] else {return NULL;};
 
@@ -198,8 +248,7 @@ pub fn typeof_node(_: VarMap, args: ValueStream) -> Value {
         Never => "!",
         Bool => "bool",
         Num => "num",
-        Int => "int",
-        Float => "float",
+
         Str => "str",
         UserDefined(id) => return Value::Str(id),
         Ref(_) => "ref",
@@ -210,6 +259,37 @@ pub fn typeof_node(_: VarMap, args: ValueStream) -> Value {
 pub fn parse_num(_: VarMap, args: ValueStream) -> Value {
     let Value::Str(input) = &args[0] else {return NULL;};
     Value::Num(input.parse().unwrap())
+}
+fn min(_: VarMap, args: ValueStream) -> Value {
+    let Value::Num(val1) = &args[0] else {return NULL;};
+    let Value::Num(val2) = &args[1] else {return NULL;};
+    Value::Num(val1.min(*val2))
+}
+fn max(_: VarMap, args: ValueStream) -> Value {
+    let Value::Num(val1) = &args[0] else {return NULL;};
+    let Value::Num(val2) = &args[1] else {return NULL;};
+    Value::Num(val1.max(*val2))
+}
+fn pow(_: VarMap, args: ValueStream) -> Value {
+    let Value::Num(val1) = &args[0] else {return NULL;};
+    let Value::Num(val2) = &args[1] else {return NULL;};
+    Value::Num(val1.powf(*val2))
+}
+fn cos(_: VarMap, args: ValueStream) -> Value {
+    let Value::Num(val1) = &args[0] else {return NULL;};
+    Value::Num(val1.cos())
+}
+fn tan(_: VarMap, args: ValueStream) -> Value {
+    let Value::Num(val1) = &args[0] else {return NULL;};
+    Value::Num(val1.tan())
+}
+fn sin(_: VarMap, args: ValueStream) -> Value {
+    let Value::Num(val1) = &args[0] else {return NULL;};
+    Value::Num(val1.sin())
+}
+fn sqrt(_: VarMap, args: ValueStream) -> Value {
+    let Value::Num(val1) = &args[0] else {return NULL;};
+    Value::Num(val1.sqrt())
 }
 pub fn to_str(_: VarMap, args: ValueStream) -> Value {
     Value::Str(val_to_str(&args[0]))
@@ -235,7 +315,7 @@ pub fn eval(_: VarMap, args: ValueStream) -> Value {
         return Value::Null;
     };
 
-    let Ok(result) = Interpreter::execute_node(ast) else {return Value::Null;};
+    let Ok(result) = Interpreter::new(ast).execute() else {return Value::Null;};
     let Value::Control(nevah) = result.0 else {return result.0;};
 
     match nevah {

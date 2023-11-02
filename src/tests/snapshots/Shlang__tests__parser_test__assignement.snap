@@ -8,9 +8,7 @@ Ok(
             Assignment {
                 target: Spanned {
                     unspanned: Variable(
-                        Variable {
-                            name: "b",
-                        },
+                        "b",
                     ),
                     span: (
                         0,

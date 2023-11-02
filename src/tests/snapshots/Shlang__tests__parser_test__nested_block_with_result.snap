@@ -7,74 +7,56 @@ Ok(
         unspanned: Value(
             Function(
                 Function {
-                    block: Spanned {
-                        unspanned: Block {
-                            body: [
-                                Spanned {
-                                    unspanned: DoBlock(
-                                        DoBlock {
-                                            body: Spanned {
-                                                unspanned: Block {
-                                                    body: [
-                                                        Spanned {
-                                                            unspanned: ResultNode(
-                                                                Spanned {
-                                                                    unspanned: Value(
-                                                                        Num(
-                                                                            1.0,
-                                                                        ),
-                                                                    ),
-                                                                    span: (
-                                                                        11,
-                                                                        12,
-                                                                    ),
-                                                                },
-                                                            ),
-                                                            span: (
-                                                                11,
-                                                                12,
-                                                            ),
-                                                        },
-                                                    ],
-                                                },
+                    block: [
+                        Spanned {
+                            unspanned: DoBlock(
+                                [
+                                    Spanned {
+                                        unspanned: ResultNode(
+                                            Spanned {
+                                                unspanned: Value(
+                                                    Num(
+                                                        1.0,
+                                                    ),
+                                                ),
                                                 span: (
-                                                    10,
+                                                    11,
                                                     12,
                                                 ),
                                             },
-                                        },
-                                    ),
-                                    span: (
-                                        10,
-                                        12,
-                                    ),
-                                },
+                                        ),
+                                        span: (
+                                            11,
+                                            12,
+                                        ),
+                                    },
+                                ],
+                            ),
+                            span: (
+                                10,
+                                13,
+                            ),
+                        },
+                        Spanned {
+                            unspanned: ResultNode(
                                 Spanned {
-                                    unspanned: ResultNode(
-                                        Spanned {
-                                            unspanned: Value(
-                                                Num(
-                                                    1.0,
-                                                ),
-                                            ),
-                                            span: (
-                                                13,
-                                                14,
-                                            ),
-                                        },
+                                    unspanned: Value(
+                                        Num(
+                                            1.0,
+                                        ),
                                     ),
                                     span: (
                                         13,
                                         14,
                                     ),
                                 },
-                            ],
+                            ),
+                            span: (
+                                13,
+                                14,
+                            ),
                         },
-                        span: (
-                            7,
-                            10,
-                        ),
-                    },
+                    ],
                     args: [
                         "b",
                     ],

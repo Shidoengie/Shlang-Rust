@@ -12,9 +12,7 @@ Ok(
                         FieldAccess {
                             target: Spanned {
                                 unspanned: Variable(
-                                    Variable {
-                                        name: "b",
-                                    },
+                                    "b",
                                 ),
                                 span: (
                                     0,
@@ -23,9 +21,7 @@ Ok(
                             },
                             requested: Spanned {
                                 unspanned: Variable(
-                                    Variable {
-                                        name: "a",
-                                    },
+                                    "a",
                                 ),
                                 span: (
                                     2,

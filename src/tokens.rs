@@ -3,8 +3,6 @@ use crate::spans::*;
 pub enum TokenType {
     STR,
     NUM,
-    INT,
-    FLOAT,
     IDENTIFIER,
     SEMICOLON,
     PLUS,

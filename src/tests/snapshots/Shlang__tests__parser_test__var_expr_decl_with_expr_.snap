@@ -39,9 +39,7 @@ Ok(
                                         },
                                         right: Spanned {
                                             unspanned: Variable(
-                                                Variable {
-                                                    name: "b",
-                                                },
+                                                "b",
                                             ),
                                             span: (
                                                 12,

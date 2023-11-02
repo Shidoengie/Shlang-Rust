@@ -8,9 +8,7 @@ Ok(
             FieldAccess {
                 target: Spanned {
                     unspanned: Variable(
-                        Variable {
-                            name: "a",
-                        },
+                        "a",
                     ),
                     span: (
                         0,
@@ -25,9 +23,7 @@ Ok(
                                     Call {
                                         callee: Spanned {
                                             unspanned: Variable(
-                                                Variable {
-                                                    name: "b",
-                                                },
+                                                "b",
                                             ),
                                             span: (
                                                 2,
@@ -44,9 +40,7 @@ Ok(
                             },
                             requested: Spanned {
                                 unspanned: Variable(
-                                    Variable {
-                                        name: "c",
-                                    },
+                                    "c",
                                 ),
                                 span: (
                                     6,

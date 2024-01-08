@@ -6,6 +6,8 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::io;
 use std::io::Write;
+use std::thread;
+use std::time::Duration;
 const NULL: Value = Value::Null;
 pub fn default_scope() -> Scope {
     Scope {
@@ -18,6 +20,13 @@ pub fn var_map() -> VarMap {
     HashMap::from([
         ("noice".to_string(), Value::Num(69.0)),
         ("pi".to_string(), Value::Num(PI)),
+        (
+            "coma".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: coma_builtin,
+                arg_size: 1,
+            }),
+        ),
         (
             "input".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
@@ -162,6 +171,13 @@ pub fn str_structmap(val: String) -> VarMap {
             }),
         ),
         (
+            "len".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: len_method,
+                arg_size: 0,
+            }),
+        ),
+        (
             "char_at".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
                 function: char_at_method,
@@ -186,6 +202,10 @@ fn substr_method(scope: VarMap, args: ValueStream) -> Value {
     let [Value::Num(start), Value::Num(end)] = args[..2] else { return NULL; };
     let sub = &value[start as usize..end as usize];
     Value::Str(sub.to_string())
+}
+fn len_method(scope: VarMap, _: ValueStream) -> Value {
+    let Some(Value::Str(value)) = scope.get("v") else { panic!() };
+    Value::Num(value.len() as f64)
 }
 
 fn char_at_method(scope: VarMap, args: ValueStream) -> Value {
@@ -294,6 +314,19 @@ fn sqrt(_: VarMap, args: ValueStream) -> Value {
 pub fn to_str(_: VarMap, args: ValueStream) -> Value {
     Value::Str(val_to_str(&args[0]))
 }
+
+
+
+// this needs more space
+pub fn coma_builtin(_: VarMap, args: ValueStream) -> Value {
+    let Value::Num(val1) = &args[0] else {return NULL;};
+    thread::sleep(Duration::from_millis((val1 * 1000.0).floor() as u64));
+    NULL
+}
+
+
+
+
 pub fn input_builtin(_: VarMap, args: ValueStream) -> Value {
     if !args.is_empty() {
         let message = &args[0];

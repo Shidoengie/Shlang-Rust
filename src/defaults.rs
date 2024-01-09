@@ -21,9 +21,9 @@ pub fn var_map() -> VarMap {
         ("noice".to_string(), Value::Num(69.0)),
         ("pi".to_string(), Value::Num(PI)),
         (
-            "coma".to_string(),
+            "wait".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
-                function: coma_builtin,
+                function: wait_builtin,
                 arg_size: 1,
             }),
         ),
@@ -314,19 +314,12 @@ fn sqrt(_: VarMap, args: ValueStream) -> Value {
 pub fn to_str(_: VarMap, args: ValueStream) -> Value {
     Value::Str(val_to_str(&args[0]))
 }
-
-
-
 // this needs more space
-pub fn coma_builtin(_: VarMap, args: ValueStream) -> Value {
+pub fn wait_builtin(_: VarMap, args: ValueStream) -> Value {
     let Value::Num(val1) = &args[0] else {return NULL;};
     thread::sleep(Duration::from_millis((val1 * 1000.0).floor() as u64));
     NULL
 }
-
-
-
-
 pub fn input_builtin(_: VarMap, args: ValueStream) -> Value {
     if !args.is_empty() {
         let message = &args[0];

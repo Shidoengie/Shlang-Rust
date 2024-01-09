@@ -33,10 +33,41 @@ func abc(){
     return;
 }
 var main_a = do {
-    println("hello world!");
-    while true {
-        println("hsysdadszxc");
-        println("hey");
 
+
+    var bu = "";
+    bu += " ";
+    bu += "\n";
+    bu += "\t";
+    bu += " ";
+    bu += "buhh";
+    println(bu);
+
+    return;
+
+    func gay_shit(str, num){
+        var i = 0;
+        var res = "";
+
+        while i < num {
+            res += str; 
+            i += 1;
+        };
+
+        res
+    }
+
+
+    var i = 0;
+
+    loop {
+        var hmmm = 30 * (sin(i * 0.1) * sin(i * 0.1));
+
+        print(gay_shit("\n", hmmm));
+        println("shido is giey");
+
+        coma(0.1)
+
+        i += 1;
     }
 };

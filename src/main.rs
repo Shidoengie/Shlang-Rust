@@ -83,11 +83,14 @@ fn repl() {
             ast_result.unwrap_err().print_msg(err_out); continue;
         };
         let init_result = Interpreter::new(ast).execute();
-        let Ok((result,_)) = init_result else{
+        let Ok(result) = init_result else {
             init_result.unwrap_err().print_msg(err_out);
             continue;
         };
-        println!("{}", defaults::val_to_str(&result).bright_black());
+        println!(
+            "{}",
+            defaults::val_to_str(&result.unwrap_val()).bright_black()
+        );
     }
 }
 

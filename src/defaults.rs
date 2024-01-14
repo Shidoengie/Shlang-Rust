@@ -1,13 +1,20 @@
 use crate::ast_nodes;
+use crate::interpreter::Control;
 use crate::Interpreter;
 use crate::Parser;
 use ast_nodes::*;
 use std::collections::HashMap;
-use std::f64::consts::PI;
+use std::f64::consts::{E, PI, TAU};
+use std::fs;
+
 use std::io;
+
 use std::io::Write;
 use std::thread;
+use std::time;
 use std::time::Duration;
+use std::time::SystemTime;
+
 const NULL: Value = Value::Null;
 pub fn default_scope() -> Scope {
     Scope {
@@ -19,11 +26,27 @@ pub fn default_scope() -> Scope {
 pub fn var_map() -> VarMap {
     HashMap::from([
         ("noice".to_string(), Value::Num(69.0)),
-        ("pi".to_string(), Value::Num(PI)),
+        ("PI".to_string(), Value::Num(PI)),
+        ("TAU".to_string(), Value::Num(TAU)),
+        ("E".to_string(), Value::Num(E)),
         (
             "wait".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
                 function: wait_builtin,
+                arg_size: 1,
+            }),
+        ),
+        (
+            "time".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: unix_time,
+                arg_size: 0,
+            }),
+        ),
+        (
+            "open_file".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: open_textfile,
                 arg_size: 1,
             }),
         ),
@@ -134,8 +157,10 @@ pub fn str_struct(val: String) -> Struct {
         env: Scope::new(None, env, HashMap::from([])),
     }
 }
+
 pub fn num_struct(val: f64) -> Struct {
     let env = num_structmap(val);
+
     Struct {
         id: "num".to_string(),
         env: Scope::new(None, env, HashMap::from([])),
@@ -178,6 +203,20 @@ pub fn str_structmap(val: String) -> VarMap {
             }),
         ),
         (
+            "remove".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: str_remove,
+                arg_size: 1,
+            }),
+        ),
+        (
+            "replace".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: str_replace,
+                arg_size: 2,
+            }),
+        ),
+        (
             "char_at".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
                 function: char_at_method,
@@ -186,30 +225,52 @@ pub fn str_structmap(val: String) -> VarMap {
         ),
     ])
 }
+pub fn str_remove(scope: VarMap, args: ValueStream) -> Value {
+    let Some(Value::Str(v)) = scope.get("v") else {unreachable!()};
+    let mut value = v.clone();
+    let target = &args[0];
+    match target {
+        Value::Num(index) => {
+            if index < &0.0 || index >= &(value.len() as f64) {
+                return NULL;
+            }
+            value.remove(*index as usize);
+            return Value::Str(value.to_string());
+        }
+        Value::Str(ref pattern) => return Value::Str(value.replace(pattern, "")),
+        _ => NULL,
+    }
+}
 
+pub fn str_replace(scope: VarMap, args: ValueStream) -> Value {
+    let Some(Value::Str(value)) = scope.get("v") else {unreachable!()};
+    let [Value::Str(ref target),Value::Str(ref filler)] = args[..2] else { return NULL; };
+    Value::Str(value.replace(target, filler))
+}
 pub fn parse_num_method(scope: VarMap, _: ValueStream) -> Value {
-    let Some(Value::Str(value)) = scope.get("v") else {panic!()};
+    let Some(Value::Str(value)) = scope.get("v") else {unreachable!()};
     let parsed: Result<f64, _> = String::from_iter(value.chars().filter(|&c| c != '_')).parse();
     let Ok(result) = parsed else {return NULL;};
+
     Value::Num(result)
 }
 pub fn num_to_str(scope: VarMap, _: ValueStream) -> Value {
-    let Some(Value::Num(value)) = scope.get("v") else {panic!()};
+    let Some(Value::Num(value)) = scope.get("v") else {unreachable!()};
     Value::Str(format!("{value}"))
 }
 fn substr_method(scope: VarMap, args: ValueStream) -> Value {
-    let Some(Value::Str(value)) = scope.get("v") else { panic!() };
+    let Some(Value::Str(value)) = scope.get("v") else { unreachable!() };
     let [Value::Num(start), Value::Num(end)] = args[..2] else { return NULL; };
     let sub = &value[start as usize..end as usize];
     Value::Str(sub.to_string())
 }
 fn len_method(scope: VarMap, _: ValueStream) -> Value {
-    let Some(Value::Str(value)) = scope.get("v") else { panic!() };
+    let Some(Value::Str(value)) = scope.get("v") else { unreachable!()};
     Value::Num(value.len() as f64)
 }
 
 fn char_at_method(scope: VarMap, args: ValueStream) -> Value {
-    let Some(Value::Str(value)) = scope.get("v") else { panic!() };
+    let Some(Value::Str(value)) = scope.get("v") else {unreachable!() };
     let Value::Num(index) = &args[0] else {return NULL;};
 
     value
@@ -226,7 +287,7 @@ pub fn val_to_str(val: &Value) -> String {
         Value::Str(txt) => txt.to_string(),
         Value::Null => "null".to_string(),
         Value::Void => "void".to_string(),
-        Value::Control(val) => format!("{val:?}"),
+
         _ => "unnamed".to_string(),
     }
 }
@@ -256,22 +317,23 @@ pub fn print_builtin(_: VarMap, args: ValueStream) -> Value {
     out = out.trim().to_string();
     print!("{out}");
     io::stdout().flush().unwrap();
-    Value::Null
+    NULL
 }
-
+pub fn open_textfile(_: VarMap, args: ValueStream) -> Value {
+    let Value::Str(path) = &args[0] else {return NULL;};
+    let Ok(contents) = fs::read_to_string(path)  else {return NULL;};
+    return Value::Str(contents);
+}
 pub fn typeof_node(_: VarMap, args: ValueStream) -> Value {
-    use Type::*;
     let out = match args[0].get_type() {
-        Void => "void",
-        Null => "null",
-        Function => "func",
-        Never => "!",
-        Bool => "bool",
-        Num => "num",
-
-        Str => "str",
-        UserDefined(id) => return Value::Str(id),
-        Ref(_) => "ref",
+        Type::Void => "void",
+        Type::Null => "null",
+        Type::Function => "func",
+        Type::Bool => "bool",
+        Type::Num => "num",
+        Type::Str => "str",
+        Type::UserDefined(id) => return Value::Str(id),
+        Type::Ref(_) => "ref",
     }
     .to_string();
     Value::Str(out)
@@ -315,6 +377,14 @@ pub fn to_str(_: VarMap, args: ValueStream) -> Value {
     Value::Str(val_to_str(&args[0]))
 }
 // this needs more space
+pub fn unix_time(_: VarMap, _: ValueStream) -> Value {
+    Value::Num(
+        SystemTime::now()
+            .duration_since(time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs_f64(),
+    )
+}
 pub fn wait_builtin(_: VarMap, args: ValueStream) -> Value {
     let Value::Num(val1) = &args[0] else {return NULL;};
     thread::sleep(Duration::from_millis((val1 * 1000.0).floor() as u64));
@@ -342,11 +412,9 @@ pub fn eval(_: VarMap, args: ValueStream) -> Value {
     };
 
     let Ok(result) = Interpreter::new(ast).execute() else {return Value::Null;};
-    let Value::Control(nevah) = result.0 else {return result.0;};
 
-    match nevah {
-        Control::Result(val, _) => *val,
-        Control::Return(val, _) => *val,
+    match result {
+        Control::Result(val) | Control::Return(val) | Control::Value(val) => val,
         _ => Value::Null,
     }
 }

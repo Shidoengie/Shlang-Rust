@@ -6,14 +6,33 @@ use ast_nodes::*;
 use std::collections::HashMap;
 use std::*;
 type IError = InterpreterError;
-type EvalResult = Result<TypedValue, InterpreterError>;
-const VOID: EvalResult = Ok((Value::Void, Type::Void));
-const NULL: EvalResult = Ok((Value::Null, Type::Null));
+
+
 #[derive(Debug)]
 pub struct Interpreter {
     program: NodeStream,
     heap: HashMap<u32, Value>,
 }
+#[derive(Clone, Debug)]
+pub enum Control {
+    Return(Value),
+    Result(Value),
+    Value(Value),
+    Break,
+    Continue,
+}
+
+impl Control{
+    pub fn unwrap_val(&self) -> Value {
+        match self {
+            Self::Return(val) | Self::Result(val) | Self::Value(val) => val.clone(),
+            _=> Value::Null,
+        }
+    }
+}
+type EvalResult = Result<Control, InterpreterError>;
+const VOID: EvalResult = Ok(Control::Value(Value::Void));
+const NULL: EvalResult = Ok(Control::Value(Value::Null));
 impl Interpreter {
     pub fn new(program: NodeStream) -> Self {
         Self {
@@ -39,13 +58,16 @@ impl Interpreter {
         }
         let body = block;
         for node in body {
-            let Value::Control(result) = self.eval_node(&node,&mut new_scope)?.0 else {continue;};
+            let result = self.eval_node(&node,&mut new_scope)?;
+            if let Control::Value(_) = result {
+                continue;
+            }
             let Some(mod_parent) = new_scope.parent else {
                 
                 return Err(IError::InvalidControl(node.span));
             };
             *parent = *mod_parent;
-            return Ok((Value::Control(result), Type::Never));
+            return Ok(result);
         }
 
         let Some(mod_parent) = new_scope.parent else {
@@ -68,108 +90,101 @@ impl Interpreter {
             invalid => Err(IError::InvalidType(vec![Type::Num,Type::Bool],invalid.get_type(),span)),
         }
     }
-    fn unary_calc(&self, node: UnaryNode, target: TypedValue) -> EvalResult {
+    fn unary_calc(&self, node: UnaryNode, target: Value) -> EvalResult {
         match node.kind {
             UnaryOp::NEGATIVE => {
-                let Value::Num(val) = target.0 else {
-                    return Err(IError::InvalidType(vec![Type::Num],target.1, node.object.span));
+                let Value::Num(val) = target else {
+                    return Err(IError::InvalidType(vec![Type::Num],target.get_type(), node.object.span));
                 };
-                Ok((Value::Num(-val), Type::Num))
+                Ok(Control::Value(Value::Num(-val)))
             }
-            UnaryOp::NOT => Ok((
-                Value::Bool(!self.num_convert(target.0, node.object.span)?.1),
-                Type::Bool,
+            UnaryOp::NOT => Ok(Control::Value(
+                Value::Bool(!self.num_convert(target, node.object.span)?.1)
+                
             ))
         }
     }
-    fn binary_calc(
+    fn num_calc(
         &self,
         node: BinaryNode,
         left_val: Value,
         right_val: Value,
-    ) -> Result<Value, IError> {
+    ) -> Result<Control, IError> {
         let (left, left_bool) = self.num_convert(left_val, node.left.span)?;
         let (right, right_bool) = self.num_convert(right_val, node.right.span)?;
-        match node.kind {
-            BinaryOp::ADD => Ok(Value::Num(left + right)),
-            BinaryOp::SUBTRACT => Ok(Value::Num(left - right)),
-            BinaryOp::MULTIPLY => Ok(Value::Num(left * right)),
-            BinaryOp::DIVIDE => Ok(Value::Num(left / right)),
-            BinaryOp::MODULO => Ok(Value::Num(left % right)),
-            BinaryOp::GREATER => Ok(Value::Bool(left > right)),
-            BinaryOp::GREATER_EQUAL => Ok(Value::Bool(left >= right)),
-            BinaryOp::LESSER => Ok(Value::Bool(left < right)),
-            BinaryOp::LESSER_EQUAL => Ok(Value::Bool(left <= right)),
-            BinaryOp::AND => Ok(Value::Bool(left_bool && right_bool)),
-            BinaryOp::OR => Ok(Value::Bool(left_bool || right_bool)),
-            BinaryOp::ISEQUAL => Ok(Value::Bool(left == right)),
-            BinaryOp::ISDIFERENT => Ok(Value::Bool(left != right)),
-        }
+        let res = match node.kind {
+            BinaryOp::ADD => Value::Num(left + right),
+            BinaryOp::SUBTRACT => Value::Num(left - right),
+            BinaryOp::MULTIPLY => Value::Num(left * right),
+            BinaryOp::DIVIDE => Value::Num(left / right),
+            BinaryOp::MODULO => Value::Num(left % right),
+            BinaryOp::GREATER => Value::Bool(left > right),
+            BinaryOp::GREATER_EQUAL => Value::Bool(left >= right),
+            BinaryOp::LESSER => Value::Bool(left < right),
+            BinaryOp::LESSER_EQUAL => Value::Bool(left <= right),
+            BinaryOp::AND => Value::Bool(left_bool && right_bool),
+            BinaryOp::OR => Value::Bool(left_bool || right_bool),
+            BinaryOp::ISEQUAL => Value::Bool(left == right),
+            BinaryOp::ISDIFERENT => Value::Bool(left != right),
+        };
+        Ok(Control::Value(res))
     }
-    fn str_calc(&self, node: BinaryNode, left_val: Value, right_val: Value) -> Result<Value, IError> {
+    fn str_calc(&self, node: BinaryNode, left_val: Value, right_val: Value) -> Result<Control, IError> {
         let Value::Str(left) = left_val else {unreachable!()};
         let Value::Str(right) = right_val else {unreachable!()};
 
-        match node.kind {
-            BinaryOp::ADD => Ok(Value::Str(left + &right)),
-            BinaryOp::GREATER => Ok(Value::Bool(left > right)),
-            BinaryOp::GREATER_EQUAL => Ok(Value::Bool(left >= right)),
-            BinaryOp::LESSER => Ok(Value::Bool(left < right)),
-            BinaryOp::LESSER_EQUAL => Ok(Value::Bool(left <= right)),
-            BinaryOp::ISEQUAL => Ok(Value::Bool(left == right)),
-            BinaryOp::ISDIFERENT => Ok(Value::Bool(left != right)),
-            op => Err(IError::InvalidOp(op, Type::Str, (node.left.span.1, node.right.span.0)))
-        }
+        let res = match node.kind {
+            BinaryOp::ADD => Value::Str(left + &right),
+            BinaryOp::GREATER => Value::Bool(left > right),
+            BinaryOp::GREATER_EQUAL => Value::Bool(left >= right),
+            BinaryOp::LESSER => Value::Bool(left < right),
+            BinaryOp::LESSER_EQUAL => Value::Bool(left <= right),
+            BinaryOp::ISEQUAL => Value::Bool(left == right),
+            BinaryOp::ISDIFERENT => Value::Bool(left != right),
+            op => return Err(IError::InvalidOp(op, Type::Str, (node.left.span.1, node.right.span.0)))
+        };
+        Ok(Control::Value(res))
     }
-
+    
     fn eval_binary_node(&mut self, bin_op: BinaryNode, parent: &mut Scope) -> EvalResult {
-        let left = self.eval_node(&bin_op.left, parent)?.unwrap_result();
-        if left.1 == Type::Never {
-            return Ok(left);
-        }
-        let right = self.eval_node(&bin_op.right, parent)?.unwrap_result();
-        if right.1 == Type::Never {
-            return Ok(right);
-        }
+        let left = self.eval_node(&bin_op.left, parent)?.unwrap_val();
+        let right = self.eval_node(&bin_op.right, parent)?.unwrap_val();
+        let left_type = left.get_type();
+        let right_type = right.get_type();
         match bin_op.kind {
-            BinaryOp::ISDIFERENT => return Ok((Value::Bool(left != right), Type::Bool)),
-            BinaryOp::ISEQUAL => return Ok((Value::Bool(left == right), Type::Bool)),
+            BinaryOp::ISDIFERENT => return Ok(Control::Value(Value::Bool(left != right))),
+            BinaryOp::ISEQUAL => return Ok(Control::Value(Value::Bool(left == right))),
             _ => {}
         }
-        if left.1 != right.1 && !(left.1.is_numeric() && right.1.is_numeric()) {
-            return Err(IError::MixedTypes(left.1, right.1,(bin_op.left.span.0,bin_op.right.span.1)));
+        
+        if left_type != right_type && !(left.is_numeric() && right.is_numeric()) {
+            return Err(IError::MixedTypes(left_type, right_type,(bin_op.left.span.0-1,bin_op.right.span.1)));
         }
-        match left.1 {
+        match left_type {
             Type::Num | Type::Bool => {
-                let result = (self.binary_calc(bin_op, left.0, right.0)?, left.1);
-                return Ok(result);
+                return self.num_calc(bin_op, left, right);
             }
             Type::Str => {
-                let result = (self.str_calc(bin_op, left.0, right.0)?, left.1);
-                return Ok(result);
+                
+                return self.str_calc(bin_op, left, right);
             }
             _ => {}
         }
         
-        Err(IError::InvalidBinary(left.1, bin_op.left.span))
+        Err(IError::InvalidBinary(left_type, bin_op.left.span))
     }
-    fn unwrap_var(&self, value: TypedValue, span: Span) -> EvalResult {
-        let err = Err(IError::VoidAssignment(span));
-        if value.1 == Type::Void {
-            return err;
+    fn unwrap_var(&self, flow: Control, span: Span) -> Result<Value,IError> {
+        
+        let value = flow.unwrap_val();
+        if value.is_void(){
+            return Err(IError::VoidAssignment(span));
         }
-        let Value::Control(Control::Result(res_val,res_type)) = value.0 else {
-            return Ok(value);
-        };
-        if res_type == Type::Void {
-            return err;
-        }
-        Ok((*res_val, res_type))
+        Ok(value)
     }
     fn declare(&mut self, request: Declaration, parent: &mut Scope) -> EvalResult {
         let init_val = self.eval_node(&request.value, parent)?;
         let unwrapped = self.unwrap_var(init_val, request.value.span)?;
-        parent.define(request.var_name, unwrapped.0);
+        parent.define(request.var_name, unwrapped);
         VOID
     }
     fn get_struct_id(&self, val: &Value) -> u32 {
@@ -183,10 +198,10 @@ impl Interpreter {
     fn assign_to_access(
         &mut self,
         request: FieldAccess,
-        value: TypedValue,
+        value: Value,
         parent: &mut Scope,
     ) -> EvalResult {
-        let target = self.eval_node(&request.target, parent)?.0;
+        let target = self.eval_node(&request.target, parent)?.unwrap_val();
         let id = self.get_struct_id(&target);
         let mut obj = self.struct_from_heap(id);
         match request.requested.unspanned {
@@ -207,12 +222,12 @@ impl Interpreter {
     fn assign_to_name(
         &mut self,
         name: String,
-        value: TypedValue,
+        value: Value,
         span: Span,
         target: &mut Scope,
     ) -> EvalResult {
         if target
-            .assign(name.clone(), self.unwrap_var(value, span)?.0)
+            .assign(name.clone(), self.unwrap_var(Control::Value(value), span)?)
             .is_none()
         {
             return Err(IError::InvalidAssignment(name, span));
@@ -220,7 +235,7 @@ impl Interpreter {
         VOID
     }
     fn assign(&mut self, request: Assignment, parent: &mut Scope) -> EvalResult {
-        let init_val = self.eval_node(&request.value, parent)?;
+        let init_val = self.eval_node(&request.value, parent)?.unwrap_val();
         match request.clone().target.unspanned {
             Node::Variable(var) => 
                 self.assign_to_name(var, init_val, request.target.span, parent),
@@ -238,16 +253,14 @@ impl Interpreter {
         let Some(result) = maybe_result else {
             return Err(IError::NonExistentVar(name, span));
         };
-        let res_type = result.get_type();
-        Ok((result, res_type))
+        Ok(Control::Value(result))
     }
     fn eval_var(&self, name: String, span: Span, env: &Scope) -> EvalResult {
         let maybe_result = env.get_var(&name);
         let Some(result) = maybe_result else {
             return self.default_scope(name, span);
         };
-        let res_type = result.get_type();
-        Ok((result, res_type))
+        Ok(Control::Value(result))
     }
     fn call_builtin(
         &mut self,
@@ -260,8 +273,7 @@ impl Interpreter {
             return Err(IError::InvalidArgSize(called.arg_size as u32, arg_values.len() as u32, span));
         }
         let result = (called.function)(parent.vars.clone(), arg_values);
-        let result_type = result.get_type();
-        Ok((result, result_type))
+        Ok(Control::Value(result))
     }
     fn build_args(
         &mut self,
@@ -294,31 +306,35 @@ impl Interpreter {
         parent: &mut Scope,
     ) -> EvalResult {
         if arg_values.len() != called.args.len() {
-            return Err(IError::InvalidArgSize(called.args.len() as u32, arg_values.len() as u32, span));
+            return Err(
+                IError::InvalidArgSize(
+                    called.args.len() as u32, 
+                    arg_values.len() as u32, 
+                    span
+                )
+            );
         }
         called.block = self.build_args(&called, arg_spans, arg_values);
-        let (result, result_type) = self.eval_block(called.block, parent)?;
-        let Value::Control(flow) = result else {
-            return Ok((result,result_type));
-        };
-        match flow {
-            Control::Return(val, kind) => Ok((*val, kind)),
-            Control::Result(val, kind) => Ok((*val, kind)),
-            _ => Err(IError::InvalidControl(span)),
-            
+        let result = self.eval_block(called.block, parent)?;
+        if let Control::Break|Control::Continue = result{
+            return Err(IError::InvalidControl(span));
         }
+        Ok(Control::Value(result.unwrap_val()))
     }
     fn eval_call(&mut self, request: Call, base_env: &mut Scope, parent: &mut Scope) -> EvalResult {
-        let (func_val, kind) = self.eval_node(&request.callee, parent)?;
-        if kind != Type::Function {
-            return Err(IError::InvalidType(vec![Type::Function], kind, request.callee.span,));
+        let func_val = self.eval_node(&request.callee, parent)?.unwrap_val();
+        let func_type = func_val.get_type();
+        if func_type != Type::Function {
+            return Err(
+                IError::InvalidType(vec![Type::Function], func_type, request.callee.span,)
+            );
         }
         let call_args = *request.args;
         let mut arg_values: ValueStream = vec![];
         let mut arg_spans: Vec<Span> = vec![];
         for arg in call_args {
             arg_spans.push(arg.span);
-            let argument = self.eval_node(&arg, base_env)?.0;
+            let argument = self.eval_node(&arg, base_env)?.unwrap_val();
             arg_values.push(argument);
         }
         let arg_span = if !arg_spans.is_empty() {
@@ -334,9 +350,8 @@ impl Interpreter {
     }
     fn branch(&mut self, branch: Branch, parent: &mut Scope) -> EvalResult {
         
-        let condition = self.eval_node(&branch.condition, parent)?;
-        let cond_val = self.num_convert(condition.0, branch.condition.span)?.1;
-
+        let condition = self.eval_node(&branch.condition, parent)?.unwrap_val();
+        let cond_val = self.num_convert(condition, branch.condition.span)?.1;
         if cond_val {
             return self.eval_block(branch.if_block, parent);
         }
@@ -348,28 +363,26 @@ impl Interpreter {
     fn eval_loop(&mut self, loop_block: NodeStream, parent: &mut Scope) -> EvalResult {
         
         loop {
-            let (result, result_type) = self.eval_block(loop_block.clone(), parent)?;
-            let Value::Control(flow) = result.clone() else {continue;};
-            match flow {
+            let result = self.eval_block(loop_block.clone(), parent)?;
+            match result {
                 Control::Break => return NULL,
-                Control::Continue => continue,
-                _ => return Ok((result, result_type)),
+                Control::Continue|Control::Value(_) => continue,
+                _ => return Ok(result),
             }
         }
     }
     fn eval_while_loop(&mut self, loop_node: While, parent: &mut Scope) -> EvalResult {
         loop {
-            let condition = self.eval_node(&loop_node.condition, parent)?;
-            let cond_val = self.num_convert(condition.0, loop_node.condition.span)?.1;
+            let condition = self.eval_node(&loop_node.condition, parent)?.unwrap_val();
+            let cond_val = self.num_convert(condition, loop_node.condition.span)?.1;
             if !cond_val {
                 return NULL;
             }
-            let (result, result_type) = self.eval_block(loop_node.proc.clone(), parent)?;
-            let Value::Control(flow) = result.clone() else {continue;};
-            match flow {
+            let result = self.eval_block(loop_node.proc.clone(), parent)?;
+            match result {
                 Control::Break => return NULL,
-                Control::Continue => continue,
-                _ => return Ok((result, result_type)),
+                Control::Continue|Control::Value(_) => continue,
+                _ => return Ok(result),
             }
         }
     }
@@ -397,8 +410,8 @@ impl Interpreter {
         base_env: &mut Scope,
         parent: &mut Scope,
     ) -> EvalResult {
-        let target = self.eval_node(&request.target, parent)?;
-        match target.0 {
+        let target = self.eval_node(&request.target, parent)?.unwrap_val();
+        match target {
             Value::StructRef(id) => self.access_struct(
                 id, 
                 *request.requested, 
@@ -429,18 +442,18 @@ impl Interpreter {
             if !obj.env.vars.contains_key(&k) {
                 panic!("Atempted to assign to non existent struct field")
             }
-            let result = self.eval_node(&v, parent)?.0;
+            let result = self.eval_node(&v, parent)?.unwrap_val();
             obj.env.vars.insert(k, result);
         }
-        Ok((Value::Struct(obj.clone()), Type::UserDefined(obj.id)))
+        Ok(Control::Value(Value::Struct(obj.clone())))
     }
     fn eval_constructor(&mut self, constructor: Constructor, parent: &mut Scope) -> EvalResult {
         let Some(request) = parent.get_struct(&constructor.name) else {panic!("Attempted to construct a non existent struct")};
         let struct_val = self
             .assign_fields(request, constructor.params, parent)?
-            .0;
+            .unwrap_val();
         let id = self.heap_define(struct_val);
-        Ok((Value::StructRef(id), Type::Ref(id)))
+        Ok(Control::Value(Value::StructRef(id)))
     }
     fn eval_structdef(&mut self, obj: StructDef, parent: &mut Scope) -> EvalResult {
         let mut struct_env = Scope::new(None, HashMap::from([]), HashMap::from([]));
@@ -455,7 +468,7 @@ impl Interpreter {
         let struct_val = Value::Struct(strct.clone());
         parent.define(obj.name, struct_val.clone());
         let id = self.heap_define(struct_val);
-        Ok((Value::StructRef(id), Type::Ref(id)))
+        Ok(Control::Value(Value::StructRef(id)))
     }
 
     fn eval_node(&mut self, node: &NodeSpan, parent: &mut Scope) -> EvalResult {
@@ -465,32 +478,30 @@ impl Interpreter {
                 // let kind = val.clone().get_type();
                 // Ok((*val, kind))
                 let kind = val.get_type();
-                let Type::Ref(id) = kind else {return Ok((val, kind));};
+                let Type::Ref(id) = kind else {return Ok(Control::Value(val));};
                 let new_val = self.heap.get(&id).unwrap();
-                let new_kind = val.get_type();
-                Ok((new_val.clone(), new_kind))
+                Ok(Control::Value(new_val.clone()))
             }
             
             Node::Variable(var) => self.eval_var(var, span, parent),
             Node::Call(request) => self.eval_call(request, &mut parent.clone(), parent),
             Node::UnaryNode(unary_op) => {
-                let (target, target_type) = self.eval_node(&unary_op.object, parent)?;
-                self.unary_calc(unary_op, (target, target_type))
+                let target = self.eval_node(&unary_op.object, parent)?;
+                self.unary_calc(unary_op, target.unwrap_val())
             }
             Node::BinaryNode(bin_op) => self.eval_binary_node(bin_op, parent),
             Node::Branch(branch) => self.branch(branch, parent),
             Node::ReturnNode(expr) => {
-                let evaluated = self.eval_node(&expr, parent)?;
-                let result: Value = Control::Return(Box::new(evaluated.0), evaluated.1).into();
-                Ok((result, Type::Never))
+                let evaluated = self.eval_node(&expr, parent)?.unwrap_val();
+                Ok(Control::Return(evaluated))
+                
             }
             Node::ResultNode(expr) => {
-                let evaluated = self.eval_node(&expr, parent)?;
-                let result: Value = Control::Result(Box::new(evaluated.0), evaluated.1).into();
-                Ok((result, Type::Never))
+                let evaluated = self.eval_node(&expr, parent)?.unwrap_val();
+                Ok(Control::Result(evaluated))
             }
-            Node::BreakNode => Ok((Control::Break.into(), Type::Never)),
-            Node::ContinueNode => Ok((Control::Continue.into(),Type::Never)),
+            Node::BreakNode => Ok(Control::Break),
+            Node::ContinueNode => Ok(Control::Continue),
             Node::Declaration(declaration) => self.declare(declaration, parent),
             Node::Assignment(ass) => self.assign(ass, parent),
             Node::While(obj) => self.eval_while_loop(obj, parent),

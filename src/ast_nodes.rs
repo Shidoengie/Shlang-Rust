@@ -1,22 +1,15 @@
 use std::collections::*;
 
 use crate::spans::*;
-#[derive(Clone, Debug, PartialEq)]
-
-pub enum Control {
-    Return(Box<Value>, Type),
-    Result(Box<Value>, Type),
-    Break,
-    Continue,
+pub trait TypeIdent {
+    fn is_void(&self) -> bool;
+    fn is_numeric(&self) -> bool;
 }
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Null,
     Void,
-    Control(Control),
     Num(f64),
-
     Bool(bool),
     Str(String),
     Function(Function),
@@ -24,18 +17,9 @@ pub enum Value {
     Struct(Struct),
     StructRef(u32),
 }
-pub trait ControlUnwrap {
-    fn unwrap_result(self) -> Self;
-}
+
 pub type TypedValue = (Value, Type);
-impl ControlUnwrap for TypedValue {
-    fn unwrap_result(self) -> Self {
-        let Value::Control(Control::Result(res_val,res_type)) = self.0 else {
-            return self;
-        };
-        (*res_val, res_type)
-    }
-}
+
 pub type ValueStream = Vec<Value>;
 impl Value {
     pub fn get_type(&self) -> Type {
@@ -46,10 +30,21 @@ impl Value {
             Value::Void => Type::Void,
             Value::Str(_) => Type::Str,
             Value::Num(_) => Type::Num,
-            Value::Control(_) => Type::Never,
             Value::Struct(s) => Type::UserDefined(s.id.clone()),
             Value::StructRef(id) => Type::Ref(*id),
         }
+    }
+
+    pub fn matches_typeof(&self, val: &Self) -> bool {
+        self.get_type() == val.get_type()
+    }
+}
+impl TypeIdent for Value {
+    fn is_void(&self) -> bool {
+        self.get_type().is_void()
+    }
+    fn is_numeric(&self) -> bool {
+        self.get_type().is_numeric()
     }
 }
 impl IntoNodespan for Value {
@@ -84,29 +79,23 @@ impl From<Function> for Value {
         Value::Function(x)
     }
 }
-impl From<Control> for Value {
-    fn from(x: Control) -> Self {
-        Value::Control(x)
-    }
-}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Type {
     Null,
     Void,
     Num,
-
     Bool,
     Str,
     Function,
-    Never,
     Ref(u32),
     UserDefined(String),
 }
-impl Type {
-    pub fn is_void(&self) -> bool {
+impl TypeIdent for Type {
+    fn is_void(&self) -> bool {
         self == &Self::Void
     }
-    pub fn is_numeric(&self) -> bool {
+    fn is_numeric(&self) -> bool {
         matches!(self, Self::Bool | Self::Num)
     }
 }
@@ -165,11 +154,7 @@ pub trait IntoNodespan {
 }
 
 pub type NodeStream = Vec<Spanned<Node>>;
-impl From<Control> for Node {
-    fn from(x: Control) -> Self {
-        Node::Value(Value::Control(x))
-    }
-}
+
 impl From<Value> for Node {
     fn from(x: Value) -> Self {
         Node::Value(x)

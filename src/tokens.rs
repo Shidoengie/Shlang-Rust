@@ -74,8 +74,8 @@ impl TokenEq for Token {
         &self.kind != kind
     }
 }
-type MaybeToken = Option<Token>;
-impl TokenEq for MaybeToken {
+
+impl TokenEq for Option<Token> {
     fn is(&self, kind: &TokenType) -> bool {
         match self.clone() {
             Some(tok) => &tok.kind == kind,

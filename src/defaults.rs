@@ -170,6 +170,13 @@ pub fn num_structmap(val: f64) -> VarMap {
     HashMap::from([
         ("v".to_string(), Value::Num(val)),
         (
+            "sqrt".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: sqrt_method,
+                arg_size: 0,
+            }),
+        ),
+        (
             "to_string".to_string(),
             Value::BuiltinFunc(BuiltinFunc {
                 function: num_to_str,
@@ -372,6 +379,10 @@ fn sin(_: VarMap, args: ValueStream) -> Value {
 fn sqrt(_: VarMap, args: ValueStream) -> Value {
     let Value::Num(val1) = &args[0] else {return NULL;};
     Value::Num(val1.sqrt())
+}
+fn sqrt_method(scope: VarMap, _: ValueStream) -> Value {
+    let Some(Value::Num(value)) = scope.get("v") else {unreachable!()};
+    Value::Num(value.sqrt())
 }
 pub fn to_str(_: VarMap, args: ValueStream) -> Value {
     Value::Str(val_to_str(&args[0]))

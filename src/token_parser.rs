@@ -269,7 +269,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
         let last = self.peek_some()?;
         self.next();
         let call = Call {
-            args: Box::new(params),
+            args: params,
             callee: callee.boxed(),
         }
         .to_nodespan((first.span.0, last.span.1));

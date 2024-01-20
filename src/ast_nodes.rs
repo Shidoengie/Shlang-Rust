@@ -235,7 +235,7 @@ pub struct Assignment {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Call {
     pub callee: NodeRef,
-    pub args: Box<NodeStream>,
+    pub args: NodeStream,
 }
 
 #[derive(Clone, Debug, PartialEq)]

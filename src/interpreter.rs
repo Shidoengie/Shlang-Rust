@@ -8,11 +8,7 @@ use std::*;
 type IError = InterpreterError;
 
 
-#[derive(Debug)]
-pub struct Interpreter {
-    program: NodeStream,
-    heap: HashMap<u32, Value>,
-}
+
 #[derive(Clone, Debug)]
 pub enum Control {
     Return(Value),
@@ -33,6 +29,11 @@ impl Control{
 type EvalResult = Result<Control, InterpreterError>;
 const VOID: EvalResult = Ok(Control::Value(Value::Void));
 const NULL: EvalResult = Ok(Control::Value(Value::Null));
+#[derive(Debug)]
+pub struct Interpreter {
+    program: NodeStream,
+    heap: HashMap<u32, Value>,
+}
 impl Interpreter {
     pub fn new(program: NodeStream) -> Self {
         Self {
@@ -41,8 +42,15 @@ impl Interpreter {
         }
     }
     pub fn execute(&mut self) -> EvalResult {
-        self.eval_block(self.program.clone(), &mut defaults::default_scope())
+        self.eval_block(self.program.clone(), &mut Scope::default())
     }
+    pub fn parse_vars(&mut self) -> Result<Scope,IError> {
+        let mut scope = Scope::default();
+        
+        self.eval_block_bodge(self.program.clone(), &mut scope)?;
+        Ok(scope)
+    }
+    
     pub fn execute_node(node:NodeSpan) -> EvalResult {
         Self{
             program:vec![Node::DontResult.to_spanned((0,0))],
@@ -50,15 +58,39 @@ impl Interpreter {
         }.eval_node(&node, &mut Scope::new_child_in(defaults::default_scope()))
         
     }
-    
+    fn eval_block_bodge(&mut self, block: NodeStream, parent: &mut Scope) -> EvalResult {
+        let mut new_scope = Scope::new_child_in(parent.clone());
+        if block.len() == 0 {
+            return NULL;
+        }
+        for node in block {
+            let result = self.eval_node(&node,&mut new_scope)?;
+            
+            if let Control::Value(_) = result {
+                continue;
+            }
+            if new_scope.parent.is_none() {
+                
+                return Err(IError::InvalidControl(node.span));
+            };
+            *parent = new_scope;
+            return Ok(result);
+        }
+
+        if new_scope.parent.is_none() {
+            return Err(IError::InvalidControl((0,0)));
+        };
+        *parent = new_scope;
+        NULL
+    }
     fn eval_block(&mut self, block: NodeStream, parent: &mut Scope) -> EvalResult {
         let mut new_scope = Scope::new_child_in(parent.clone());
         if block.len() == 0 {
             return NULL;
         }
-        let body = block;
-        for node in body {
+        for node in block {
             let result = self.eval_node(&node,&mut new_scope)?;
+            
             if let Control::Value(_) = result {
                 continue;
             }

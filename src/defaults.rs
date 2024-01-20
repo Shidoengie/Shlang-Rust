@@ -148,6 +148,13 @@ pub fn var_map() -> VarMap {
                 arg_size: 2,
             }),
         ),
+        (
+            "import_var".to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: import_var,
+                arg_size: 2,
+            }),
+        ),
     ])
 }
 pub fn str_struct(val: String) -> Struct {
@@ -327,8 +334,8 @@ pub fn print_builtin(_: VarMap, args: ValueStream) -> Value {
     NULL
 }
 pub fn open_textfile(_: VarMap, args: ValueStream) -> Value {
-    let Value::Str(path) = &args[0] else {return NULL;};
-    let Ok(contents) = fs::read_to_string(path)  else {return NULL;};
+    let Value::Str(path) = &args[0] else {unreachable!()};
+    let Ok(contents) = fs::read_to_string(path)  else {unreachable!()};
     return Value::Str(contents);
 }
 pub fn typeof_node(_: VarMap, args: ValueStream) -> Value {
@@ -346,22 +353,19 @@ pub fn typeof_node(_: VarMap, args: ValueStream) -> Value {
     Value::Str(out)
 }
 pub fn parse_num(_: VarMap, args: ValueStream) -> Value {
-    let Value::Str(input) = &args[0] else {return NULL;};
+    let Value::Str(input) = &args[0] else {unreachable!()};
     Value::Num(input.parse().unwrap())
 }
 fn min(_: VarMap, args: ValueStream) -> Value {
-    let Value::Num(val1) = &args[0] else {return NULL;};
-    let Value::Num(val2) = &args[1] else {return NULL;};
+    let [Value::Num(val1),Value::Num(val2)] = &args[..2] else {unreachable!()};
     Value::Num(val1.min(*val2))
 }
 fn max(_: VarMap, args: ValueStream) -> Value {
-    let Value::Num(val1) = &args[0] else {return NULL;};
-    let Value::Num(val2) = &args[1] else {return NULL;};
+    let [Value::Num(val1),Value::Num(val2)] = &args[..2] else {unreachable!()};
     Value::Num(val1.max(*val2))
 }
 fn pow(_: VarMap, args: ValueStream) -> Value {
-    let Value::Num(val1) = &args[0] else {return NULL;};
-    let Value::Num(val2) = &args[1] else {return NULL;};
+    let [Value::Num(val1),Value::Num(val2)] = &args[..2] else {unreachable!()};
     Value::Num(val1.powf(*val2))
 }
 fn cos(_: VarMap, args: ValueStream) -> Value {
@@ -428,4 +432,13 @@ pub fn eval(_: VarMap, args: ValueStream) -> Value {
         Control::Result(val) | Control::Return(val) | Control::Value(val) => val,
         _ => Value::Null,
     }
+}
+fn import_var(_: VarMap, args: ValueStream) -> Value {
+    let [Value::Str(path), Value::Str(var)] = &args[..2] else {unreachable!()};
+    let Ok(source) = fs::read_to_string(path) else {return NULL;};
+    let mut parser = Parser::new(source.as_str());
+    let Ok(ast) = parser.batch_parse() else {return NULL;};
+    let Ok(scope) = Interpreter::new(ast).parse_vars() else {return NULL;};
+    let Some(var) = scope.get_var(var) else {return NULL;};
+    var
 }

@@ -339,6 +339,7 @@ impl Scope {
             structs,
         }
     }
+
     pub fn new_child_in(parent: Scope) -> Self {
         Scope {
             parent: Some(Box::new(parent)),
@@ -355,5 +356,14 @@ impl Scope {
             return parent.assign(var_name, value);
         }
         None
+    }
+}
+impl Default for Scope {
+    fn default() -> Self {
+        Scope {
+            parent: None,
+            vars: HashMap::from([]),
+            structs: HashMap::from([]),
+        }
     }
 }

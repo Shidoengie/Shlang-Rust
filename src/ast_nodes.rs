@@ -14,8 +14,6 @@ pub enum Value {
     Str(String),
     Function(Function),
     BuiltinFunc(BuiltinFunc),
-    Struct(Struct),
-    StructRef(usize),
 }
 
 pub type TypedValue = (Value, Type);
@@ -30,8 +28,6 @@ impl Value {
             Value::Void => Type::Void,
             Value::Str(_) => Type::Str,
             Value::Num(_) => Type::Num,
-            Value::Struct(s) => Type::UserDefined(s.id.clone()),
-            Value::StructRef(id) => Type::Ref(*id),
         }
     }
 
@@ -52,11 +48,6 @@ impl IntoNodespan for Value {
         Spanned::new(Node::Value(self), span)
     }
 }
-#[derive(Clone, Debug, PartialEq)]
-pub struct Struct {
-    pub id: String,
-    pub env: Scope,
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
@@ -71,7 +62,7 @@ impl Function {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BuiltinFunc {
-    pub function: fn(VarMap, ValueStream) -> Value,
+    pub function: fn(ValueStream) -> Value,
     pub arg_size: i16,
 }
 impl From<Function> for Value {
@@ -117,9 +108,6 @@ pub enum Node {
     Loop(NodeStream),
     While(While),
     DoBlock(NodeStream),
-    Constructor(Constructor),
-    StructDef(StructDef),
-    FieldAccess(FieldAccess),
     DontResult,
 }
 impl Node {
@@ -177,7 +165,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { UnaryNode Constructor StructDef  FieldAccess BinaryNode Call Assignment Declaration Branch While}
+nodes_from! { UnaryNode  BinaryNode Call Assignment Declaration Branch While}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
@@ -239,35 +227,6 @@ pub struct Call {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Field {
-    Declaration(Declaration),
-    StructDef(StructDef),
-}
-impl Spanned<Field> {
-    pub fn to_nodespan(&self) -> NodeSpan {
-        match &self.unspanned {
-            Field::Declaration(decl) => NodeSpan::new(Node::Declaration(decl.clone()), self.span),
-            Field::StructDef(decl) => NodeSpan::new(Node::StructDef(decl.clone()), self.span),
-        }
-    }
-}
-#[derive(Clone, Debug, PartialEq)]
-pub struct FieldAccess {
-    pub target: NodeRef,
-    pub requested: NodeRef,
-}
-#[derive(Clone, Debug, PartialEq)]
-pub struct StructDef {
-    pub name: String,
-    pub fields: Vec<Spanned<Field>>,
-}
-#[derive(Clone, Debug, PartialEq)]
-
-pub struct Constructor {
-    pub name: String,
-    pub params: HashMap<String, NodeSpan>,
-}
-#[derive(Clone, Debug, PartialEq)]
 pub struct Branch {
     pub condition: NodeRef,
     pub if_block: NodeStream,
@@ -300,7 +259,6 @@ pub type VarMap = HashMap<String, Value>;
 pub struct Scope {
     pub parent: Option<Box<Scope>>,
     pub vars: HashMap<String, Value>,
-    pub structs: HashMap<String, Struct>,
 }
 
 impl Scope {
@@ -313,38 +271,18 @@ impl Scope {
         }
         None
     }
-    pub fn get_struct(&self, struct_name: &String) -> Option<Struct> {
-        if let Some(obj) = self.structs.get(struct_name) {
-            return Some(obj.clone());
-        }
-        if let Some(parent) = &self.parent {
-            return parent.get_struct(struct_name);
-        }
-        None
-    }
+
     pub fn define(&mut self, var_name: String, val: Value) {
-        if let Value::Struct(obj) = &val {
-            self.structs.insert(var_name.clone(), obj.clone());
-        }
         self.vars.insert(var_name, val);
     }
-    pub fn new(
-        parent: Option<Box<Scope>>,
-        vars: HashMap<String, Value>,
-        structs: HashMap<String, Struct>,
-    ) -> Self {
-        Scope {
-            parent,
-            vars,
-            structs,
-        }
+    pub fn new(parent: Option<Box<Scope>>, vars: HashMap<String, Value>) -> Self {
+        Scope { parent, vars }
     }
 
     pub fn new_child_in(parent: Scope) -> Self {
         Scope {
             parent: Some(Box::new(parent)),
             vars: HashMap::from([]),
-            structs: HashMap::from([]),
         }
     }
     pub fn assign(&mut self, var_name: String, value: Value) -> Option<Value> {
@@ -363,7 +301,6 @@ impl Default for Scope {
         Scope {
             parent: None,
             vars: HashMap::from([]),
-            structs: HashMap::from([]),
         }
     }
 }

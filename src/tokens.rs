@@ -44,13 +44,12 @@ pub enum TokenType {
     AMPERSAND,
     PIPE,
     NULL,
-    STRUCT,
+
     CONTINUE,
     PLUS_EQUAL,
     MINUS_EQUAL,
     STAR_EQUAL,
     SLASH_EQUAL,
-    NEW,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
@@ -106,9 +105,9 @@ pub fn map_keyword(text: String) -> Option<TokenType> {
         "or" => Some(TokenType::OR),
         "do" => Some(TokenType::DO),
         "null" => Some(TokenType::NULL),
-        "struct" => Some(TokenType::STRUCT),
+
         "continue" => Some(TokenType::CONTINUE),
-        "new" => Some(TokenType::NEW),
+
         _ => None,
     }
 }

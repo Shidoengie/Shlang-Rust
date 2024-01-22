@@ -15,7 +15,7 @@ pub enum Value {
     Function(Function),
     BuiltinFunc(BuiltinFunc),
     Struct(Struct),
-    StructRef(u32),
+    StructRef(usize),
 }
 
 pub type TypedValue = (Value, Type);
@@ -88,7 +88,7 @@ pub enum Type {
     Bool,
     Str,
     Function,
-    Ref(u32),
+    Ref(usize),
     UserDefined(String),
 }
 impl TypeIdent for Type {

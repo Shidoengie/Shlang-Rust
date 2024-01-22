@@ -6,7 +6,7 @@ use insta::*;
 use std::*;
 fn parse_full(source: &str) -> NodeStream {
     let mut parser = Parser::new(source);
-    parser.batch_parse().unwrap()
+    parser.parse().unwrap()
 }
 fn parse_expr(source: &str) -> ParseResult {
     let mut parser = Parser::new(source);

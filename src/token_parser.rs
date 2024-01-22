@@ -620,42 +620,9 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             _ => Err(ParseError::UnexpectedToken(value.clone())),
         }
     }
-    // Parses toplevel expressions
-    fn parse_top(&mut self) -> Option<Result<NodeSpan, ParseError>> {
-        let peeked = self.peek()?;
-        match peeked.clone().kind {
-            TokenType::VAR => {
-                self.next();
-                let var = Some(self.parse_vardef());
-                self.next();
-                var
-            }
-            TokenType::FUNC => {
-                self.next();
-                let func = Some(self.parse_funcdef());
-                self.next();
-                func
-            }
-            TokenType::STRUCT => {
-                self.next();
-                Some(self.parse_struct())
-            }
-            _ => Some(Err(ParseError::UnexpectedToplevel(peeked))),
-        }
-    }
-    // Parses input and collects it into a block ast node
-    // This is done so the interpreter can evaluate all the expressions
-    pub fn batch_parse(&mut self) -> Result<NodeStream, ParseError> {
-        let mut body: NodeStream = vec![];
-        loop {
-            let Some(parsed) = self.parse_top() else {break;};
-            body.push(parsed?);
-        }
 
-        Ok(body)
-    }
     // Parses input as expressions and collects it into a block
-    pub fn batch_parse_expr(&mut self) -> Result<NodeStream, ParseError> {
+    pub fn parse(&mut self) -> Result<NodeStream, ParseError> {
         let mut body: NodeStream = vec![];
         while self.peek().is_some() {
             let expr = self.parse_expr()?;

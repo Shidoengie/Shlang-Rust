@@ -30,13 +30,13 @@ const NULL: EvalResult = Ok(Control::Value(Value::Null));
 #[derive(Debug)]
 pub struct Interpreter {
     program: NodeStream,
-    heap: HashMap<u32, Value>,
+    heap: Vec<Value>,
 }
 impl Interpreter {
     pub fn new(program: NodeStream) -> Self {
         Self {
             program,
-            heap: HashMap::from([]),
+            heap: vec![],
         }
     }
     pub fn execute(&mut self) -> EvalResult {
@@ -59,7 +59,7 @@ impl Interpreter {
     pub fn execute_node(node: NodeSpan) -> EvalResult {
         Self {
             program: vec![Node::DontResult.to_spanned((0, 0))],
-            heap: HashMap::from([]),
+            heap: vec![],
         }
         .eval_node(&node, &mut Scope::new_child_in(defaults::default_scope()))
     }
@@ -111,11 +111,7 @@ impl Interpreter {
         *parent = *mod_parent;
         NULL
     }
-    fn heap_define(&mut self, value: Value) -> u32 {
-        let ref_id = self.heap.len();
-        self.heap.insert(ref_id.try_into().unwrap(), value);
-        ref_id as u32
-    }
+
     fn num_convert(&self, num: Value, span: Span) -> Result<(f64, bool), IError> {
         match num {
             Value::Num(val) => Ok((val, val != 0.0)),
@@ -236,14 +232,11 @@ impl Interpreter {
         parent.define(request.var_name, unwrapped);
         VOID
     }
-    fn get_struct_id(&self, val: &Value) -> u32 {
+    fn get_struct_id(&self, val: &Value) -> usize {
         let Value::StructRef(id) = val else {panic!()};
         *id
     }
-    fn struct_from_heap(&self, id: u32) -> Struct {
-        let Value::Struct(obj) = self.heap.get(&id).unwrap().clone() else {panic!()};
-        obj
-    }
+
     fn assign_to_access(
         &mut self,
         request: FieldAccess,
@@ -252,7 +245,7 @@ impl Interpreter {
     ) -> EvalResult {
         let target = self.eval_node(&request.target, parent)?.unwrap_val();
         let id = self.get_struct_id(&target);
-        let mut obj = self.struct_from_heap(id);
+        let Value::Struct(mut obj) = self.heap[id].clone() else {panic!()};
         match request.requested.unspanned {
             Node::FieldAccess(access) => {
                 self.assign_to_access(access, value, &mut obj.env)?;
@@ -449,8 +442,13 @@ impl Interpreter {
             _ => self.eval_node(&requested, parent),
         }
     }
-    fn access_struct(&mut self, id: u32, requested: NodeSpan, base_env: &mut Scope) -> EvalResult {
-        let Value::Struct(mut obj) = self.heap.get(&id).unwrap().clone() else {panic!("IMPROVE ME")};
+    fn access_struct(
+        &mut self,
+        id: usize,
+        requested: NodeSpan,
+        base_env: &mut Scope,
+    ) -> EvalResult {
+        let Value::Struct(mut obj) = self.heap[id].clone() else {panic!("IMPROVE ME")};
         let result = self.eval_access_request(requested, base_env, &mut obj.env)?;
         self.heap.insert(id, Value::Struct(obj));
         Ok(result)
@@ -499,8 +497,8 @@ impl Interpreter {
         let struct_val = self
             .assign_fields(request, constructor.params, parent)?
             .unwrap_val();
-        let id = self.heap_define(struct_val);
-        Ok(Control::Value(Value::StructRef(id)))
+        self.heap.push(struct_val);
+        Ok(Control::Value(Value::StructRef(self.heap.len() - 1)))
     }
     fn eval_structdef(&mut self, obj: StructDef, parent: &mut Scope) -> EvalResult {
         let mut struct_env = Scope::new(None, HashMap::from([]), HashMap::from([]));
@@ -514,8 +512,8 @@ impl Interpreter {
         strct.env.structs.insert("Self".to_string(), strct.clone());
         let struct_val = Value::Struct(strct.clone());
         parent.define(obj.name, struct_val.clone());
-        let id = self.heap_define(struct_val);
-        Ok(Control::Value(Value::StructRef(id)))
+        self.heap.push(struct_val);
+        Ok(Control::Value(Value::StructRef(self.heap.len() - 1)))
     }
 
     fn eval_node(&mut self, node: &NodeSpan, parent: &mut Scope) -> EvalResult {
@@ -526,7 +524,7 @@ impl Interpreter {
                 // Ok((*val, kind))
                 let kind = val.get_type();
                 let Type::Ref(id) = kind else {return Ok(Control::Value(val));};
-                let new_val = self.heap.get(&id).unwrap();
+                let new_val = &self.heap[id];
                 Ok(Control::Value(new_val.clone()))
             }
 

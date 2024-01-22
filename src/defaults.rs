@@ -419,9 +419,9 @@ pub fn input_builtin(_: VarMap, args: ValueStream) -> Value {
     return Value::Str(String::from(result.trim()));
 }
 pub fn eval(_: VarMap, args: ValueStream) -> Value {
-    let Value::Str(source) = &args[0] else {return Value::Str("Expected a string".to_string());};
+    let Value::Str(source) = &args[0] else {return NULL};
     let mut parser = Parser::new(source.as_str());
-    let ast_result = parser.batch_parse_expr();
+    let ast_result = parser.parse();
     let Ok(ast) = ast_result else {
         return Value::Null;
     };
@@ -437,7 +437,7 @@ fn import_var(_: VarMap, args: ValueStream) -> Value {
     let [Value::Str(path), Value::Str(var)] = &args[..2] else {unreachable!()};
     let Ok(source) = fs::read_to_string(path) else {return NULL;};
     let mut parser = Parser::new(source.as_str());
-    let Ok(ast) = parser.batch_parse() else {return NULL;};
+    let Ok(ast) = parser.parse() else {return NULL;};
     let Ok(scope) = Interpreter::new(ast).parse_vars() else {return NULL;};
     let Some(var) = scope.get_var(var) else {return NULL;};
     var

@@ -42,7 +42,7 @@ fn main() {
 fn AST_from_file(file_path: String) {
     let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
     let mut parser = Parser::new(source.as_str());
-    let ast = parser.batch_parse();
+    let ast = parser.parse();
     println!("{ast:#?}");
 }
 fn len2(args: Vec<String>) {
@@ -65,10 +65,12 @@ fn execute_file(args: Vec<String>) {
     let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
     let err_out = ErrorBuilder::new(source.clone());
     let mut parser = Parser::new(source.as_str());
-    let ast_result = parser.batch_parse();
-    let Ok(ast) = ast_result else {
-        ast_result.unwrap_err().print_msg(err_out);
-        return;
+    let ast = match parser.parse() {
+        Ok(ast) => ast,
+        Err(err) => {
+            err.print_msg(err_out);
+            return;
+        }
     };
     let mut interpreter = Interpreter::new(ast);
     interpreter.execute().map_err(|e| e.print_msg(err_out));
@@ -78,19 +80,22 @@ fn repl() {
         let source = input(">: ");
         let err_out = ErrorBuilder::new(source.clone());
         let mut parser = Parser::new(source.as_str());
-        let ast_result = parser.batch_parse_expr();
-        let Ok(ast) = ast_result else {
-            ast_result.unwrap_err().print_msg(err_out); continue;
+
+        let ast = match parser.parse() {
+            Ok(ast) => ast,
+            Err(err) => {
+                err.print_msg(err_out);
+                continue;
+            }
         };
-        let init_result = Interpreter::new(ast).execute();
-        let Ok(result) = init_result else {
-            init_result.unwrap_err().print_msg(err_out);
-            continue;
+
+        match Interpreter::new(ast).execute() {
+            Ok(result) => println!(
+                "{}",
+                defaults::val_to_str(&result.unwrap_val()).bright_black()
+            ),
+            Err(err) => err.print_msg(err_out),
         };
-        println!(
-            "{}",
-            defaults::val_to_str(&result.unwrap_val()).bright_black()
-        );
     }
 }
 
@@ -99,12 +104,10 @@ fn test_repl() {
         let source = input(">: ");
         let err_out = ErrorBuilder::new(source.clone());
         let mut parser = Parser::new(source.as_str());
-
-        let ast_result = parser.batch_parse_expr();
-        let Ok(ast) = ast_result else {
-            ast_result.unwrap_err().print_msg(err_out); continue;
+        match parser.parse() {
+            Ok(ast) => println!("{ast:#?}"),
+            Err(err) => err.print_msg(err_out),
         };
-        println!("{ast:#?}");
     }
 }
 fn lexer_repl() {

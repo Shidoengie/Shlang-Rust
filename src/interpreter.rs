@@ -43,13 +43,15 @@ impl Interpreter {
         }
     }
     pub fn execute(&mut self) -> Result<Value, IError> {
-        let mut scope = Scope::default();
+        self.execute_with(&mut Scope::default())
+    }
+    pub fn execute_with(&mut self, scope: &mut Scope) -> Result<Value, IError> {
         if self.program.len() == 0 {
             return Ok(Value::Null);
         }
         let mut last = Value::Null;
         for node in self.program.clone() {
-            if let Control::Value(val) = self.eval_node(&node, &mut scope)? {
+            if let Control::Value(val) = self.eval_node(&node, scope)? {
                 last = val;
                 continue;
             }
@@ -60,7 +62,7 @@ impl Interpreter {
             callee: Box::new(main),
             args: vec![],
         };
-        self.eval_call(call, &mut scope.clone(), &mut scope);
+        self.eval_call(call, &mut scope.clone(), scope);
         Ok(last)
     }
     pub fn parse_vars(&mut self) -> Result<Scope, IError> {

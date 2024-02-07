@@ -7,6 +7,7 @@ use std::*;
 use colored::Colorize;
 
 use lang_errors::*;
+use Shlang::ast_nodes::Scope;
 use Shlang::*;
 fn input(message: &str) -> String {
     print!("{message} ");
@@ -73,6 +74,7 @@ macro_rules! catch {
     };
 }
 fn repl() {
+    let mut scope = Scope::default();
     loop {
         let source = input(">: ");
         let err_out = ErrorBuilder::new(source.clone());
@@ -81,7 +83,7 @@ fn repl() {
             err.print_msg(err_out);
             continue;
         } in parser.parse());
-        match Interpreter::new(ast).execute() {
+        match Interpreter::new(ast).execute_with(&mut scope) {
             Ok(result) => println!("{}", defaults::val_to_str(&result).bright_black()),
             Err(err) => err.print_msg(err_out),
         };

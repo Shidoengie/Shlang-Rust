@@ -112,7 +112,7 @@ impl LangError for InterpreterError {
                 .replace(',', " or ");
                 format!("Invalid Types expected: {opts:?} but got {got:?}")
             }
-            InvalidControl(_) => "Invalid control flow node".to_string(),
+            InvalidControl(_) => "Unexpected control flow node".to_string(),
             VoidAssignment(_) => "Attempted to assign void to a variable".to_string(),
             NonExistentVar(name, _) => {
                 "Couldnt find variable with name: ".to_string() + name.as_str()

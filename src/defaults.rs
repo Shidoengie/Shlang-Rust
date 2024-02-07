@@ -1,7 +1,7 @@
 use crate::ast_nodes;
-use crate::interpreter::Control;
-use crate::Interpreter;
-use crate::Parser;
+
+use crate::interpreter::Interpreter;
+use crate::token_parser::Parser;
 use ast_nodes::*;
 use std::collections::HashMap;
 use std::f64::consts::{E, PI, TAU};
@@ -428,10 +428,7 @@ pub fn eval(_: VarMap, args: ValueStream) -> Value {
 
     let Ok(result) = Interpreter::new(ast).execute() else {return Value::Null;};
 
-    match result {
-        Control::Result(val) | Control::Return(val) | Control::Value(val) => val,
-        _ => Value::Null,
-    }
+    result
 }
 fn import_var(_: VarMap, args: ValueStream) -> Value {
     let [Value::Str(path), Value::Str(var)] = &args[..2] else {unreachable!()};

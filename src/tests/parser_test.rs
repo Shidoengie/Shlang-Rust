@@ -1,6 +1,6 @@
 use crate::ast_nodes;
 use crate::token_parser::ParseResult;
-use crate::Parser;
+use crate::token_parser::Parser;
 use ast_nodes::*;
 use insta::*;
 use std::*;

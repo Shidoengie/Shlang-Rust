@@ -1,13 +1,11 @@
+use colored::Colorize;
+use frontend::nodes::Scope;
+use lang_errors::*;
 use std::env;
 use std::fs;
 use std::io;
 use std::io::Write;
 use std::*;
-
-use colored::Colorize;
-
-use lang_errors::*;
-use Shlang::ast_nodes::Scope;
 use Shlang::*;
 fn input(message: &str) -> String {
     print!("{message} ");
@@ -65,14 +63,7 @@ fn execute_file(args: Vec<String>) {
     let mut interpreter = Interpreter::new(ast);
     interpreter.execute().map_err(|e| e.print_msg(err_out));
 }
-macro_rules! catch {
-    ($name:ident $fail:block in $val:expr) => {
-        match $val {
-            Ok(ok) => ok,
-            Err($name) => $fail,
-        }
-    };
-}
+
 fn repl() {
     let mut scope = Scope::default();
     loop {
@@ -84,7 +75,7 @@ fn repl() {
             continue;
         } in parser.parse());
         match Interpreter::new(ast).execute_with(&mut scope) {
-            Ok(result) => println!("{}", defaults::val_to_str(&result).bright_black()),
+            Ok(result) => println!("{}", result.to_string().bright_black()),
             Err(err) => err.print_msg(err_out),
         };
     }

@@ -1,0 +1,28 @@
+---
+source: src/frontend/parser_test.rs
+expression: "parse_full(\"var a = 2;\")"
+---
+[
+    Spanned {
+        unspanned: Declaration(
+            Declaration {
+                var_name: "a",
+                value: Spanned {
+                    unspanned: Value(
+                        Num(
+                            2.0,
+                        ),
+                    ),
+                    span: (
+                        8,
+                        9,
+                    ),
+                },
+            },
+        ),
+        span: (
+            4,
+            7,
+        ),
+    },
+]

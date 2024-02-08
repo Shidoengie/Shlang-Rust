@@ -1,0 +1,64 @@
+---
+source: src/frontend/parser_test.rs
+expression: "parse_expr(\"a.b().c\")"
+---
+Ok(
+    Spanned {
+        unspanned: FieldAccess(
+            FieldAccess {
+                target: Spanned {
+                    unspanned: Variable(
+                        "a",
+                    ),
+                    span: (
+                        0,
+                        1,
+                    ),
+                },
+                requested: Spanned {
+                    unspanned: FieldAccess(
+                        FieldAccess {
+                            target: Spanned {
+                                unspanned: Call(
+                                    Call {
+                                        callee: Spanned {
+                                            unspanned: Variable(
+                                                "b",
+                                            ),
+                                            span: (
+                                                2,
+                                                3,
+                                            ),
+                                        },
+                                        args: [],
+                                    },
+                                ),
+                                span: (
+                                    3,
+                                    5,
+                                ),
+                            },
+                            requested: Spanned {
+                                unspanned: Variable(
+                                    "c",
+                                ),
+                                span: (
+                                    6,
+                                    7,
+                                ),
+                            },
+                        },
+                    ),
+                    span: (
+                        5,
+                        6,
+                    ),
+                },
+            },
+        ),
+        span: (
+            1,
+            2,
+        ),
+    },
+)

@@ -1,0 +1,77 @@
+---
+source: src/frontend/parser_test.rs
+expression: "parse_expr(\"do{var a = 1;1+a}\")"
+---
+Ok(
+    Spanned {
+        unspanned: DoBlock(
+            [
+                Spanned {
+                    unspanned: Declaration(
+                        Declaration {
+                            var_name: "a",
+                            value: Spanned {
+                                unspanned: Value(
+                                    Num(
+                                        1.0,
+                                    ),
+                                ),
+                                span: (
+                                    11,
+                                    12,
+                                ),
+                            },
+                        },
+                    ),
+                    span: (
+                        7,
+                        10,
+                    ),
+                },
+                Spanned {
+                    unspanned: ResultNode(
+                        Spanned {
+                            unspanned: BinaryNode(
+                                BinaryNode {
+                                    kind: ADD,
+                                    left: Spanned {
+                                        unspanned: Value(
+                                            Num(
+                                                1.0,
+                                            ),
+                                        ),
+                                        span: (
+                                            13,
+                                            14,
+                                        ),
+                                    },
+                                    right: Spanned {
+                                        unspanned: Variable(
+                                            "a",
+                                        ),
+                                        span: (
+                                            15,
+                                            16,
+                                        ),
+                                    },
+                                },
+                            ),
+                            span: (
+                                14,
+                                15,
+                            ),
+                        },
+                    ),
+                    span: (
+                        14,
+                        15,
+                    ),
+                },
+            ],
+        ),
+        span: (
+            2,
+            17,
+        ),
+    },
+)

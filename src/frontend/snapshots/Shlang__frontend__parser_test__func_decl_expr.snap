@@ -1,0 +1,53 @@
+---
+source: src/frontend/parser_test.rs
+expression: "parse_expr(\"func a (b){1}\")"
+---
+Ok(
+    Spanned {
+        unspanned: Declaration(
+            Declaration {
+                var_name: "a",
+                value: Spanned {
+                    unspanned: Value(
+                        Function(
+                            Function {
+                                block: [
+                                    Spanned {
+                                        unspanned: ResultNode(
+                                            Spanned {
+                                                unspanned: Value(
+                                                    Num(
+                                                        1.0,
+                                                    ),
+                                                ),
+                                                span: (
+                                                    11,
+                                                    12,
+                                                ),
+                                            },
+                                        ),
+                                        span: (
+                                            11,
+                                            12,
+                                        ),
+                                    },
+                                ],
+                                args: [
+                                    "b",
+                                ],
+                            },
+                        ),
+                    ),
+                    span: (
+                        5,
+                        11,
+                    ),
+                },
+            },
+        ),
+        span: (
+            5,
+            11,
+        ),
+    },
+)

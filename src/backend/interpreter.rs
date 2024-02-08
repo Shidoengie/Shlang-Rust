@@ -4,7 +4,7 @@ use crate::lang_errors::*;
 use crate::spans::*;
 use std::collections::HashMap;
 use std::*;
-type IError = InterpreterError;
+pub(super) type IError = InterpreterError;
 
 #[derive(Clone, Debug)]
 pub enum Control {
@@ -113,17 +113,6 @@ impl Interpreter {
         NULL
     }
 
-    fn num_convert(&self, num: Value, span: Span) -> EvalRes<(f64, bool)> {
-        match num {
-            Value::Num(val) => Ok((val, val != 0.0)),
-            Value::Bool(cond) => Ok((cond as i8 as f64, cond)),
-            invalid => Err(IError::InvalidType(
-                vec![Type::Num, Type::Bool],
-                invalid.get_type(),
-                span,
-            )),
-        }
-    }
     fn unary_calc(&self, node: UnaryNode, target: Value) -> EvalRes<Control> {
         match node.kind {
             UnaryOp::NEGATIVE => {
@@ -132,19 +121,15 @@ impl Interpreter {
                 };
                 Ok(Control::Value(Value::Num(-val)))
             }
-            UnaryOp::NOT => Ok(Control::Value(Value::Bool(
-                !self.num_convert(target, node.object.span)?.1,
-            ))),
+            UnaryOp::NOT => {
+                let Value::Bool(val) = target else {
+                    return Err(IError::InvalidType(vec![Type::Bool], target.get_type(), node.object.span));
+                };
+                Ok(Control::Value(Value::Bool(!val)))
+            }
         }
     }
-    fn num_calc(
-        &self,
-        node: BinaryNode,
-        left_val: Value,
-        right_val: Value,
-    ) -> Result<Control, IError> {
-        let (left, left_bool) = self.num_convert(left_val, node.left.span)?;
-        let (right, right_bool) = self.num_convert(right_val, node.right.span)?;
+    fn num_calc(&self, node: BinaryNode, left: f64, right: f64) -> EvalRes<Control> {
         let res = match node.kind {
             BinaryOp::ADD => Value::Num(left + right),
             BinaryOp::SUBTRACT => Value::Num(left - right),
@@ -155,22 +140,19 @@ impl Interpreter {
             BinaryOp::GREATER_EQUAL => Value::Bool(left >= right),
             BinaryOp::LESSER => Value::Bool(left < right),
             BinaryOp::LESSER_EQUAL => Value::Bool(left <= right),
-            BinaryOp::AND => Value::Bool(left_bool && right_bool),
-            BinaryOp::OR => Value::Bool(left_bool || right_bool),
             BinaryOp::ISEQUAL => Value::Bool(left == right),
             BinaryOp::ISDIFERENT => Value::Bool(left != right),
+            op => {
+                return Err(IError::InvalidOp(
+                    op,
+                    Type::Num,
+                    (node.left.span.1, node.right.span.0),
+                ))
+            }
         };
         Ok(Control::Value(res))
     }
-    fn str_calc(
-        &self,
-        node: BinaryNode,
-        left_val: Value,
-        right_val: Value,
-    ) -> Result<Control, IError> {
-        let Value::Str(left) = left_val else {unreachable!()};
-        let Value::Str(right) = right_val else {unreachable!()};
-
+    fn str_calc(&self, node: BinaryNode, left: String, right: String) -> EvalRes<Control> {
         let res = match node.kind {
             BinaryOp::ADD => Value::Str(left + &right),
             BinaryOp::GREATER => Value::Bool(left > right),
@@ -189,7 +171,20 @@ impl Interpreter {
         };
         Ok(Control::Value(res))
     }
-
+    fn bool_calc(&self, node: BinaryNode, left: bool, right: bool) -> EvalRes<Control> {
+        let res = match node.kind {
+            BinaryOp::AND => Value::Bool(left && right),
+            BinaryOp::OR => Value::Bool(left || right),
+            op => {
+                return Err(IError::InvalidOp(
+                    op,
+                    Type::Bool,
+                    (node.left.span.1, node.right.span.0),
+                ))
+            }
+        };
+        Ok(Control::Value(res))
+    }
     fn eval_binary_node(&mut self, bin_op: BinaryNode, parent: &mut Scope) -> EvalRes<Control> {
         let left = unwrap_val!(self.eval_node(&bin_op.left, parent)?);
         let right = unwrap_val!(self.eval_node(&bin_op.right, parent)?);
@@ -201,23 +196,25 @@ impl Interpreter {
             _ => {}
         }
 
-        if left_type != right_type && !(left.is_numeric() && right.is_numeric()) {
+        if left_type != right_type {
             return Err(IError::MixedTypes(
                 left_type,
                 right_type,
                 (bin_op.left.span.0 - 1, bin_op.right.span.1),
             ));
         }
-        match left_type {
-            Type::Num | Type::Bool => {
+        match (left, right) {
+            (Value::Num(left), Value::Num(right)) => {
                 return self.num_calc(bin_op, left, right);
             }
-            Type::Str => {
+            (Value::Str(left), Value::Str(right)) => {
                 return self.str_calc(bin_op, left, right);
+            }
+            (Value::Bool(left), Value::Bool(right)) => {
+                return self.bool_calc(bin_op, left, right);
             }
             _ => {}
         }
-
         Err(IError::InvalidBinary(left_type, bin_op.left.span))
     }
 
@@ -409,10 +406,10 @@ impl Interpreter {
         }
     }
     fn branch(&mut self, branch: Branch, parent: &mut Scope) -> EvalRes<Control> {
-        let condition = self.eval_node(&branch.condition, parent)?;
-        let cond_val = self
-            .num_convert(unwrap_val!(condition), branch.condition.span)?
-            .1;
+        let condition = unwrap_val!(self.eval_node(&branch.condition, parent)?);
+        let Value::Bool(cond_val) = condition else {
+            return Err(IError::InvalidType(vec![Type::Bool],condition.get_type() , branch.condition.span));
+        };
         if cond_val {
             return self.eval_block(branch.if_block, parent);
         }
@@ -433,10 +430,10 @@ impl Interpreter {
     }
     fn eval_while_loop(&mut self, loop_node: While, parent: &mut Scope) -> EvalRes<Control> {
         loop {
-            let condition = self.eval_node(&loop_node.condition, parent)?;
-            let cond_val = self
-                .num_convert(unwrap_val!(condition), loop_node.condition.span)?
-                .1;
+            let condition = unwrap_val!(self.eval_node(&loop_node.condition, parent)?);
+            let Value::Bool(cond_val) = condition else {
+                return Err(IError::InvalidType(vec![Type::Bool],condition.get_type() , loop_node.condition.span));
+            };
             if !cond_val {
                 return NULL;
             }

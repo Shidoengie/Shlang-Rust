@@ -14,3 +14,25 @@ macro_rules! bx {
         Box::new($e)
     };
 }
+#[macro_export]
+macro_rules! hashmap {
+    [] => {
+        HashMap::new()
+    };
+
+    [$($key:ident => $val:expr),*] => {
+        HashMap::from([
+        $(
+            (stringify!($key).to_string(),$val),
+        )*
+        ])
+    };
+    [$($key:expr => $val:expr),*] => {
+        HashMap::from([
+        $(
+            ($key,$val),
+        )*
+        ])
+    };
+
+}

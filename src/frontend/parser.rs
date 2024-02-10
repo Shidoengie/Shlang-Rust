@@ -7,26 +7,7 @@ use super::tokens::*;
 use crate::bx;
 use crate::lang_errors::*;
 use crate::spans::*;
-#[derive(Clone)]
-pub struct TokenIter<'input> {
-    lexer: Lexer<'input>,
-}
 
-impl<'input> TokenIter<'input> {
-    pub fn new(input: &'input str) -> Self {
-        Self {
-            lexer: Lexer::new(input),
-        }
-    }
-}
-
-impl<'input> Iterator for TokenIter<'input> {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.lexer.next_tok()
-    }
-}
 pub type ParseRes<T> = Result<T, ParseError>;
 
 #[derive(Clone)]
@@ -38,11 +19,11 @@ where
     tokens: Peekable<I>,
 }
 
-impl<'input> Parser<'input, TokenIter<'input>> {
-    pub fn new(input: &'input str) -> Parser<'input, TokenIter<'input>> {
+impl<'input> Parser<'input, Lexer<'input>> {
+    pub fn new(input: &'input str) -> Parser<'input, Lexer<'input>> {
         Parser {
             input,
-            tokens: TokenIter::new(input).peekable(),
+            tokens: Lexer::new(input).peekable(),
         }
     }
     // converts token spans into text
@@ -556,11 +537,7 @@ impl<'input> Parser<'input, TokenIter<'input>> {
             name: Some(name.clone()),
         }
         .to_nodespan(span);
-        Ok(Declaration {
-            var_name: name,
-            value: bx!(def),
-        }
-        .to_nodespan(span))
+        Ok(def)
     }
     fn parse_field_access(&mut self, target: NodeSpan, span: Span) -> ParseRes<NodeSpan> {
         self.next();

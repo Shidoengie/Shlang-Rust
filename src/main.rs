@@ -75,7 +75,7 @@ fn repl() {
             continue;
         } in parser.parse());
         match Interpreter::new(ast).execute_with(&mut scope) {
-            Ok(result) => println!("{}", result.to_string().bright_black()),
+            Ok(result) => println!("{}", result.repr().bright_black()),
             Err(err) => err.print_msg(err_out),
         };
     }
@@ -104,7 +104,7 @@ fn lex_file(file_path: String) {
 }
 fn lex_from(source: String) {
     let mut lexer = Lexer::new(&source);
-    while let Some(token) = lexer.next_tok() {
+    while let Some(token) = lexer.next() {
         println!("{} <-> {token:#?}", &source[token.span.0..token.span.1]);
     }
 }

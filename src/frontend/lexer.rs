@@ -2,6 +2,7 @@ use std::str::Chars;
 
 use super::tokens;
 use super::tokens::*;
+
 #[derive(Debug, Clone)]
 pub struct Lexer<'a> {
     chars: Chars<'a>,
@@ -40,7 +41,7 @@ impl<'a> Lexer<'a> {
                 break;
             }
 
-            if val.eq(&'.') {
+            if val == '.' {
                 let Some(next) = self.peek_next() else {
                     panic!("Invalid Number");
                 };
@@ -112,48 +113,7 @@ impl<'a> Lexer<'a> {
         }
         Some(Token::new(short_token, (range_start, range_start + 1)))
     }
-    pub fn next_tok(&mut self) -> Option<Token> {
-        let start = self.index();
-        let last = self.advance()?;
-        let range = (start, start + 1);
-        match last {
-            '.' => Some(Token::new(TokenType::DOT, range)),
-            ',' => Some(Token::new(TokenType::COMMA, range)),
-            '{' => Some(Token::new(TokenType::LBRACE, range)),
-            '}' => Some(Token::new(TokenType::RBRACE, range)),
-            '(' => Some(Token::new(TokenType::LPAREN, range)),
-            ')' => Some(Token::new(TokenType::RPAREN, range)),
-            '[' => Some(Token::new(TokenType::LBRACK, range)),
-            ']' => Some(Token::new(TokenType::RBRACK, range)),
-            '%' => Some(Token::new(TokenType::PERCENT, range)),
-            ':' => Some(Token::new(TokenType::COLON, range)),
-            ';' => Some(Token::new(TokenType::SEMICOLON, range)),
-            '|' => Some(Token::new(TokenType::PIPE, range)),
-            '&' => Some(Token::new(TokenType::AMPERSAND, range)),
-            '"' => self.str('"'),
-            '\'' => self.str('\''),
-            '+' => self.multi_char_token('=', TokenType::PLUS, TokenType::PLUS_EQUAL, start),
-            '*' => self.multi_char_token('=', TokenType::STAR, TokenType::STAR_EQUAL, start),
-            '/' => self.multi_char_token('=', TokenType::SLASH, TokenType::SLASH_EQUAL, start),
-            '-' => self.multi_char_token('=', TokenType::MINUS, TokenType::MINUS_EQUAL, start),
-            '!' => self.multi_char_token('=', TokenType::BANG, TokenType::BANG_EQUAL, start),
-            '<' => self.multi_char_token('=', TokenType::LESSER, TokenType::LESSER_EQUAL, start),
-            '>' => self.multi_char_token('=', TokenType::GREATER, TokenType::GREATER_EQUAL, start),
-            '=' => self.multi_char_token('=', TokenType::EQUAL, TokenType::DOUBLE_EQUAL, start),
-            '#' => {
-                if self.current_is('*') {
-                    return self.multi_comment();
-                }
-                self.single_comment()
-            }
 
-            ' ' | '\t' | '\r' | '\n' => self.next_tok(),
-            last => Some(
-                self.ident_or_num(last)
-                    .expect(format!("Unexpected Char {last}").as_str()),
-            ),
-        }
-    }
     fn ident_or_num(&mut self, expected: char) -> Option<Token> {
         if expected.is_ascii_digit() {
             return Some(self.num());
@@ -189,7 +149,7 @@ impl<'a> Lexer<'a> {
             let next = self.peek_advance()?;
             nest = self.matches_comment(nest, advanced, next);
         }
-        self.next_tok()
+        self.next()
     }
     fn single_comment(&mut self) -> Option<Token> {
         loop {
@@ -198,7 +158,7 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        self.next_tok()
+        self.next()
     }
     pub fn new(src: &'a str) -> Self {
         return Self {
@@ -206,5 +166,51 @@ impl<'a> Lexer<'a> {
             source: String::from(src),
             size: src.chars().count(),
         };
+    }
+}
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let start = self.index();
+        let last = self.advance()?;
+        let range = (start, start + 1);
+        match last {
+            '.' => Some(Token::new(TokenType::DOT, range)),
+            ',' => Some(Token::new(TokenType::COMMA, range)),
+            '{' => Some(Token::new(TokenType::LBRACE, range)),
+            '}' => Some(Token::new(TokenType::RBRACE, range)),
+            '(' => Some(Token::new(TokenType::LPAREN, range)),
+            ')' => Some(Token::new(TokenType::RPAREN, range)),
+            '[' => Some(Token::new(TokenType::LBRACK, range)),
+            ']' => Some(Token::new(TokenType::RBRACK, range)),
+            '%' => Some(Token::new(TokenType::PERCENT, range)),
+            ':' => Some(Token::new(TokenType::COLON, range)),
+            ';' => Some(Token::new(TokenType::SEMICOLON, range)),
+            '|' => Some(Token::new(TokenType::PIPE, range)),
+            '&' => Some(Token::new(TokenType::AMPERSAND, range)),
+            '"' => self.str('"'),
+            '\'' => self.str('\''),
+            '+' => self.multi_char_token('=', TokenType::PLUS, TokenType::PLUS_EQUAL, start),
+            '*' => self.multi_char_token('=', TokenType::STAR, TokenType::STAR_EQUAL, start),
+            '/' => self.multi_char_token('=', TokenType::SLASH, TokenType::SLASH_EQUAL, start),
+            '-' => self.multi_char_token('=', TokenType::MINUS, TokenType::MINUS_EQUAL, start),
+            '!' => self.multi_char_token('=', TokenType::BANG, TokenType::BANG_EQUAL, start),
+            '<' => self.multi_char_token('=', TokenType::LESSER, TokenType::LESSER_EQUAL, start),
+            '>' => self.multi_char_token('=', TokenType::GREATER, TokenType::GREATER_EQUAL, start),
+            '=' => self.multi_char_token('=', TokenType::EQUAL, TokenType::DOUBLE_EQUAL, start),
+            '#' => {
+                if self.current_is('*') {
+                    return self.multi_comment();
+                }
+                self.single_comment()
+            }
+
+            ' ' | '\t' | '\r' | '\n' => self.next(),
+            last => Some(
+                self.ident_or_num(last)
+                    .expect(format!("Unexpected Char {last}").as_str()),
+            ),
+        }
     }
 }

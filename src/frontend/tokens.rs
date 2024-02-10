@@ -90,25 +90,26 @@ impl TokenEq for Option<Token> {
     }
 }
 pub fn map_keyword(text: String) -> Option<TokenType> {
-    match text.as_str() {
-        "true" => Some(TokenType::TRUE),
-        "false" => Some(TokenType::FALSE),
-        "if" => Some(TokenType::IF),
-        "else" => Some(TokenType::ELSE),
-        "func" => Some(TokenType::FUNC),
-        "return" => Some(TokenType::RETURN),
-        "loop" => Some(TokenType::LOOP),
-        "while" => Some(TokenType::WHILE),
-        "break" => Some(TokenType::BREAK),
-        "var" => Some(TokenType::VAR),
-        "and" => Some(TokenType::AND),
-        "not" => Some(TokenType::NOT),
-        "or" => Some(TokenType::OR),
-        "do" => Some(TokenType::DO),
-        "null" => Some(TokenType::NULL),
-        "struct" => Some(TokenType::STRUCT),
-        "continue" => Some(TokenType::CONTINUE),
-        "new" => Some(TokenType::NEW),
-        _ => None,
-    }
+    let res = match text.as_str() {
+        "true" => TokenType::TRUE,
+        "false" => TokenType::FALSE,
+        "if" => TokenType::IF,
+        "else" => TokenType::ELSE,
+        "func" => TokenType::FUNC,
+        "return" => TokenType::RETURN,
+        "loop" => TokenType::LOOP,
+        "while" => TokenType::WHILE,
+        "break" => TokenType::BREAK,
+        "var" => TokenType::VAR,
+        "and" => TokenType::AND,
+        "not" => TokenType::NOT,
+        "or" => TokenType::OR,
+        "do" => TokenType::DO,
+        "null" => TokenType::NULL,
+        "struct" => TokenType::STRUCT,
+        "continue" => TokenType::CONTINUE,
+        "new" => TokenType::NEW,
+        _ => return None,
+    };
+    Some(res)
 }

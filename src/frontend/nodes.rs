@@ -29,11 +29,20 @@ impl Value {
             Value::Void => Type::Void,
             Value::Str(_) => Type::Str,
             Value::Num(_) => Type::Num,
-            Value::Struct(_) => Type::Struct,
-            Value::Ref(id) => Type::Ref(*id),
+            Value::Struct(obj) => Type::Struct(obj.id.clone()),
+            _ => unimplemented!(),
         }
     }
-
+    pub fn repr(&self) -> String {
+        match self {
+            Self::Num(num) => num.to_string(),
+            Self::Bool(cond) => cond.to_string(),
+            Self::Str(txt) => format!("\"{txt}\""),
+            Self::Null => "null".to_string(),
+            Self::Void => "void".to_string(),
+            _ => "unnamed".to_string(),
+        }
+    }
     pub fn matches_typeof(&self, val: &Self) -> bool {
         self.get_type() == val.get_type()
     }
@@ -46,7 +55,6 @@ impl ToString for Value {
             Self::Str(txt) => txt.to_string(),
             Self::Null => "null".to_string(),
             Self::Void => "void".to_string(),
-
             _ => "unnamed".to_string(),
         }
     }
@@ -66,6 +74,7 @@ impl IntoNodespan for Value {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Struct {
+    pub id: Option<String>,
     pub env: Scope,
 }
 
@@ -79,15 +88,24 @@ impl Function {
         Self { block, args }
     }
 }
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct BuiltinFunc {
-    pub function: fn(VarMap, ValueStream) -> Value,
-    pub arg_size: i16,
-}
 impl From<Function> for Value {
     fn from(x: Function) -> Self {
         Value::Function(x)
+    }
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct BuiltinFunc {
+    pub function: fn(VarMap, ValueStream, ValueStream) -> Value,
+    pub arg_size: i16,
+}
+impl BuiltinFunc {
+    pub fn new(function: fn(VarMap, ValueStream, ValueStream) -> Value, arg_size: i16) -> Self {
+        Self { function, arg_size }
+    }
+}
+impl From<BuiltinFunc> for Value {
+    fn from(x: BuiltinFunc) -> Self {
+        Value::BuiltinFunc(x)
     }
 }
 
@@ -99,8 +117,8 @@ pub enum Type {
     Bool,
     Str,
     Function,
-    Ref(usize),
-    Struct,
+
+    Struct(Option<String>),
 }
 impl TypeIdent for Type {
     fn is_void(&self) -> bool {
@@ -110,7 +128,21 @@ impl TypeIdent for Type {
         matches!(self, Self::Bool | Self::Num)
     }
 }
-
+impl ToString for Type {
+    fn to_string(&self) -> String {
+        let txt = match self {
+            Self::Void => "void",
+            Self::Null => "null",
+            Self::Function => "func",
+            Self::Bool => "bool",
+            Self::Num => "num",
+            Self::Str => "str",
+            Self::Struct(Some(id)) => id,
+            Self::Struct(None) => "struct",
+        };
+        txt.to_string()
+    }
+}
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
     Value(Value),

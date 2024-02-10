@@ -96,6 +96,7 @@ pub enum InterpreterError {
     InvalidOp(BinaryOp, Type, Span),
     InvalidArgSize(u32, u32, Span),
     InvalidBinary(Type, Span),
+    Unspecified(String, Span),
 }
 impl LangError for InterpreterError {
     fn msg(&self) -> String {
@@ -127,6 +128,7 @@ impl LangError for InterpreterError {
                 "Invalid args size expected {expected:?} arguments but got {got:?} arguments"
             ),
             InvalidBinary(got, _) => format!("Invalid type in binary operation: {:?}", got),
+            Unspecified(msg, _) => msg.to_string(),
         }
     }
     fn print_msg(&self, err_out: ErrorBuilder) {
@@ -142,6 +144,7 @@ impl LangError for InterpreterError {
             InvalidOp(_, _, span) => span,
             InvalidArgSize(_, _, span) => span,
             InvalidBinary(_, span) => span,
+            Unspecified(_, span) => span,
         };
         err_out.emit(self.msg().as_str(), *span);
     }

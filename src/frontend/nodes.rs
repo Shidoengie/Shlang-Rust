@@ -1,9 +1,7 @@
 use crate::spans::*;
 use std::collections::*;
-pub trait TypeIdent {
-    fn is_void(&self) -> bool;
-    fn is_numeric(&self) -> bool;
-}
+use std::fmt::Debug;
+use std::mem;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Null,
@@ -19,7 +17,6 @@ pub enum Value {
 
 pub type TypedValue = (Value, Type);
 
-pub type ValueStream = Vec<Value>;
 impl Value {
     pub fn get_type(&self) -> Type {
         match self {
@@ -43,8 +40,11 @@ impl Value {
             _ => "unnamed".to_string(),
         }
     }
+    pub fn is_void(&self) -> bool {
+        self == &Self::Void
+    }
     pub fn matches_typeof(&self, val: &Self) -> bool {
-        self.get_type() == val.get_type()
+        mem::discriminant(self) == mem::discriminant(val)
     }
 }
 impl ToString for Value {
@@ -57,14 +57,6 @@ impl ToString for Value {
             Self::Void => "void".to_string(),
             _ => "unnamed".to_string(),
         }
-    }
-}
-impl TypeIdent for Value {
-    fn is_void(&self) -> bool {
-        self.get_type().is_void()
-    }
-    fn is_numeric(&self) -> bool {
-        self.get_type().is_numeric()
     }
 }
 impl IntoNodespan for Value {
@@ -93,14 +85,34 @@ impl From<Function> for Value {
         Value::Function(x)
     }
 }
-#[derive(Clone, Debug, PartialEq)]
+
+type FuncPtr = fn(&mut Scope, Vec<Value>, &mut Vec<Value>) -> Value;
+#[derive(Clone)]
 pub struct BuiltinFunc {
-    pub function: fn(VarMap, ValueStream, ValueStream) -> Value,
+    pub function: FuncPtr,
     pub arg_size: i16,
+    pub id: String,
+}
+impl Debug for BuiltinFunc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BuiltinFunc")
+            .field("id", &self.id)
+            .field("arg_size", &self.arg_size)
+            .finish()
+    }
+}
+impl PartialEq for BuiltinFunc {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 impl BuiltinFunc {
-    pub fn new(function: fn(VarMap, ValueStream, ValueStream) -> Value, arg_size: i16) -> Self {
-        Self { function, arg_size }
+    pub fn new(id: String, function: FuncPtr, arg_size: i16) -> Self {
+        Self {
+            function,
+            arg_size,
+            id,
+        }
     }
 }
 impl From<BuiltinFunc> for Value {
@@ -120,14 +132,7 @@ pub enum Type {
 
     Struct(Option<String>),
 }
-impl TypeIdent for Type {
-    fn is_void(&self) -> bool {
-        self == &Self::Void
-    }
-    fn is_numeric(&self) -> bool {
-        matches!(self, Self::Bool | Self::Num)
-    }
-}
+
 impl ToString for Type {
     fn to_string(&self) -> String {
         let txt = match self {

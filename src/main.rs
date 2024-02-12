@@ -1,5 +1,5 @@
 use colored::Colorize;
-use frontend::nodes::Scope;
+use frontend::nodes::{Scope, Value};
 use lang_errors::*;
 use std::env;
 use std::fs;
@@ -66,6 +66,7 @@ fn execute_file(args: Vec<String>) {
 
 fn repl() {
     let mut scope = Scope::default();
+    let mut heap: Vec<Value> = vec![];
     loop {
         let source = input(">: ");
         let err_out = ErrorBuilder::new(source.clone());
@@ -74,10 +75,13 @@ fn repl() {
             err.print_msg(err_out);
             continue;
         } in parser.parse());
-        match Interpreter::new(ast).execute_with(&mut scope) {
+        let mut inter = Interpreter::new(ast);
+        inter.heap = heap;
+        match inter.execute_with(&mut scope) {
             Ok(result) => println!("{}", result.repr().bright_black()),
             Err(err) => err.print_msg(err_out),
         };
+        heap = inter.heap;
     }
 }
 

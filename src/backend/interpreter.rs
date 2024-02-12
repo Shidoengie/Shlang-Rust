@@ -32,7 +32,7 @@ const NULL: EvalRes<Control> = Ok(Control::Value(Value::Null));
 #[derive(Debug)]
 pub struct Interpreter {
     program: NodeStream,
-    heap: Vec<Value>,
+    pub heap: Vec<Value>,
 }
 impl Interpreter {
     pub fn new(program: NodeStream) -> Self {
@@ -205,7 +205,7 @@ impl Interpreter {
             _ => {}
         }
 
-        if left_type != right_type {
+        if left.matches_typeof(&right) {
             return Err(IError::MixedTypes(
                 left_type,
                 right_type,
@@ -300,7 +300,7 @@ impl Interpreter {
     ) -> EvalRes<Control> {
         let func_val = unwrap_val!(self.eval_node(&request.callee, obj_env)?);
         let call_args = request.args;
-        let mut arg_values: ValueStream = vec![obj];
+        let mut arg_values: Vec<Value> = vec![obj];
         for arg in call_args.iter() {
             let argument = unwrap_val!(self.eval_node(&arg, base_env)?);
             arg_values.push(argument);
@@ -329,8 +329,11 @@ impl Interpreter {
         &mut self,
         constructor: Constructor,
         parent: &mut Scope,
+        span: Span,
     ) -> EvalRes<Control> {
-        let Some(request) = parent.get_struct(&constructor.name) else {panic!("Attempted to construct a non existent struct")};
+        let Some(request) = parent.get_struct(&constructor.name) else {
+            return Err(IError::Unspecified("Attempted to construct a non existent struct".to_string(),span))
+        };
         let struct_val = self.assign_fields(request, constructor.params, parent)?;
         self.heap.push(unwrap_val!(struct_val));
         Ok(Control::Value(Value::Ref(self.heap.len() - 1)))
@@ -429,7 +432,7 @@ impl Interpreter {
     ) -> EvalRes<Control> {
         let func_val = unwrap_val!(self.eval_node(&request.callee, parent)?);
         let call_args = request.args;
-        let mut arg_values: ValueStream = vec![];
+        let mut arg_values: Vec<Value> = vec![];
 
         for arg in call_args.iter() {
             let argument = unwrap_val!(self.eval_node(&arg, base_env)?);
@@ -489,7 +492,7 @@ impl Interpreter {
     fn call_builtin(
         &mut self,
         called: BuiltinFunc,
-        arg_values: ValueStream,
+        arg_values: Vec<Value>,
         span: Span,
         parent: &mut Scope,
     ) -> EvalRes<Control> {
@@ -500,7 +503,7 @@ impl Interpreter {
                 span,
             ));
         }
-        let result = (called.function)(parent.vars.clone(), arg_values, self.heap.clone());
+        let result = (called.function)(parent, arg_values, &mut self.heap);
         Ok(Control::Value(result))
     }
     fn branch(&mut self, branch: Branch, parent: &mut Scope) -> EvalRes<Control> {
@@ -600,7 +603,7 @@ impl Interpreter {
             Node::Loop(obj) => self.eval_loop(obj, parent),
             Node::DoBlock(block) => self.eval_block(block, parent),
             Node::StructDef(obj) => self.eval_structdef(obj, parent),
-            Node::Constructor(op) => self.eval_constructor(op, parent),
+            Node::Constructor(op) => self.eval_constructor(op, parent, span),
             Node::FieldAccess(request) => {
                 self.eval_fieldacess(request, &mut parent.clone(), parent)
             }

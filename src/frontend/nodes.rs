@@ -384,7 +384,13 @@ impl Scope {
             structs,
         }
     }
-
+    pub fn from_vars(vars: HashMap<String, Value>) -> Self {
+        Scope {
+            parent: None,
+            vars,
+            structs: HashMap::new(),
+        }
+    }
     pub fn new_child_in(parent: Scope) -> Self {
         Scope {
             parent: Some(Box::new(parent)),

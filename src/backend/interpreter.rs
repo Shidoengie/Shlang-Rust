@@ -1,6 +1,6 @@
 use super::defaults;
-use super::defaults::eval;
 use crate::frontend::nodes::*;
+use crate::hashmap;
 use crate::lang_errors::*;
 use crate::spans::*;
 use std::collections::HashMap;
@@ -42,7 +42,10 @@ impl Interpreter {
         }
     }
     pub fn execute(&mut self) -> EvalRes<Value> {
-        self.execute_with(&mut Scope::default())
+        let mut scope = Scope::from_vars(hashmap! {
+            __name__ => Value::Str("main".to_string())
+        });
+        self.execute_with(&mut scope)
     }
     pub fn execute_with(&mut self, scope: &mut Scope) -> EvalRes<Value> {
         if self.program.len() == 0 {
@@ -56,16 +59,8 @@ impl Interpreter {
             }
             return Err(IError::InvalidControl(node.span));
         }
-        let main = Node::Variable("main".to_string()).to_spanned((0, 0));
-        let call = Call {
-            callee: Box::new(main),
-            args: vec![],
-        };
-        self.eval_call(call, &mut scope.clone(), scope);
+
         Ok(last)
-    }
-    pub fn parse_vars(&mut self) -> EvalRes<Scope> {
-        return self.program_vars(self.program.clone());
     }
 
     pub fn execute_node(node: NodeSpan) -> EvalRes<Control> {
@@ -76,18 +71,17 @@ impl Interpreter {
         .eval_node(&node, &mut Scope::new_child_in(defaults::default_scope()))
     }
 
-    fn program_vars(&mut self, block: NodeStream) -> EvalRes<Scope> {
-        let mut new_scope = Scope::default();
-        if block.len() == 0 {
+    pub fn parse_vars(&mut self, mut parent: Scope) -> EvalRes<Scope> {
+        if self.program.is_empty() {
             return Ok(Scope::default());
         }
-        for node in block {
-            if let Control::Value(_) = self.eval_node(&node, &mut new_scope)? {
+        for node in self.program.clone() {
+            if let Control::Value(_) = self.eval_node(&node, &mut parent)? {
                 continue;
             }
             return Err(IError::InvalidControl(node.span));
         }
-        Ok(new_scope)
+        Ok(parent)
     }
     fn eval_block(&mut self, block: NodeStream, parent: &mut Scope) -> EvalRes<Control> {
         self.eval_block_with(block, parent, Scope::default())
@@ -205,7 +199,7 @@ impl Interpreter {
             _ => {}
         }
 
-        if left.matches_typeof(&right) {
+        if !left.matches_typeof(&right) {
             return Err(IError::MixedTypes(
                 left_type,
                 right_type,

@@ -117,7 +117,8 @@ impl<'a> Lexer<'a> {
     fn ident_or_num(&mut self, expected: char) -> Option<Token> {
         if expected.is_ascii_digit() {
             return Some(self.num());
-        } else if expected.is_alphanumeric() {
+        }
+        if expected.is_alphanumeric() || expected == '_' {
             return Some(self.ident());
         }
         None

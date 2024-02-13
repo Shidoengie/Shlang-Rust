@@ -4,6 +4,7 @@ use crate::Interpreter;
 use crate::Parser;
 
 use std::collections::HashMap;
+use std::env::vars;
 use std::f64::consts::{E, PI, TAU};
 use std::fs;
 
@@ -65,6 +66,7 @@ pub fn var_map() -> VarMap {
         print(print_builtin,-1),
         parse_num(parse_num,1),
         to_str(to_str,1),
+        stringify(stringify_vals,-1),
         typeof(typeof_node,1),
         eval(eval,1),
         max(max,2),
@@ -233,6 +235,16 @@ fn sqrt(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
 pub fn to_str(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
     Value::Str(args[0].to_string())
 }
+fn stringify_vals(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+    if args.is_empty() {
+        return Value::Str("".to_owned());
+    }
+    let mut out = String::new();
+    for val in args {
+        out += (val.to_string() + "").as_str();
+    }
+    Value::Str(out.trim().to_owned())
+}
 fn unix_time(_: &mut Scope, _: Vec<Value>, _: &mut Vec<Value>) -> Value {
     Value::Num(
         SystemTime::now()
@@ -258,15 +270,16 @@ fn input_builtin(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
     }
     return Value::Str(String::from(result.trim()));
 }
-pub fn eval(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+pub fn eval(scope: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Value {
     let Value::Str(source) = &args[0] else {return NULL};
     let mut parser = Parser::new(source.as_str());
     let ast_result = parser.parse();
     let Ok(ast) = ast_result else {
         return Value::Null;
     };
-
-    let Ok(result) = Interpreter::new(ast).execute() else {return Value::Null;};
+    let mut inter = Interpreter::new(ast);
+    inter.heap = heap.clone();
+    let Ok(result) = inter.execute_with(&mut scope.clone()) else {return Value::Null;};
 
     result
 }
@@ -275,13 +288,11 @@ fn import_var(parent: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Va
     let Ok(source) = fs::read_to_string(path) else {return NULL;};
     let mut parser = Parser::new(source.as_str());
     let Ok(ast) = parser.parse() else {return NULL;};
-    let filtered: Vec<_> = ast
-        .iter()
-        .filter(|node| matches!(node.unspanned, Node::Declaration(_) | Node::StructDef(_)))
-        .map(|node| node.to_owned())
-        .collect();
-    let mut inter = Interpreter::new(filtered);
-    let Ok(scope) = inter.parse_vars() else {return NULL;};
+    let mut inter = Interpreter::new(ast);
+    let base = Scope::from_vars(vars!(
+        __name__ => Value::Str("lib".to_string())
+    ));
+    let Ok(scope) = inter.parse_vars(base) else {return NULL;};
     let heapstuff = |(name, val): (&String, &Value)| -> (String, Value) {
         let mut new_val = val.to_owned();
         if let Value::Ref(id) = val {

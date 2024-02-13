@@ -53,13 +53,10 @@ fn execute_file(args: Vec<String>) {
     let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
     let err_out = ErrorBuilder::new(source.clone());
     let mut parser = Parser::new(source.as_str());
-    let ast = match parser.parse() {
-        Ok(ast) => ast,
-        Err(err) => {
-            err.print_msg(err_out);
-            return;
-        }
-    };
+    let ast = catch!(err {
+        err.print_msg(err_out);
+        return;
+    } in parser.parse());
     let mut interpreter = Interpreter::new(ast);
     interpreter.execute().map_err(|e| e.print_msg(err_out));
 }

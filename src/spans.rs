@@ -1,11 +1,20 @@
+use std::ops::Add;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Spanned<T> {
-    pub unspanned: T,
+    pub item: T,
     pub span: Span,
 }
 impl<T> Spanned<T> {
-    pub fn new(unspanned: T, span: Span) -> Self {
-        Self { unspanned, span }
+    pub fn new(item: T, span: Span) -> Self {
+        Self { item, span }
     }
 }
-pub type Span = (usize, usize);
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+pub struct Span(pub usize, pub usize);
+impl Add for Span {
+    type Output = Span;
+    fn add(self, rhs: Span) -> Self::Output {
+        Span(self.0, rhs.1)
+    }
+}

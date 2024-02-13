@@ -4,56 +4,56 @@ expression: "parse_expr(\"!true + !true;\")"
 ---
 Ok(
     Spanned {
-        unspanned: BinaryNode(
+        item: BinaryNode(
             BinaryNode {
                 kind: ADD,
                 left: Spanned {
-                    unspanned: UnaryNode(
+                    item: UnaryNode(
                         UnaryNode {
                             kind: NOT,
                             object: Spanned {
-                                unspanned: Value(
+                                item: Value(
                                     Bool(
                                         true,
                                     ),
                                 ),
-                                span: (
+                                span: Span(
                                     1,
                                     5,
                                 ),
                             },
                         },
                     ),
-                    span: (
+                    span: Span(
                         1,
                         5,
                     ),
                 },
                 right: Spanned {
-                    unspanned: UnaryNode(
+                    item: UnaryNode(
                         UnaryNode {
                             kind: NOT,
                             object: Spanned {
-                                unspanned: Value(
+                                item: Value(
                                     Bool(
                                         true,
                                     ),
                                 ),
-                                span: (
+                                span: Span(
                                     9,
                                     13,
                                 ),
                             },
                         },
                     ),
-                    span: (
+                    span: Span(
                         9,
                         13,
                     ),
                 },
             },
         ),
-        span: (
+        span: Span(
             6,
             7,
         ),

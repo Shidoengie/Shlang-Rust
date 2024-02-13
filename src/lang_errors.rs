@@ -1,3 +1,5 @@
+use std::fmt::format;
+
 use crate::frontend::{nodes::*, tokens::*};
 use crate::spans::*;
 use colored::*;
@@ -60,7 +62,7 @@ impl LangError for ParseError {
             InvalidToken(expected, got) => {
                 format!("expected token {expected:?} but got token {:?}", got.kind)
             }
-            UnexpectedToken(_) => "Unexpected token".to_string(),
+            UnexpectedToken(tok) => format!("Unexpected token {:?}", tok.kind),
             UnexpectedToplevel(_) => "Unexpected token at toplevel".to_string(),
             UnexpectedStreamEnd => "Expected To find another token but none was found".to_string(),
             UnterminatedParetheses(_) => "Unterminated parentheses".to_string(),

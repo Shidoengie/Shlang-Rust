@@ -4,45 +4,53 @@ expression: "parse_full(\"func(b){do{1}}\")"
 ---
 [
     Spanned {
-        unspanned: Value(
-            Function(
-                Function {
-                    block: [
-                        Spanned {
-                            unspanned: DoBlock(
-                                [
-                                    Spanned {
-                                        unspanned: ResultNode(
+        unspanned: ResultNode(
+            Spanned {
+                unspanned: Value(
+                    Function(
+                        Function {
+                            block: [
+                                Spanned {
+                                    unspanned: DoBlock(
+                                        [
                                             Spanned {
-                                                unspanned: Value(
-                                                    Num(
-                                                        1.0,
-                                                    ),
+                                                unspanned: ResultNode(
+                                                    Spanned {
+                                                        unspanned: Value(
+                                                            Num(
+                                                                1.0,
+                                                            ),
+                                                        ),
+                                                        span: (
+                                                            11,
+                                                            12,
+                                                        ),
+                                                    },
                                                 ),
                                                 span: (
                                                     11,
                                                     12,
                                                 ),
                                             },
-                                        ),
-                                        span: (
-                                            11,
-                                            12,
-                                        ),
-                                    },
-                                ],
-                            ),
-                            span: (
-                                10,
-                                13,
-                            ),
+                                        ],
+                                    ),
+                                    span: (
+                                        10,
+                                        13,
+                                    ),
+                                },
+                            ],
+                            args: [
+                                "b",
+                            ],
                         },
-                    ],
-                    args: [
-                        "b",
-                    ],
-                },
-            ),
+                    ),
+                ),
+                span: (
+                    4,
+                    14,
+                ),
+            },
         ),
         span: (
             4,

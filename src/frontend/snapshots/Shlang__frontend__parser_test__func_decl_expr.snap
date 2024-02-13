@@ -4,29 +4,29 @@ expression: "parse_expr(\"func a (b){1}\")"
 ---
 Ok(
     Spanned {
-        unspanned: Declaration(
+        item: Declaration(
             Declaration {
                 var_name: "a",
                 value: Spanned {
-                    unspanned: Value(
+                    item: Value(
                         Function(
                             Function {
                                 block: [
                                     Spanned {
-                                        unspanned: ResultNode(
+                                        item: ResultNode(
                                             Spanned {
-                                                unspanned: Value(
+                                                item: Value(
                                                     Num(
                                                         1.0,
                                                     ),
                                                 ),
-                                                span: (
+                                                span: Span(
                                                     11,
                                                     12,
                                                 ),
                                             },
                                         ),
-                                        span: (
+                                        span: Span(
                                             11,
                                             12,
                                         ),
@@ -38,14 +38,14 @@ Ok(
                             },
                         ),
                     ),
-                    span: (
+                    span: Span(
                         5,
                         11,
                     ),
                 },
             },
         ),
-        span: (
+        span: Span(
             5,
             11,
         ),

@@ -1,7 +1,7 @@
 use crate::frontend::nodes::*;
-
 use crate::Interpreter;
 use crate::Parser;
+use slotmap::SlotMap;
 
 use std::collections::HashMap;
 use std::env::vars;
@@ -80,7 +80,7 @@ pub fn var_map() -> VarMap {
         del(delete_var,1)
     ]
 }
-fn delete_var(scope: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Value {
+fn delete_var(scope: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Str(val) = &args[0] else {return NULL;};
     if !scope.vars.contains_key(val) {
         return NULL;
@@ -102,8 +102,27 @@ pub fn num_struct() -> Struct {
 
     Struct {
         id: None,
-        env: Scope::new(None, env, HashMap::from([])),
+        env: Scope::from_vars(env),
     }
+}
+pub fn list_struct() -> Struct {
+    let env = vars![len(list_len, 1), push(list_push, 2)];
+    Struct {
+        id: None,
+        env: Scope::from_vars(env),
+    }
+}
+fn list_len(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+    let Value::Ref(key) = &args[0] else { return NULL;};
+    let Value::List(list) = heap.get(*key).unwrap() else {return NULL;};
+    Value::Num(list.len() as f64)
+}
+fn list_push(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+    let [Value::Ref(key),val] = &args[..2] else { return NULL;};
+    let Value::List(mut list) = heap.get(*key).unwrap().clone() else {return NULL;};
+    list.push(val.clone());
+    heap[*key] = Value::List(list.clone());
+    Value::List(list)
 }
 pub fn str_struct() -> Struct {
     let env = vars![
@@ -119,7 +138,7 @@ pub fn str_struct() -> Struct {
         env: Scope::new(None, env, HashMap::from([])),
     }
 }
-fn str_remove(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn str_remove(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Str(ref mut value) = args[0].clone() else {return NULL;};
     let target = &args[1];
     match target {
@@ -135,21 +154,21 @@ fn str_remove(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
     }
 }
 
-fn str_replace(scope: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Value {
+fn str_replace(scope: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
     let [Value::Str(ref value),Value::Str(ref target),Value::Str(ref filler)] = args[..3] else { return NULL; };
     Value::Str(value.replace(target, filler))
 }
-fn substr_method(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn substr_method(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let [Value::Str(value),Value::Num(start), Value::Num(end)] = &args[..3] else { return NULL; };
     let sub = &value[start.clone() as usize..end.clone() as usize];
     Value::Str(sub.to_string())
 }
-fn len_method(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn len_method(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Str(value) = &args[0] else { return NULL;};
     Value::Num(value.len() as f64)
 }
 
-fn char_at_method(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn char_at_method(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Str(value) = &args[0] else { return NULL;};
     let Value::Num(index) = &args[1] else { return NULL;};
 
@@ -159,19 +178,19 @@ fn char_at_method(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value 
         .map(|c| Value::Str(c.to_string()))
         .unwrap_or(Value::Null)
 }
-fn println_builtin(_: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Value {
+fn println_builtin(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
     if args.is_empty() {
         println!();
     }
     let mut out = "".to_string();
     for val in args {
-        out += format!(" {}", val.to_string()).as_str();
+        out += format!(" {}", deref(val, heap).to_string()).as_str();
     }
     out = out.trim().to_string();
     println!("{out}");
     Value::Null
 }
-fn print_builtin(_: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Value {
+fn print_builtin(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
     if args.is_empty() {
         print!("");
         io::stdout().flush().unwrap();
@@ -179,19 +198,19 @@ fn print_builtin(_: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Valu
     }
     let mut out = "".to_string();
     for val in args {
-        out += format!(" {}", val.to_string()).as_str();
+        out += format!(" {}", deref(val, heap).to_string()).as_str();
     }
     out = out.trim().to_string();
     print!("{out}");
     io::stdout().flush().unwrap();
     NULL
 }
-fn open_textfile(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn open_textfile(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Str(path) = &args[0] else {return NULL;};
     let Ok(contents) = fs::read_to_string(path)  else {return NULL;};
     return Value::Str(contents);
 }
-fn typeof_node(_: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Value {
+fn typeof_node(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
     let val = if let Value::Ref(id) = args[0].clone() {
         &heap[id]
     } else {
@@ -200,42 +219,48 @@ fn typeof_node(_: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Value 
     let out = val.get_type().to_string();
     Value::Str(out)
 }
-fn parse_num(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn parse_num(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Str(input) = &args[0] else {return NULL;};
     Value::Num(input.parse().unwrap())
 }
-fn min(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn min(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let [Value::Num(val1),Value::Num(val2)] = &args[..2] else {return NULL;};
     Value::Num(val1.min(*val2))
 }
-fn max(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn max(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let [Value::Num(val1),Value::Num(val2)] = &args[..2] else {return NULL;};
     Value::Num(val1.max(*val2))
 }
-fn pow(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn pow(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let [Value::Num(val1),Value::Num(val2)] = &args[..2] else {return NULL;};
     Value::Num(val1.powf(*val2))
 }
-fn cos(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn cos(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Num(val1) = &args[0] else {return NULL;};
     Value::Num(val1.cos())
 }
-fn tan(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn tan(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Num(val1) = &args[0] else {return NULL;};
     Value::Num(val1.tan())
 }
-fn sin(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn sin(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Num(val1) = &args[0] else {return NULL;};
     Value::Num(val1.sin())
 }
-fn sqrt(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn sqrt(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Num(val1) = &args[0] else {return NULL;};
     Value::Num(val1.sqrt())
 }
-pub fn to_str(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn deref(val: Value, heap: &SlotMap<RefKey, Value>) -> Value {
+    if let Value::Ref(id) = val {
+        return heap[id].clone();
+    }
+    val
+}
+pub fn to_str(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     Value::Str(args[0].to_string())
 }
-fn stringify_vals(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn stringify_vals(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     if args.is_empty() {
         return Value::Str("".to_owned());
     }
@@ -245,7 +270,7 @@ fn stringify_vals(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value 
     }
     Value::Str(out.trim().to_owned())
 }
-fn unix_time(_: &mut Scope, _: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn unix_time(_: &mut Scope, _: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     Value::Num(
         SystemTime::now()
             .duration_since(time::UNIX_EPOCH)
@@ -253,12 +278,12 @@ fn unix_time(_: &mut Scope, _: Vec<Value>, _: &mut Vec<Value>) -> Value {
             .as_secs_f64(),
     )
 }
-fn wait_builtin(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn wait_builtin(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Num(val1) = &args[0] else {return NULL;};
     thread::sleep(Duration::from_millis((val1 * 1000.0).floor() as u64));
     NULL
 }
-fn input_builtin(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
+fn input_builtin(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
     if !args.is_empty() {
         print!("{}", args[0].to_string());
         io::stdout().flush().unwrap();
@@ -270,7 +295,7 @@ fn input_builtin(_: &mut Scope, args: Vec<Value>, _: &mut Vec<Value>) -> Value {
     }
     return Value::Str(String::from(result.trim()));
 }
-pub fn eval(scope: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Value {
+pub fn eval(scope: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Str(source) = &args[0] else {return NULL};
     let mut parser = Parser::new(source.as_str());
     let ast_result = parser.parse();
@@ -283,7 +308,7 @@ pub fn eval(scope: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Value
 
     result
 }
-fn import_var(parent: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Value {
+fn import_var(parent: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
     let Value::Str(path) = &args[0] else {return NULL;};
     let Ok(source) = fs::read_to_string(path) else {return NULL;};
     let mut parser = Parser::new(source.as_str());
@@ -297,8 +322,8 @@ fn import_var(parent: &mut Scope, args: Vec<Value>, heap: &mut Vec<Value>) -> Va
         let mut new_val = val.to_owned();
         if let Value::Ref(id) = val {
             let derefed = &inter.heap[*id];
-            heap.push(derefed.clone());
-            new_val = Value::Ref(heap.len() - 1);
+            let key = heap.insert(derefed.clone());
+            new_val = Value::Ref(key);
         }
         (name.to_owned(), new_val)
     };

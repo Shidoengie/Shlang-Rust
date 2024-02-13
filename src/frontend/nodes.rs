@@ -1,3 +1,5 @@
+use slotmap::{new_key_type, SlotMap};
+
 use crate::spans::*;
 use std::collections::*;
 use std::fmt::Debug;
@@ -12,11 +14,23 @@ pub enum Value {
     Function(Function),
     BuiltinFunc(BuiltinFunc),
     Struct(Struct),
-    Ref(usize),
+    Ref(RefKey),
+    List(Vec<Value>),
 }
 
 pub type TypedValue = (Value, Type);
-
+fn list_repr(list: &[Value]) -> String {
+    if list.is_empty() {
+        return "[]".to_owned();
+    }
+    let mut out = String::new();
+    for val in list {
+        out += format!(",{}", val.to_string()).as_str();
+    }
+    out = out.strip_prefix(",").unwrap().to_string();
+    out = "[".to_string() + out.as_str() + "]";
+    out
+}
 impl Value {
     pub fn get_type(&self) -> Type {
         match self {
@@ -26,6 +40,7 @@ impl Value {
             Value::Void => Type::Void,
             Value::Str(_) => Type::Str,
             Value::Num(_) => Type::Num,
+            Value::List(_) => Type::List,
             Value::Struct(obj) => Type::Struct(obj.id.clone()),
             _ => unimplemented!(),
         }
@@ -37,6 +52,7 @@ impl Value {
             Self::Str(txt) => format!("\"{txt}\""),
             Self::Null => "null".to_string(),
             Self::Void => "void".to_string(),
+            Self::List(list) => list_repr(list),
             _ => "unnamed".to_string(),
         }
     }
@@ -55,6 +71,7 @@ impl ToString for Value {
             Self::Str(txt) => txt.to_string(),
             Self::Null => "null".to_string(),
             Self::Void => "void".to_string(),
+            Self::List(list) => list_repr(list),
             _ => "unnamed".to_string(),
         }
     }
@@ -85,8 +102,10 @@ impl From<Function> for Value {
         Value::Function(x)
     }
 }
-
-type FuncPtr = fn(&mut Scope, Vec<Value>, &mut Vec<Value>) -> Value;
+new_key_type! {
+    pub struct RefKey;
+}
+type FuncPtr = fn(&mut Scope, Vec<Value>, &mut SlotMap<RefKey, Value>) -> Value;
 #[derive(Clone)]
 pub struct BuiltinFunc {
     pub function: FuncPtr,
@@ -129,7 +148,7 @@ pub enum Type {
     Bool,
     Str,
     Function,
-
+    List,
     Struct(Option<String>),
 }
 
@@ -142,6 +161,7 @@ impl ToString for Type {
             Self::Bool => "bool",
             Self::Num => "num",
             Self::Str => "str",
+            Self::List => "list",
             Self::Struct(Some(id)) => id,
             Self::Struct(None) => "struct",
         };
@@ -160,6 +180,11 @@ pub enum Node {
     Declaration(Declaration),
     Assignment(Assignment),
     Variable(String),
+    Index {
+        target: Box<NodeSpan>,
+        index: Box<NodeSpan>,
+    },
+    ListLit(Vec<NodeSpan>),
     Call(Call),
     Branch(Branch),
     Loop(NodeStream),
@@ -290,7 +315,7 @@ pub enum Field {
 }
 impl Spanned<Field> {
     pub fn to_nodespan(&self) -> NodeSpan {
-        match &self.unspanned {
+        match &self.item {
             Field::Declaration(decl) => NodeSpan::new(Node::Declaration(decl.clone()), self.span),
             Field::StructDef(decl) => NodeSpan::new(Node::StructDef(decl.clone()), self.span),
         }

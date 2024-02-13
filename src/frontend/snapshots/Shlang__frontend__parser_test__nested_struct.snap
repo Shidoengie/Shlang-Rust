@@ -4,48 +4,30 @@ expression: "parse_expr(\"struct abc{struct dfg{};};\")"
 ---
 Ok(
     Spanned {
-        unspanned: Declaration(
-            Declaration {
-                var_name: "abc",
-                value: Spanned {
-                    unspanned: StructDef(
-                        StructDef {
-                            name: "abc",
-                            fields: [
-                                Spanned {
-                                    unspanned: Declaration(
-                                        Declaration {
-                                            var_name: "dfg",
-                                            value: Spanned {
-                                                unspanned: StructDef(
-                                                    StructDef {
-                                                        name: "dfg",
-                                                        fields: [],
-                                                    },
-                                                ),
-                                                span: (
-                                                    18,
-                                                    23,
-                                                ),
-                                            },
-                                        },
-                                    ),
-                                    span: (
-                                        18,
-                                        23,
-                                    ),
-                                },
-                            ],
-                        },
-                    ),
-                    span: (
-                        7,
-                        25,
-                    ),
-                },
+        item: StructDef(
+            StructDef {
+                name: Some(
+                    "abc",
+                ),
+                fields: [
+                    Spanned {
+                        item: StructDef(
+                            StructDef {
+                                name: Some(
+                                    "dfg",
+                                ),
+                                fields: [],
+                            },
+                        ),
+                        span: Span(
+                            18,
+                            23,
+                        ),
+                    },
+                ],
             },
         ),
-        span: (
+        span: Span(
             7,
             25,
         ),

@@ -4,23 +4,23 @@ expression: "parse_expr(\"!(0);\")"
 ---
 Ok(
     Spanned {
-        unspanned: UnaryNode(
+        item: UnaryNode(
             UnaryNode {
                 kind: NOT,
                 object: Spanned {
-                    unspanned: Value(
+                    item: Value(
                         Num(
                             0.0,
                         ),
                     ),
-                    span: (
+                    span: Span(
                         2,
                         3,
                     ),
                 },
             },
         ),
-        span: (
+        span: Span(
             1,
             2,
         ),

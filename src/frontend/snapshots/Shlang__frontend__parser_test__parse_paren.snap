@@ -4,54 +4,54 @@ expression: "parse_expr(\"(1+2+b);\")"
 ---
 Ok(
     Spanned {
-        unspanned: BinaryNode(
+        item: BinaryNode(
             BinaryNode {
                 kind: ADD,
                 left: Spanned {
-                    unspanned: Value(
+                    item: Value(
                         Num(
                             1.0,
                         ),
                     ),
-                    span: (
+                    span: Span(
                         1,
                         2,
                     ),
                 },
                 right: Spanned {
-                    unspanned: BinaryNode(
+                    item: BinaryNode(
                         BinaryNode {
                             kind: ADD,
                             left: Spanned {
-                                unspanned: Value(
+                                item: Value(
                                     Num(
                                         2.0,
                                     ),
                                 ),
-                                span: (
+                                span: Span(
                                     3,
                                     4,
                                 ),
                             },
                             right: Spanned {
-                                unspanned: Variable(
+                                item: Variable(
                                     "b",
                                 ),
-                                span: (
+                                span: Span(
                                     5,
                                     6,
                                 ),
                             },
                         },
                     ),
-                    span: (
+                    span: Span(
                         4,
                         5,
                     ),
                 },
             },
         ),
-        span: (
+        span: Span(
             2,
             3,
         ),

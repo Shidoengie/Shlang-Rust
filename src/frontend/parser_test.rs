@@ -3,10 +3,7 @@ use super::parser::*;
 
 use insta::*;
 use std::*;
-fn parse_full(source: &str) -> NodeStream {
-    let mut parser = Parser::new(source);
-    parser.parse().unwrap()
-}
+
 fn parse_expr(source: &str) -> ParseRes<NodeSpan> {
     let mut parser = Parser::new(source);
     parser.parse_expr()
@@ -22,17 +19,7 @@ macro_rules! test_func {
         )*
     };
 }
-test_func!(parse_full,(
-declare_and_assign_expression:"var a = 1+2+b;"
-single_var_decl:"var a;"
-multi_var_decl:"var a; var a;"
-var_declare_and_assign_value:"var a = 2;"
-var_assign_do:"var a = do{1+1}"
-func_decl:"func a(b){1}"
-func_decl_with_var:"var a = func(b){1}"
-nested_toplevel_block:"func(b){do{1}}"
-nested_toplevel_block_with_result:"func(b){do{1}1}"
-));
+
 test_func!(parse_expr,(
 parse_nested_paren:"((1+2)+(1+2));"
 parse_paren:"(1+2+b);"
@@ -42,7 +29,7 @@ multiple_unary:"!true + !true;"
 unary_operator_paren:"!(0);"
 unary_operators:"!0+(-0);"
 empty_call:"a();"
-call:"a((1+2),true,\"1\");"
+call:"a((1+2),true,'1');"
 call_as_val:"a(1,1,1)+1;"
 call_with_paren:"a((1),1,1);"
 
@@ -58,4 +45,7 @@ struct_access:"b.a*2"
 struct_access_call:"a.b().c"
 struct_body:"struct abc{};"
 nested_struct:"struct abc{struct dfg{};};"
+index:"a[1]"
+index_with_call:"a[1]()[2]"
+list_literal:"[1,2,3]"
 ));

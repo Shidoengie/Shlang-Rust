@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 colored = "2"
+slotmap = "1.0.7"
 [dev-dependencies]
 insta = { version = "1.30.0", features = ["yaml"] }

@@ -1,11 +1,13 @@
 use colored::Colorize;
 use frontend::nodes::{Scope, Value};
 use lang_errors::*;
+use slotmap::SlotMap;
 use std::env;
 use std::fs;
 use std::io;
 use std::io::Write;
 use std::*;
+use Shlang::frontend::nodes::RefKey;
 use Shlang::*;
 fn input(message: &str) -> String {
     print!("{message} ");
@@ -63,7 +65,7 @@ fn execute_file(args: Vec<String>) {
 
 fn repl() {
     let mut scope = Scope::default();
-    let mut heap: Vec<Value> = vec![];
+    let mut heap: SlotMap<RefKey, Value> = SlotMap::with_key();
     loop {
         let source = input(">: ");
         let err_out = ErrorBuilder::new(source.clone());

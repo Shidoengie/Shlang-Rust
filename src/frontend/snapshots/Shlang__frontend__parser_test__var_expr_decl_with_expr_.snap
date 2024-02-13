@@ -4,65 +4,65 @@ expression: "parse_expr(\"var a = 1+2+b;\")"
 ---
 Ok(
     Spanned {
-        unspanned: Declaration(
+        item: Declaration(
             Declaration {
                 var_name: "a",
                 value: Spanned {
-                    unspanned: BinaryNode(
+                    item: BinaryNode(
                         BinaryNode {
                             kind: ADD,
                             left: Spanned {
-                                unspanned: Value(
+                                item: Value(
                                     Num(
                                         1.0,
                                     ),
                                 ),
-                                span: (
+                                span: Span(
                                     8,
                                     9,
                                 ),
                             },
                             right: Spanned {
-                                unspanned: BinaryNode(
+                                item: BinaryNode(
                                     BinaryNode {
                                         kind: ADD,
                                         left: Spanned {
-                                            unspanned: Value(
+                                            item: Value(
                                                 Num(
                                                     2.0,
                                                 ),
                                             ),
-                                            span: (
+                                            span: Span(
                                                 10,
                                                 11,
                                             ),
                                         },
                                         right: Spanned {
-                                            unspanned: Variable(
+                                            item: Variable(
                                                 "b",
                                             ),
-                                            span: (
+                                            span: Span(
                                                 12,
                                                 13,
                                             ),
                                         },
                                     },
                                 ),
-                                span: (
+                                span: Span(
                                     11,
                                     12,
                                 ),
                             },
                         },
                     ),
-                    span: (
+                    span: Span(
                         9,
                         10,
                     ),
                 },
             },
         ),
-        span: (
+        span: Span(
             4,
             7,
         ),

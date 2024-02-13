@@ -4,31 +4,31 @@ expression: "parse_expr(\"b = 1;\")"
 ---
 Ok(
     Spanned {
-        unspanned: Assignment(
+        item: Assignment(
             Assignment {
                 target: Spanned {
-                    unspanned: Variable(
+                    item: Variable(
                         "b",
                     ),
-                    span: (
+                    span: Span(
                         0,
                         1,
                     ),
                 },
                 value: Spanned {
-                    unspanned: Value(
+                    item: Value(
                         Num(
                             1.0,
                         ),
                     ),
-                    span: (
+                    span: Span(
                         4,
                         5,
                     ),
                 },
             },
         ),
-        span: (
+        span: Span(
             2,
             3,
         ),

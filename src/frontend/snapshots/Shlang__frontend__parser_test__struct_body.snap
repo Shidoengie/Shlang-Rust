@@ -4,24 +4,15 @@ expression: "parse_expr(\"struct abc{};\")"
 ---
 Ok(
     Spanned {
-        unspanned: Declaration(
-            Declaration {
-                var_name: "abc",
-                value: Spanned {
-                    unspanned: StructDef(
-                        StructDef {
-                            name: "abc",
-                            fields: [],
-                        },
-                    ),
-                    span: (
-                        7,
-                        12,
-                    ),
-                },
+        item: StructDef(
+            StructDef {
+                name: Some(
+                    "abc",
+                ),
+                fields: [],
             },
         ),
-        span: (
+        span: Span(
             7,
             12,
         ),

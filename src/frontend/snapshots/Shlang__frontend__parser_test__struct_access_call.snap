@@ -4,28 +4,28 @@ expression: "parse_expr(\"a.b().c\")"
 ---
 Ok(
     Spanned {
-        unspanned: FieldAccess(
+        item: FieldAccess(
             FieldAccess {
                 target: Spanned {
-                    unspanned: Variable(
+                    item: Variable(
                         "a",
                     ),
-                    span: (
+                    span: Span(
                         0,
                         1,
                     ),
                 },
                 requested: Spanned {
-                    unspanned: FieldAccess(
+                    item: FieldAccess(
                         FieldAccess {
                             target: Spanned {
-                                unspanned: Call(
+                                item: Call(
                                     Call {
                                         callee: Spanned {
-                                            unspanned: Variable(
+                                            item: Variable(
                                                 "b",
                                             ),
-                                            span: (
+                                            span: Span(
                                                 2,
                                                 3,
                                             ),
@@ -33,30 +33,30 @@ Ok(
                                         args: [],
                                     },
                                 ),
-                                span: (
+                                span: Span(
                                     3,
                                     5,
                                 ),
                             },
                             requested: Spanned {
-                                unspanned: Variable(
+                                item: Variable(
                                     "c",
                                 ),
-                                span: (
+                                span: Span(
                                     6,
                                     7,
                                 ),
                             },
                         },
                     ),
-                    span: (
+                    span: Span(
                         5,
                         6,
                     ),
                 },
             },
         ),
-        span: (
+        span: Span(
             1,
             2,
         ),

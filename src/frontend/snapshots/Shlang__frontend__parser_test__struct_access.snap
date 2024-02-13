@@ -4,51 +4,51 @@ expression: "parse_expr(\"b.a*2\")"
 ---
 Ok(
     Spanned {
-        unspanned: BinaryNode(
+        item: BinaryNode(
             BinaryNode {
                 kind: MULTIPLY,
                 left: Spanned {
-                    unspanned: FieldAccess(
+                    item: FieldAccess(
                         FieldAccess {
                             target: Spanned {
-                                unspanned: Variable(
+                                item: Variable(
                                     "b",
                                 ),
-                                span: (
+                                span: Span(
                                     0,
                                     1,
                                 ),
                             },
                             requested: Spanned {
-                                unspanned: Variable(
+                                item: Variable(
                                     "a",
                                 ),
-                                span: (
+                                span: Span(
                                     2,
                                     3,
                                 ),
                             },
                         },
                     ),
-                    span: (
+                    span: Span(
                         1,
                         2,
                     ),
                 },
                 right: Spanned {
-                    unspanned: Value(
+                    item: Value(
                         Num(
                             2.0,
                         ),
                     ),
-                    span: (
+                    span: Span(
                         4,
                         5,
                     ),
                 },
             },
         ),
-        span: (
+        span: Span(
             3,
             4,
         ),

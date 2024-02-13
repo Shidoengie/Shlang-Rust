@@ -1,5 +1,7 @@
 use std::str::Chars;
 
+use crate::spans::Span;
+
 use super::tokens;
 use super::tokens::*;
 
@@ -57,9 +59,9 @@ impl<'a> Lexer<'a> {
         }
         let is_float = dot_count != 0;
         if is_float {
-            return Token::new(TokenType::NUM, (start - 1, self.index()));
+            return Token::new(TokenType::NUM, Span(start - 1, self.index()));
         }
-        Token::new(TokenType::NUM, (start - 1, self.index()))
+        Token::new(TokenType::NUM, Span(start - 1, self.index()))
     }
     fn ident(&mut self) -> Token {
         let start = self.index() - 1;
@@ -73,9 +75,9 @@ impl<'a> Lexer<'a> {
         let stop = self.index();
         let span = &self.source[start..stop];
         let Some(keyword) = tokens::map_keyword(span.to_string()) else {
-            return Token::new(TokenType::IDENTIFIER, (start, stop));
+            return Token::new(TokenType::IDENTIFIER, Span(start, stop));
         };
-        Token::new(keyword, (start, stop))
+        Token::new(keyword, Span(start, stop))
     }
     fn str(&mut self, quote: char) -> Option<Token> {
         let start = self.index();
@@ -95,9 +97,9 @@ impl<'a> Lexer<'a> {
         }
 
         let stop = self.index() - 1;
-        Some(Token::new(TokenType::STR, (start, stop)))
+        Some(Token::new(TokenType::STR, Span(start, stop)))
     }
-    fn push_advance(&mut self, kind: TokenType, range: (usize, usize)) -> Token {
+    fn push_advance(&mut self, kind: TokenType, range: Span) -> Token {
         self.advance();
         Token::new(kind, range)
     }
@@ -109,9 +111,9 @@ impl<'a> Lexer<'a> {
         range_start: usize,
     ) -> Option<Token> {
         if self.current_is(expected) {
-            return Some(self.push_advance(long_token, (range_start, self.index())));
+            return Some(self.push_advance(long_token, Span(range_start, self.index())));
         }
-        Some(Token::new(short_token, (range_start, range_start + 1)))
+        Some(Token::new(short_token, Span(range_start, range_start + 1)))
     }
 
     fn ident_or_num(&mut self, expected: char) -> Option<Token> {
@@ -175,7 +177,7 @@ impl<'a> Iterator for Lexer<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let start = self.index();
         let last = self.advance()?;
-        let range = (start, start + 1);
+        let range = Span(start, start + 1);
         match last {
             '.' => Some(Token::new(TokenType::DOT, range)),
             ',' => Some(Token::new(TokenType::COMMA, range)),

@@ -4,21 +4,21 @@ expression: "parse_expr(\"var a;\")"
 ---
 Ok(
     Spanned {
-        unspanned: Declaration(
+        item: Declaration(
             Declaration {
                 var_name: "a",
                 value: Spanned {
-                    unspanned: Value(
+                    item: Value(
                         Null,
                     ),
-                    span: (
+                    span: Span(
                         4,
                         5,
                     ),
                 },
             },
         ),
-        span: (
+        span: Span(
             4,
             6,
         ),

@@ -4,25 +4,25 @@ expression: "parse_expr(\"func(b){1}\")"
 ---
 Ok(
     Spanned {
-        unspanned: Value(
+        item: Value(
             Function(
                 Function {
                     block: [
                         Spanned {
-                            unspanned: ResultNode(
+                            item: ResultNode(
                                 Spanned {
-                                    unspanned: Value(
+                                    item: Value(
                                         Num(
                                             1.0,
                                         ),
                                     ),
-                                    span: (
+                                    span: Span(
                                         8,
                                         9,
                                     ),
                                 },
                             ),
-                            span: (
+                            span: Span(
                                 8,
                                 9,
                             ),
@@ -34,7 +34,7 @@ Ok(
                 },
             ),
         ),
-        span: (
+        span: Span(
             4,
             10,
         ),

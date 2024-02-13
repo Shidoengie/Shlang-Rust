@@ -101,10 +101,10 @@ impl<'input> Parser<'input, Lexer<'input>> {
         };
         let mut filtered: Vec<_> = body
             .iter()
-            .filter(|&x| x.unspanned != Node::DontResult)
+            .filter(|&x| x.item != Node::DontResult)
             .cloned()
             .collect();
-        if last.unspanned != Node::DontResult && last.unspanned.can_result() {
+        if last.item != Node::DontResult && last.item.can_result() {
             let index = filtered.len() - 1;
             filtered[index] = last.wrap_in_result();
         }
@@ -132,20 +132,23 @@ impl<'input> Parser<'input, Lexer<'input>> {
     // These Parse variable definitions/declarations
     fn empty_var_decl(&mut self, first: Token, var_name: String) -> NodeSpan {
         let Some(last) = self.peek() else {todo!()};
+        let span = first.span + last.span;
         Declaration {
             var_name,
             value: bx!(Value::Null.to_nodespan(first.span)),
         }
-        .to_nodespan((first.span.0, last.span.1))
+        .to_nodespan(span)
     }
     fn var_decl(&mut self, var_name: String, name_ident: Token) -> ParseRes<NodeSpan> {
-        let last = self.next();
+        let last = self.peek_some()?;
+        self.next();
         let val = self.parse_expr()?;
+        let span = name_ident.span + last.span;
         Ok(Declaration {
             var_name,
             value: bx!(val),
         }
-        .to_nodespan((name_ident.span.0, last.unwrap().span.1)))
+        .to_nodespan(span))
     }
     fn parse_vardef(&mut self) -> ParseRes<NodeSpan> {
         let ident = self.expect(TokenType::IDENTIFIER)?;
@@ -195,7 +198,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let last = self.peek_some()?;
         let func: Value = Function::new(self.parse_block()?, params).into();
 
-        let func_span = (name_ident.span.0, last.span.1);
+        let func_span = name_ident.span + last.span;
         Ok(Declaration {
             var_name: func_name,
             value: bx!(func.to_nodespan(func_span)),
@@ -213,8 +216,8 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn parse_anon_func(&mut self, first: &Token) -> ParseRes<NodeSpan> {
         let func = self.build_func()?;
         let last = self.peek_some()?;
-        let func_span = (first.span.0, last.span.1);
-        Ok(func.to_nodespan(func_span))
+        let span = first.span + last.span;
+        Ok(func.to_nodespan(span))
     }
     // Takes the aformentioned function and combines them to alow the current function syntax
     fn parse_funcdef(&mut self) -> ParseRes<NodeSpan> {
@@ -243,6 +246,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 self.next();
                 continue;
             }
+
             return Err(ParseError::UnexpectedToken(token));
         }
         Ok(params)
@@ -252,12 +256,32 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let token = self.peek_some()?;
         let params = self.parse_expr_list(&token, TokenType::RPAREN)?;
         let last = self.peek_some()?;
+        let span = first.span + last.span;
         self.next();
         let call = Call {
             args: params,
             callee: bx!(callee),
         }
-        .to_nodespan((first.span.0, last.span.1));
+        .to_nodespan(span);
+        self.primary_ops(call)
+    }
+    fn parse_index(&mut self, target: NodeSpan) -> ParseRes<NodeSpan> {
+        let first = self.peek_some()?;
+        self.next();
+
+        let index = self.parse_expr()?;
+        let last = self.peek_some()?;
+        if last.isnt(&TokenType::RBRACK) {
+            return Err(ParseError::UnexpectedToken(last));
+        }
+        self.next();
+        let span = first.span + last.span;
+
+        let call = Node::Index {
+            target: bx!(target),
+            index: bx!(index),
+        }
+        .to_spanned(span);
         self.primary_ops(call)
     }
     fn parse_while_loop(&mut self) -> ParseRes<NodeSpan> {
@@ -266,20 +290,23 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let last = self.peek_some()?;
         let proc = self.parse_block()?;
         self.next();
-        Ok(While { condition, proc }.to_nodespan((first.span.0, last.span.1)))
+        let span = first.span + last.span;
+        Ok(While { condition, proc }.to_nodespan(span))
     }
 
     fn parse_do(&mut self) -> ParseRes<NodeSpan> {
         let first = self.expect(TokenType::LBRACE)?;
         let block = self.parse_block()?;
         let last = self.next().unwrap();
-        Ok(Node::DoBlock(block).to_spanned((first.span.0, last.span.1)))
+        let span = first.span + last.span;
+        Ok(Node::DoBlock(block).to_spanned(span))
     }
     fn parse_loop(&mut self) -> ParseRes<NodeSpan> {
         let first = self.expect(TokenType::LBRACE)?;
         let block = self.parse_block()?;
         let last = self.next().unwrap();
-        Ok(Node::Loop(block).to_spanned((first.span.0, last.span.1)))
+        let span = first.span + last.span;
+        Ok(Node::Loop(block).to_spanned(span))
     }
     fn parse_elif(
         &mut self,
@@ -301,7 +328,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let last = self.peek_some()?;
         let if_block = self.parse_block()?;
         self.next();
-        let span = (first.span.0, last.span.1);
+        let span = first.span + last.span;
         let Some(else_branch) = self.peek() else {
             self.next();
             return Ok(Branch::new_single(condition, if_block).to_nodespan(span));
@@ -361,7 +388,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let last = self.peek_some()?;
         self.next();
         let value = self.parse_expr()?;
-        let span = (token.span.0, last.span.1);
+        let span = token.span + last.span;
         match last.kind {
             TokenType::PLUS_EQUAL => {
                 return self.compound_assignment(BinaryOp::ADD, target, value, span)
@@ -478,6 +505,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let Some(op) = self.peek() else {return Ok(left);};
         match op.kind {
             TokenType::LPAREN => self.parse_call(left),
+            TokenType::LBRACK => self.parse_index(left),
             TokenType::DOT => self.parse_field_access(left, op.span),
             _ => Ok(left),
         }
@@ -497,7 +525,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         .to_nodespan(span))
     }
     fn node_to_feildspan(&mut self, node: NodeSpan) -> ParseRes<Spanned<Field>> {
-        match node.unspanned {
+        match node.item {
             Node::Declaration(decl) => {
                 return Ok(Spanned::new(Field::Declaration(decl), node.span))
             }
@@ -519,7 +547,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
 
         let last = self.next().unwrap();
-        let span = (first.span.0, last.span.1);
+        let span = first.span + last.span;
         Ok(StructDef { fields, name: None }.to_nodespan(span))
     }
     fn named_struct(&mut self, name_ident: &Token) -> ParseRes<NodeSpan> {
@@ -527,7 +555,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let block = self.parse_block()?;
         let last = self.next().unwrap();
         let name = self.text(&name_ident);
-        let span = (name_ident.span.0, last.span.1);
+        let span = name_ident.span + last.span;
         let mut fields: Vec<Spanned<Field>> = vec![];
         for node in block {
             fields.push(self.node_to_feildspan(node)?);
@@ -548,7 +576,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         .to_nodespan(span))
     }
-    fn struct_params(&mut self) -> Result<HashMap<String, NodeSpan>, ParseError> {
+    fn struct_params(&mut self) -> ParseRes<HashMap<String, NodeSpan>> {
         self.consume(TokenType::LBRACE)?;
         let token = self.peek_some()?;
         let mut body: HashMap<String, NodeSpan> = HashMap::from([]);
@@ -576,7 +604,8 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let params = self.struct_params()?;
         let last = self.peek_some()?;
         self.next();
-        Ok(Constructor { name, params }.to_nodespan((first.span.0, last.span.1)))
+        let span = first.span + last.span;
+        Ok(Constructor { name, params }.to_nodespan(span))
     }
     // Parses deterministic expressions / atoms
     // these are expressions whose type can be readily known
@@ -596,6 +625,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 self.next();
                 Ok(func)
             }
+            TokenType::LBRACK => {
+                let literal = self.parse_expr_list(&value, TokenType::RBRACK)?;
+                let span = value.span + self.peek_some()?.span;
+                self.next();
+                Ok(Node::ListLit(literal).to_spanned(span))
+            }
             TokenType::IDENTIFIER => Ok(Node::Variable(self.text(value)).to_spanned(value.span)),
             TokenType::WHILE => self.parse_while_loop(),
             TokenType::IF => self.parse_branch(),
@@ -603,7 +638,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             TokenType::LOOP => self.parse_loop(),
             TokenType::RETURN => {
                 let expr = self.parse_expr()?;
-                if expr.unspanned == Node::DontResult {
+                if expr.item == Node::DontResult {
                     return Ok(Node::ReturnNode(bx!(Value::Null.to_nodespan(expr.span)))
                         .to_spanned(value.span));
                 }
@@ -616,7 +651,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             TokenType::LPAREN => self.parse_paren(value.clone()),
 
             TokenType::NEW => self.parse_constructor(),
-            TokenType::SEMICOLON => Ok(Spanned::new(Node::DontResult, (0, 0))),
+            TokenType::SEMICOLON => Ok(Spanned::new(Node::DontResult, Span(0, 0))),
             _ => Err(ParseError::UnexpectedToken(value.clone())),
         }
     }

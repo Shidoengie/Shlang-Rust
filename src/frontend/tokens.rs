@@ -55,7 +55,7 @@ pub enum TokenType {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
     pub kind: TokenType,
-    pub span: (usize, usize),
+    pub span: Span,
 }
 pub trait TokenEq {
     fn is(&self, kind: &TokenType) -> bool;

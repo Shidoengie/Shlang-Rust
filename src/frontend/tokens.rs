@@ -51,6 +51,8 @@ pub enum TokenType {
     STAR_EQUAL,
     SLASH_EQUAL,
     NEW,
+    FOR,
+    IN,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
@@ -109,6 +111,8 @@ pub fn map_keyword(text: String) -> Option<TokenType> {
         "struct" => TokenType::STRUCT,
         "continue" => TokenType::CONTINUE,
         "new" => TokenType::NEW,
+        "for" => TokenType::FOR,
+        "in" => TokenType::IN,
         _ => return None,
     };
     Some(res)

@@ -186,9 +186,11 @@ pub enum Node {
     },
     ListLit(Vec<NodeSpan>),
     Call(Call),
+
     Branch(Branch),
     Loop(NodeStream),
     While(While),
+    ForLoop(ForLoop),
     DoBlock(NodeStream),
     Constructor(Constructor),
     StructDef(StructDef),
@@ -247,7 +249,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { UnaryNode Constructor StructDef  FieldAccess BinaryNode Call Assignment Declaration Branch While}
+nodes_from! { UnaryNode Constructor StructDef  FieldAccess BinaryNode Call Assignment Declaration Branch While ForLoop}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
@@ -363,6 +365,12 @@ impl Branch {
 #[derive(Clone, Debug, PartialEq)]
 pub struct While {
     pub condition: NodeRef,
+    pub proc: NodeStream,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct ForLoop {
+    pub ident: String,
+    pub list: Box<NodeSpan>,
     pub proc: NodeStream,
 }
 pub type VarMap = HashMap<String, Value>;

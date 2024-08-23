@@ -607,6 +607,39 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         Err(ParseError::UnexpectedFieldNode(node))
     }
+    fn anon_struct(&mut self) -> ParseRes<NodeSpan> {
+        let token = self.peek_some()?;
+        let mut fields: Vec<Spanned<Field>> = vec![];
+        if token.is(&TokenType::RBRACE) {
+            return Ok(StructDef {
+                fields: vec![],
+                name: None,
+            }
+            .to_nodespan(token.span + 1));
+        }
+        loop {
+            let target = self.consume(TokenType::IDENTIFIER)?;
+            self.consume(TokenType::COLON)?;
+            let expr = self.parse_expr()?;
+            let span = expr.span.clone();
+            let field_name = self.text(&target);
+            fields.push(Spanned::new(
+                Field::Declaration(Declaration {
+                    var_name: field_name,
+                    value: bx!(expr),
+                }),
+                span,
+            ));
+            if self.peek().is(&TokenType::COMMA) {
+                self.next();
+            }
+            if self.peek().is(&TokenType::RBRACE) {
+                break;
+            }
+        }
+        let span = token.span + self.next().unwrap().span;
+        Ok(StructDef { fields, name: None }.to_nodespan(span))
+    }
     fn parse_struct(&mut self) -> ParseRes<NodeSpan> {
         let first = self.peek_some()?;
         let maybe_named = self.is_expected(TokenType::IDENTIFIER);
@@ -640,6 +673,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         .to_nodespan(span);
         Ok(def)
     }
+
     fn parse_field_access(&mut self, target: NodeSpan, span: Span) -> ParseRes<NodeSpan> {
         self.next();
         let requested = self.primary_prec()?;
@@ -670,6 +704,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         Ok(body)
     }
+
     fn parse_constructor(&mut self) -> ParseRes<NodeSpan> {
         let first = self.peek_some()?;
         let ident = self.consume(TokenType::IDENTIFIER)?;
@@ -710,6 +745,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 self.next();
                 Ok(Node::ListLit(literal).to_spanned(span))
             }
+            TokenType::LBRACE => self.anon_struct(),
             TokenType::IDENTIFIER => Ok(Node::Variable(self.text(value)).to_spanned(value.span)),
             TokenType::WHILE => self.parse_while_loop(),
             TokenType::IF => self.parse_branch(),

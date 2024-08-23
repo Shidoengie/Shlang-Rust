@@ -81,7 +81,9 @@ pub fn var_map() -> VarMap {
     ]
 }
 fn delete_var(scope: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Str(val) = &args[0] else {return NULL;};
+    let Value::Str(val) = &args[0] else {
+        return NULL;
+    };
     if !scope.vars.contains_key(val) {
         return NULL;
     }
@@ -113,13 +115,21 @@ pub fn list_struct() -> Struct {
     }
 }
 fn list_len(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Ref(key) = &args[0] else { return NULL;};
-    let Value::List(list) = heap.get(*key).unwrap() else {return NULL;};
+    let Value::Ref(key) = &args[0] else {
+        return NULL;
+    };
+    let Value::List(list) = heap.get(*key).unwrap() else {
+        return NULL;
+    };
     Value::Num(list.len() as f64)
 }
 fn list_push(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
-    let [Value::Ref(key),val] = &args[..2] else { return NULL;};
-    let Value::List(mut list) = heap.get(*key).unwrap().clone() else {return NULL;};
+    let [Value::Ref(key), val] = &args[..2] else {
+        return NULL;
+    };
+    let Value::List(mut list) = heap.get(*key).unwrap().clone() else {
+        return NULL;
+    };
     list.push(val.clone());
     heap[*key] = Value::List(list.clone());
     Value::List(list)
@@ -139,7 +149,9 @@ pub fn str_struct() -> Struct {
     }
 }
 fn str_remove(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Str(ref mut value) = args[0].clone() else {return NULL;};
+    let Value::Str(ref mut value) = args[0].clone() else {
+        return NULL;
+    };
     let target = &args[1];
     match target {
         Value::Num(index) => {
@@ -155,22 +167,32 @@ fn str_remove(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -
 }
 
 fn str_replace(scope: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
-    let [Value::Str(ref value),Value::Str(ref target),Value::Str(ref filler)] = args[..3] else { return NULL; };
+    let [Value::Str(ref value), Value::Str(ref target), Value::Str(ref filler)] = args[..3] else {
+        return NULL;
+    };
     Value::Str(value.replace(target, filler))
 }
 fn substr_method(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let [Value::Str(value),Value::Num(start), Value::Num(end)] = &args[..3] else { return NULL; };
+    let [Value::Str(value), Value::Num(start), Value::Num(end)] = &args[..3] else {
+        return NULL;
+    };
     let sub = &value[start.clone() as usize..end.clone() as usize];
     Value::Str(sub.to_string())
 }
 fn len_method(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Str(value) = &args[0] else { return NULL;};
+    let Value::Str(value) = &args[0] else {
+        return NULL;
+    };
     Value::Num(value.len() as f64)
 }
 
 fn char_at_method(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Str(value) = &args[0] else { return NULL;};
-    let Value::Num(index) = &args[1] else { return NULL;};
+    let Value::Str(value) = &args[0] else {
+        return NULL;
+    };
+    let Value::Num(index) = &args[1] else {
+        return NULL;
+    };
 
     value
         .chars()
@@ -184,7 +206,7 @@ fn println_builtin(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, V
     }
     let mut out = "".to_string();
     for val in args {
-        out += format!(" {}", deref(val, heap).to_string()).as_str();
+        out += format!(" {}", deref_val(val, heap).to_string()).as_str();
     }
     out = out.trim().to_string();
     println!("{out}");
@@ -198,7 +220,7 @@ fn print_builtin(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Val
     }
     let mut out = "".to_string();
     for val in args {
-        out += format!(" {}", deref(val, heap).to_string()).as_str();
+        out += format!(" {}", deref_val(val, heap).to_string()).as_str();
     }
     out = out.trim().to_string();
     print!("{out}");
@@ -206,8 +228,12 @@ fn print_builtin(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Val
     NULL
 }
 fn open_textfile(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Str(path) = &args[0] else {return NULL;};
-    let Ok(contents) = fs::read_to_string(path)  else {return NULL;};
+    let Value::Str(path) = &args[0] else {
+        return NULL;
+    };
+    let Ok(contents) = fs::read_to_string(path) else {
+        return NULL;
+    };
     return Value::Str(contents);
 }
 fn typeof_node(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
@@ -220,38 +246,54 @@ fn typeof_node(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value
     Value::Str(out)
 }
 fn parse_num(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Str(input) = &args[0] else {return NULL;};
+    let Value::Str(input) = &args[0] else {
+        return NULL;
+    };
     Value::Num(input.parse().unwrap())
 }
 fn min(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let [Value::Num(val1),Value::Num(val2)] = &args[..2] else {return NULL;};
+    let [Value::Num(val1), Value::Num(val2)] = &args[..2] else {
+        return NULL;
+    };
     Value::Num(val1.min(*val2))
 }
 fn max(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let [Value::Num(val1),Value::Num(val2)] = &args[..2] else {return NULL;};
+    let [Value::Num(val1), Value::Num(val2)] = &args[..2] else {
+        return NULL;
+    };
     Value::Num(val1.max(*val2))
 }
 fn pow(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let [Value::Num(val1),Value::Num(val2)] = &args[..2] else {return NULL;};
+    let [Value::Num(val1), Value::Num(val2)] = &args[..2] else {
+        return NULL;
+    };
     Value::Num(val1.powf(*val2))
 }
 fn cos(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Num(val1) = &args[0] else {return NULL;};
+    let Value::Num(val1) = &args[0] else {
+        return NULL;
+    };
     Value::Num(val1.cos())
 }
 fn tan(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Num(val1) = &args[0] else {return NULL;};
+    let Value::Num(val1) = &args[0] else {
+        return NULL;
+    };
     Value::Num(val1.tan())
 }
 fn sin(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Num(val1) = &args[0] else {return NULL;};
+    let Value::Num(val1) = &args[0] else {
+        return NULL;
+    };
     Value::Num(val1.sin())
 }
 fn sqrt(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Num(val1) = &args[0] else {return NULL;};
+    let Value::Num(val1) = &args[0] else {
+        return NULL;
+    };
     Value::Num(val1.sqrt())
 }
-fn deref(val: Value, heap: &SlotMap<RefKey, Value>) -> Value {
+pub fn deref_val(val: Value, heap: &SlotMap<RefKey, Value>) -> Value {
     if let Value::Ref(id) = val {
         return heap[id].clone();
     }
@@ -279,7 +321,9 @@ fn unix_time(_: &mut Scope, _: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Va
     )
 }
 fn wait_builtin(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Num(val1) = &args[0] else {return NULL;};
+    let Value::Num(val1) = &args[0] else {
+        return NULL;
+    };
     thread::sleep(Duration::from_millis((val1 * 1000.0).floor() as u64));
     NULL
 }
@@ -296,7 +340,9 @@ fn input_builtin(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>
     return Value::Str(String::from(result.trim()));
 }
 pub fn eval(scope: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Str(source) = &args[0] else {return NULL};
+    let Value::Str(source) = &args[0] else {
+        return NULL;
+    };
     let mut parser = Parser::new(source.as_str());
     let ast_result = parser.parse();
     let Ok(ast) = ast_result else {
@@ -304,20 +350,30 @@ pub fn eval(scope: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Valu
     };
     let mut inter = Interpreter::new(ast);
     inter.heap = heap.clone();
-    let Ok(result) = inter.execute_with(&mut scope.clone()) else {return Value::Null;};
+    let Ok(result) = inter.execute_with(&mut scope.clone()) else {
+        return Value::Null;
+    };
 
     result
 }
 fn import_var(parent: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
-    let Value::Str(path) = &args[0] else {return NULL;};
-    let Ok(source) = fs::read_to_string(path) else {return NULL;};
+    let Value::Str(path) = &args[0] else {
+        return NULL;
+    };
+    let Ok(source) = fs::read_to_string(path) else {
+        return NULL;
+    };
     let mut parser = Parser::new(source.as_str());
-    let Ok(ast) = parser.parse() else {return NULL;};
+    let Ok(ast) = parser.parse() else {
+        return NULL;
+    };
     let mut inter = Interpreter::new(ast);
     let base = Scope::from_vars(vars!(
         __name__ => Value::Str("lib".to_string())
     ));
-    let Ok(scope) = inter.parse_vars(base) else {return NULL;};
+    let Ok(scope) = inter.parse_vars(base) else {
+        return NULL;
+    };
     let heapstuff = |(name, val): (&String, &Value)| -> (String, Value) {
         let mut new_val = val.to_owned();
         if let Value::Ref(id) = val {

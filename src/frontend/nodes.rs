@@ -42,7 +42,7 @@ impl Value {
             Value::Num(_) => Type::Num,
             Value::List(_) => Type::List,
             Value::Struct(obj) => Type::Struct(obj.id.clone()),
-            _ => unimplemented!(),
+            Value::Ref(_) => Type::Ref,
         }
     }
     pub fn repr(&self) -> String {
@@ -53,6 +53,7 @@ impl Value {
             Self::Null => "null".to_string(),
             Self::Void => "void".to_string(),
             Self::List(list) => list_repr(list),
+            Self::Struct(obj) => obj.repr(),
             _ => "unnamed".to_string(),
         }
     }
@@ -86,7 +87,19 @@ pub struct Struct {
     pub id: Option<String>,
     pub env: Scope,
 }
-
+impl Struct {
+    pub fn repr(&self) -> String {
+        let mut buffer = String::from("{");
+        let vars = &self.env.vars;
+        for (k, v) in vars.into_iter() {
+            buffer += k;
+            buffer += ":";
+            buffer += &v.repr();
+        }
+        buffer += "}";
+        buffer
+    }
+}
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
     pub block: NodeStream,
@@ -150,6 +163,7 @@ pub enum Type {
     Function,
     List,
     Struct(Option<String>),
+    Ref,
 }
 
 impl ToString for Type {
@@ -164,6 +178,7 @@ impl ToString for Type {
             Self::List => "list",
             Self::Struct(Some(id)) => id,
             Self::Struct(None) => "struct",
+            Self::Ref => "ref",
         };
         txt.to_string()
     }

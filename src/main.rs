@@ -9,6 +9,12 @@ use std::io::Write;
 use std::*;
 use Shlang::frontend::nodes::RefKey;
 use Shlang::*;
+fn deref_val(val: Value, heap: &SlotMap<RefKey, Value>) -> Value {
+    if let Value::Ref(id) = val {
+        return heap[id].clone();
+    }
+    val
+}
 fn input(message: &str) -> String {
     print!("{message} ");
     io::stdout().flush().unwrap();
@@ -77,7 +83,10 @@ fn repl() {
         let mut inter = Interpreter::new(ast);
         inter.heap = heap;
         match inter.execute_with(&mut scope) {
-            Ok(result) => println!("{}", result.repr().bright_black()),
+            Ok(raw) => {
+                let output = deref_val(raw, &inter.heap);
+                println!("{}", output.repr().bright_black())
+            }
             Err(err) => err.print_msg(err_out),
         };
         heap = inter.heap;

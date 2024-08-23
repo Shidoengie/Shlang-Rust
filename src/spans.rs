@@ -12,9 +12,15 @@ impl<T> Spanned<T> {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub struct Span(pub usize, pub usize);
-impl Add for Span {
+impl Add<Self> for Span {
     type Output = Span;
     fn add(self, rhs: Span) -> Self::Output {
         Span(self.0, rhs.1)
+    }
+}
+impl Add<usize> for Span {
+    type Output = Span;
+    fn add(self, rhs: usize) -> Self::Output {
+        Span(self.0, self.1 + rhs)
     }
 }

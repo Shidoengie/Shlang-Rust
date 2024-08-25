@@ -28,11 +28,14 @@ macro_rules! unwrap_val {
     };
 }
 
-type EvalRes<T> = Result<T, InterpreterError>;
+type EvalRes<T> = Result<T, Spanned<InterpreterError>>;
 const VOID: EvalRes<Control> = Ok(Control::Value(Value::Void));
 const NULL: EvalRes<Control> = Ok(Control::Value(Value::Null));
 fn unspec_err<T>(msg: &str, span: Span) -> EvalRes<T> {
-    return Err(IError::Unspecified(msg.to_string(), span));
+    return Err(IError::Unspecified(msg.to_string()).to_spanned(span));
+}
+fn type_err<T>(expected: Type, got: Type, span: Span) -> EvalRes<T> {
+    return Err(IError::InvalidType(vec![expected], got).to_spanned(span));
 }
 #[derive(Debug)]
 pub struct Interpreter {
@@ -64,7 +67,7 @@ impl Interpreter {
                 last = val;
                 continue;
             }
-            return Err(IError::InvalidControl(node.span));
+            return Err(IError::InvalidControl.to_spanned(node.span));
         }
 
         Ok(last)
@@ -86,7 +89,7 @@ impl Interpreter {
             if let Control::Value(_) = self.eval_node(&node, &mut parent)? {
                 continue;
             }
-            return Err(IError::InvalidControl(node.span));
+            return Err(IError::InvalidControl.to_spanned(node.span));
         }
         Ok(parent)
     }
@@ -160,14 +163,14 @@ impl Interpreter {
                 continue;
             }
             let Some(mod_parent) = base.parent else {
-                return Err(IError::InvalidControl(node.span));
+                return Err(IError::InvalidControl.to_spanned(node.span));
             };
             *parent = *mod_parent;
             return Ok(result);
         }
 
         let Some(mod_parent) = base.parent else {
-            return Err(IError::InvalidControl(Span(0, 0)));
+            return Err(IError::InvalidControl.to_spanned(Span(0, 0)));
         };
         *parent = *mod_parent;
         NULL
@@ -177,24 +180,17 @@ impl Interpreter {
 ///Binary and unary operators
 impl Interpreter {
     fn unary_calc(&self, node: UnaryNode, target: Value) -> EvalRes<Control> {
+        let span = node.object.span;
         match node.kind {
             UnaryOp::NEGATIVE => {
                 let Value::Num(val) = target else {
-                    return Err(IError::InvalidType(
-                        vec![Type::Num],
-                        target.get_type(),
-                        node.object.span,
-                    ));
+                    return type_err(Type::Num, target.get_type(), span);
                 };
                 Ok(Control::Value(Value::Num(-val)))
             }
             UnaryOp::NOT => {
                 let Value::Bool(val) = target else {
-                    return Err(IError::InvalidType(
-                        vec![Type::Bool],
-                        target.get_type(),
-                        node.object.span,
-                    ));
+                    return type_err(Type::Bool, target.get_type(), span);
                 };
                 Ok(Control::Value(Value::Bool(!val)))
             }
@@ -214,11 +210,8 @@ impl Interpreter {
             BinaryOp::ISEQUAL => Value::Bool(left == right),
             BinaryOp::ISDIFERENT => Value::Bool(left != right),
             op => {
-                return Err(IError::InvalidOp(
-                    op,
-                    Type::Num,
-                    Span(node.left.span.1, node.right.span.0),
-                ))
+                return Err(IError::InvalidOp(op, Type::Num)
+                    .to_spanned(Span(node.left.span.1, node.right.span.0)))
             }
         };
         Ok(Control::Value(res))
@@ -233,11 +226,8 @@ impl Interpreter {
             BinaryOp::ISEQUAL => Value::Bool(left == right),
             BinaryOp::ISDIFERENT => Value::Bool(left != right),
             op => {
-                return Err(IError::InvalidOp(
-                    op,
-                    Type::Str,
-                    Span(node.left.span.1, node.right.span.0),
-                ))
+                return Err(IError::InvalidOp(op, Type::Str)
+                    .to_spanned(Span(node.left.span.1, node.right.span.0)))
             }
         };
         Ok(Control::Value(res))
@@ -247,11 +237,8 @@ impl Interpreter {
             BinaryOp::AND => Value::Bool(left && right),
             BinaryOp::OR => Value::Bool(left || right),
             op => {
-                return Err(IError::InvalidOp(
-                    op,
-                    Type::Bool,
-                    Span(node.left.span.1, node.right.span.0),
-                ))
+                return Err(IError::InvalidOp(op, Type::Bool)
+                    .to_spanned(Span(node.left.span.1, node.right.span.0)))
             }
         };
         Ok(Control::Value(res))
@@ -268,11 +255,8 @@ impl Interpreter {
         }
 
         if !left.matches_typeof(&right) {
-            return Err(IError::MixedTypes(
-                left_type,
-                right_type,
-                Span(bin_op.left.span.0 - 1, bin_op.right.span.1),
-            ));
+            return Err(IError::MixedTypes(left_type, right_type)
+                .to_spanned(bin_op.left.span + bin_op.right.span));
         }
         match (left, right) {
             (Value::Num(left), Value::Num(right)) => {
@@ -286,7 +270,7 @@ impl Interpreter {
             }
             _ => {}
         }
-        Err(IError::InvalidBinary(left_type, bin_op.left.span))
+        Err(IError::InvalidBinary(left_type).to_spanned(bin_op.left.span))
     }
 }
 
@@ -295,11 +279,7 @@ impl Interpreter {
     fn branch(&mut self, branch: Branch, parent: &mut Scope) -> EvalRes<Control> {
         let condition = unwrap_val!(self.eval_node(&branch.condition, parent)?);
         let Value::Bool(cond_val) = condition else {
-            return Err(IError::InvalidType(
-                vec![Type::Bool],
-                condition.get_type(),
-                branch.condition.span,
-            ));
+            return type_err(Type::Bool, condition.get_type(), branch.condition.span);
         };
         if cond_val {
             return self.eval_block(branch.if_block, parent);
@@ -322,12 +302,9 @@ impl Interpreter {
     fn eval_while_loop(&mut self, loop_node: While, parent: &mut Scope) -> EvalRes<Control> {
         loop {
             let condition = unwrap_val!(self.eval_node(&loop_node.condition, parent)?);
+
             let Value::Bool(cond_val) = condition else {
-                return Err(IError::InvalidType(
-                    vec![Type::Bool],
-                    condition.get_type(),
-                    loop_node.condition.span,
-                ));
+                return type_err(Type::Bool, condition.get_type(), loop_node.condition.span);
             };
             if !cond_val {
                 return NULL;
@@ -341,28 +318,17 @@ impl Interpreter {
         }
     }
     fn eval_for_loop(&mut self, for_loop: ForLoop, parent: &mut Scope) -> EvalRes<Control> {
+        let list_span = for_loop.list.span;
         let list_ref = match unwrap_val!(self.eval_node(&for_loop.list, parent)?) {
             Value::Ref(id) => id,
-            invalid => {
-                return Err(InterpreterError::InvalidType(
-                    vec![Type::List],
-                    invalid.get_type(),
-                    for_loop.list.span,
-                ))
-            }
+            invalid => return type_err(Type::List, invalid.get_type(), list_span),
         };
         let mut cursor: usize = 0;
 
         loop {
             let list = match &self.heap[list_ref] {
                 Value::List(id) => id,
-                invalid => {
-                    return Err(InterpreterError::InvalidType(
-                        vec![Type::List],
-                        invalid.get_type(),
-                        for_loop.list.span,
-                    ))
-                }
+                invalid => return type_err(Type::List, invalid.get_type(), list_span),
             };
             let len = list.len();
 
@@ -375,6 +341,7 @@ impl Interpreter {
                     hashmap! {},
                 ),
             )?;
+
             cursor += 1;
             match result {
                 Control::Break => return NULL,
@@ -382,6 +349,7 @@ impl Interpreter {
                     if cursor == len {
                         return Ok(result);
                     }
+
                     continue;
                 }
                 _ => return Ok(result),
@@ -395,7 +363,7 @@ impl Interpreter {
     fn declare(&mut self, request: Declaration, parent: &mut Scope) -> EvalRes<Control> {
         let value = unwrap_val!(self.eval_node(&request.value, parent)?);
         if value.is_void() {
-            return Err(IError::VoidAssignment(request.value.span));
+            return Err(IError::VoidAssignment.to_spanned(request.value.span));
         }
         parent.define(request.var_name, value);
         VOID
@@ -410,7 +378,7 @@ impl Interpreter {
     fn default_scope(&self, name: String, span: Span) -> EvalRes<Control> {
         let maybe_result = Scope::new(None, defaults::var_map(), HashMap::from([])).get_var(&name);
         let Some(result) = maybe_result else {
-            return Err(IError::NonExistentVar(name, span));
+            return Err(IError::NonExistentVar(name).to_spanned(span));
         };
         Ok(Control::Value(result))
     }
@@ -549,11 +517,11 @@ impl Interpreter {
         target: &mut Scope,
     ) -> EvalRes<Control> {
         if value.is_void() {
-            return Err(IError::VoidAssignment(span));
+            return Err(IError::VoidAssignment.to_spanned(span));
         }
 
         if target.assign(name.clone(), value).is_none() {
-            return Err(IError::InvalidAssignment(name, span));
+            return Err(IError::InvalidAssignment(name).to_spanned(span));
         }
 
         VOID
@@ -572,13 +540,7 @@ impl Interpreter {
         };
         let mut list = match &self.heap[id] {
             Value::List(ls) => ls.clone(),
-            unex => {
-                return Err(IError::InvalidType(
-                    vec![Type::List],
-                    unex.get_type(),
-                    index_node.span,
-                ))
-            }
+            invalid => return type_err(Type::List, invalid.get_type(), index_node.span),
         };
 
         let idx = og_idx.floor() as usize;
@@ -633,13 +595,7 @@ impl Interpreter {
             Value::Function(called) => {
                 self.call_func(called, arg_values, request.callee.span, parent)
             }
-            _ => {
-                return Err(IError::InvalidType(
-                    vec![Type::Function],
-                    func_val.get_type(),
-                    request.callee.span,
-                ))
-            }
+            _ => return type_err(Type::Function, func_val.get_type(), request.callee.span),
         }
     }
     fn call_func(
@@ -651,17 +607,18 @@ impl Interpreter {
         parent: &mut Scope,
     ) -> EvalRes<Control> {
         if args.len() != called.args.len() {
-            return Err(IError::InvalidArgSize(
-                called.args.len() as u32,
-                args.len() as u32,
-                span,
-            ));
+            return Err(
+                IError::InvalidArgSize(called.args.len() as u32, args.len() as u32)
+                    .to_spanned(span),
+            );
         }
         let arg_map = self.build_args(&called, args);
         let arg_scope = Scope::new(None, arg_map, HashMap::new());
         let result = self.eval_block_with(called.block, parent, arg_scope)?;
         match result {
-            Control::Continue | Control::Break => return Err(IError::InvalidControl(span)),
+            Control::Continue | Control::Break => {
+                return Err(IError::InvalidControl.to_spanned(span))
+            }
             Control::Result(val) | Control::Return(val) | Control::Value(val) => {
                 return Ok(Control::Value(val))
             }
@@ -682,11 +639,10 @@ impl Interpreter {
         parent: &mut Scope,
     ) -> EvalRes<Control> {
         if called.arg_size != -1 && arg_values.len() as i16 != called.arg_size {
-            return Err(IError::InvalidArgSize(
-                called.arg_size as u32,
-                arg_values.len() as u32,
-                span,
-            ));
+            return Err(
+                IError::InvalidArgSize(called.arg_size as u32, arg_values.len() as u32)
+                    .to_spanned(span),
+            );
         }
         let result = (called.function)(parent, arg_values, &mut self.heap);
         Ok(Control::Value(result))
@@ -719,13 +675,7 @@ impl Interpreter {
             Value::Function(called) => {
                 self.call_func(called, arg_values, request.callee.span, obj_env)
             }
-            _ => {
-                return Err(IError::InvalidType(
-                    vec![Type::Function],
-                    func_val.get_type(),
-                    request.callee.span,
-                ))
-            }
+            _ => type_err(Type::Function, func_val.get_type(), request.callee.span),
         }
     }
 
@@ -745,7 +695,7 @@ impl Interpreter {
     fn eval_structdef(&mut self, def: StructDef, parent: &mut Scope) -> EvalRes<Control> {
         let mut struct_env = Scope::default();
         for field in def.fields {
-            self.eval_node(&field.to_nodespan(), &mut struct_env)?;
+            self.eval_node(&field.to_node(), &mut struct_env)?;
         }
         let mut obj = Struct {
             id: def.name.clone(),
@@ -787,13 +737,7 @@ impl Interpreter {
             (Value::Ref(id), Value::Num(og_idx)) => {
                 let list = match &self.heap[id] {
                     Value::List(ls) => ls,
-                    unex => {
-                        return Err(IError::InvalidType(
-                            vec![Type::List],
-                            unex.get_type(),
-                            index_node.span,
-                        ))
-                    }
+                    invalid => return type_err(Type::List, invalid.get_type(), target_node.span),
                 };
 
                 let idx = og_idx.floor() as usize;

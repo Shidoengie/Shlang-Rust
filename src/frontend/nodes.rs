@@ -213,9 +213,6 @@ pub enum Node {
     DontResult,
 }
 impl Node {
-    pub fn to_spanned(&self, span: Span) -> NodeSpan {
-        NodeSpan::new(self.clone(), span)
-    }
     pub fn can_result(&self) -> bool {
         matches!(
             self.clone(),
@@ -227,6 +224,7 @@ impl Node {
         )
     }
 }
+impl IntoSpanned for Node {}
 
 pub type NodeSpan = Spanned<Node>;
 pub type NodeRef = Box<Spanned<Node>>;
@@ -331,7 +329,7 @@ pub enum Field {
     StructDef(StructDef),
 }
 impl Spanned<Field> {
-    pub fn to_nodespan(&self) -> NodeSpan {
+    pub fn to_node(&self) -> NodeSpan {
         match &self.item {
             Field::Declaration(decl) => NodeSpan::new(Node::Declaration(decl.clone()), self.span),
             Field::StructDef(decl) => NodeSpan::new(Node::StructDef(decl.clone()), self.span),

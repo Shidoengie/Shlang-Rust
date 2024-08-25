@@ -8,8 +8,10 @@ use crate::bx;
 use crate::lang_errors::*;
 use crate::spans::*;
 
-pub type ParseRes<T> = Result<T, ParseError>;
-
+pub type ParseRes<T> = Result<T, Spanned<ParseError>>;
+fn unexpected_token<T>(token: Token) -> ParseRes<T> {
+    Err(ParseError::UnexpectedToken(token.kind).to_spanned(token.span))
+}
 #[derive(Clone)]
 pub struct Parser<'input, I>
 where
@@ -59,7 +61,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     // this is used for expressions that require the existence of a current token
     fn peek_some(&mut self) -> ParseRes<Token> {
         let Some(peeked) = self.tokens.peek().cloned() else {
-            return Err(ParseError::UnexpectedStreamEnd);
+            return Err(ParseError::UnexpectedStreamEnd.to_spanned(Span::EMPTY));
         };
         Ok(peeked)
     }
@@ -73,7 +75,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         if token.is(&expected) {
             return Ok(());
         }
-        Err(ParseError::InvalidToken(expected, token))
+        Err(ParseError::InvalidToken(expected, token.kind).to_spanned(token.span))
     }
     /// peeks the current token and checks if it is the same as the expected token returning an error if it isnt
     /// this is also used for validating expressions
@@ -164,12 +166,13 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let ident = self.expect(TokenType::IDENTIFIER)?;
         let var_name = self.text(&ident);
         self.next();
-        match self.peek_some()?.kind {
+        let last = self.peek_some()?;
+        match last.kind {
             TokenType::SEMICOLON => return Ok(self.empty_var_decl(ident, var_name)),
             TokenType::EQUAL => return self.var_decl(var_name, ident),
             _ => {}
         }
-        Err(ParseError::UnexpectedToken(self.peek_some()?))
+        Err(ParseError::UnexpectedToken(last.kind).to_spanned(last.span))
     }
     // Parses tokens into an assignment node
     fn parse_assignment(&mut self, target: NodeSpan, token: Token) -> ParseRes<NodeSpan> {
@@ -219,7 +222,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 ///function parsing
 impl<'input> Parser<'input, Lexer<'input>> {
     // This function parses the parameters of function definitions aka: func >(one,two)<
-    fn parse_func_params(&mut self) -> Result<Vec<String>, ParseError> {
+    fn parse_func_params(&mut self) -> ParseRes<Vec<String>> {
         self.next();
         let mut token = self.peek_some()?;
         let mut params: Vec<String> = vec![];
@@ -240,7 +243,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 }
                 _ => {}
             }
-            return Err(ParseError::UnexpectedToken(token));
+            return unexpected_token(token);
         }
         self.next();
         Ok(params)
@@ -263,7 +266,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         .to_nodespan(func_span))
     }
     // This creates the function object which is passed as a value
-    fn build_func(&mut self) -> Result<Value, ParseError> {
+    fn build_func(&mut self) -> ParseRes<Value> {
         let params = self.parse_func_params()?;
         let func_block = self.parse_block()?;
         Ok(Function::new(func_block, params).into())
@@ -284,7 +287,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             TokenType::LPAREN => return self.parse_anon_func(&first),
             _ => {}
         };
-        Err(ParseError::UnexpectedToken(first))
+        unexpected_token(first)
     }
 }
 
@@ -308,7 +311,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 continue;
             }
 
-            return Err(ParseError::UnexpectedToken(token));
+            return unexpected_token(token);
         }
         Ok(params)
     }
@@ -416,7 +419,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let index = self.parse_expr()?;
         let last = self.peek_some()?;
         if last.isnt(&TokenType::RBRACK) {
-            return Err(ParseError::UnexpectedToken(last));
+            return unexpected_token(last);
         }
         self.next();
         let span = first.span + last.span;
@@ -445,7 +448,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn parse_paren(&mut self, paren: Token) -> ParseRes<NodeSpan> {
         let expr = self.parse_expr()?;
         let Some(end) = self.peek() else {
-            return Err(ParseError::UnterminatedParetheses(paren));
+            return Err(ParseError::UnterminatedParetheses(paren.kind).to_spanned(paren.span));
         };
         self.check_valid(TokenType::RPAREN, end)?;
         self.next();
@@ -605,7 +608,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             Node::StructDef(def) => return Ok(Spanned::new(Field::StructDef(def), node.span)),
             _ => {}
         }
-        Err(ParseError::UnexpectedFieldNode(node))
+        Err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span))
     }
     fn anon_struct(&mut self) -> ParseRes<NodeSpan> {
         let token = self.peek_some()?;
@@ -723,7 +726,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     // these are expressions whose type can be readily known
     fn atom_parser(&mut self, peeked: Option<&Token>) -> ParseRes<NodeSpan> {
         let Some(value) = peeked else {
-            return Err(ParseError::UnexpectedStreamEnd);
+            return Err(ParseError::UnexpectedStreamEnd.to_spanned(Span::EMPTY));
         };
 
         match &value.kind {
@@ -761,7 +764,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
             TokenType::NEW => self.parse_constructor(),
             TokenType::SEMICOLON => Ok(Spanned::new(Node::DontResult, Span(0, 0))),
-            _ => Err(ParseError::UnexpectedToken(value.clone())),
+            _ => unexpected_token(value.clone()),
         }
     }
 

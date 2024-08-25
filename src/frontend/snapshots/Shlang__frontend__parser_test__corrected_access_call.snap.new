@@ -1,0 +1,136 @@
+---
+source: src/frontend/parser_test.rs
+assertion_line: 23
+expression: "parse_expr(\"(((a.b()).c()).d()).e()\")"
+---
+Ok(
+    Spanned {
+        item: FieldAccess(
+            FieldAccess {
+                target: Spanned {
+                    item: FieldAccess(
+                        FieldAccess {
+                            target: Spanned {
+                                item: FieldAccess(
+                                    FieldAccess {
+                                        target: Spanned {
+                                            item: FieldAccess(
+                                                FieldAccess {
+                                                    target: Spanned {
+                                                        item: Variable(
+                                                            "a",
+                                                        ),
+                                                        span: Span(
+                                                            3,
+                                                            4,
+                                                        ),
+                                                    },
+                                                    requested: Spanned {
+                                                        item: Call(
+                                                            Call {
+                                                                callee: Spanned {
+                                                                    item: Variable(
+                                                                        "b",
+                                                                    ),
+                                                                    span: Span(
+                                                                        5,
+                                                                        6,
+                                                                    ),
+                                                                },
+                                                                args: [],
+                                                            },
+                                                        ),
+                                                        span: Span(
+                                                            6,
+                                                            8,
+                                                        ),
+                                                    },
+                                                },
+                                            ),
+                                            span: Span(
+                                                4,
+                                                5,
+                                            ),
+                                        },
+                                        requested: Spanned {
+                                            item: Call(
+                                                Call {
+                                                    callee: Spanned {
+                                                        item: Variable(
+                                                            "c",
+                                                        ),
+                                                        span: Span(
+                                                            10,
+                                                            11,
+                                                        ),
+                                                    },
+                                                    args: [],
+                                                },
+                                            ),
+                                            span: Span(
+                                                11,
+                                                13,
+                                            ),
+                                        },
+                                    },
+                                ),
+                                span: Span(
+                                    9,
+                                    10,
+                                ),
+                            },
+                            requested: Spanned {
+                                item: Call(
+                                    Call {
+                                        callee: Spanned {
+                                            item: Variable(
+                                                "d",
+                                            ),
+                                            span: Span(
+                                                15,
+                                                16,
+                                            ),
+                                        },
+                                        args: [],
+                                    },
+                                ),
+                                span: Span(
+                                    16,
+                                    18,
+                                ),
+                            },
+                        },
+                    ),
+                    span: Span(
+                        14,
+                        15,
+                    ),
+                },
+                requested: Spanned {
+                    item: Call(
+                        Call {
+                            callee: Spanned {
+                                item: Variable(
+                                    "e",
+                                ),
+                                span: Span(
+                                    20,
+                                    21,
+                                ),
+                            },
+                            args: [],
+                        },
+                    ),
+                    span: Span(
+                        21,
+                        23,
+                    ),
+                },
+            },
+        ),
+        span: Span(
+            19,
+            20,
+        ),
+    },
+)

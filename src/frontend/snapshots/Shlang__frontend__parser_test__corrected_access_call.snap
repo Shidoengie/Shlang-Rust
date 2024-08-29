@@ -25,10 +25,20 @@ Ok(
                                                         ),
                                                     },
                                                     requested: Spanned {
-                                                        item: Method {
-                                                            name: "b",
-                                                            args: [],
-                                                        },
+                                                        item: Call(
+                                                            Call {
+                                                                callee: Spanned {
+                                                                    item: Variable(
+                                                                        "b",
+                                                                    ),
+                                                                    span: Span(
+                                                                        4,
+                                                                        5,
+                                                                    ),
+                                                                },
+                                                                args: [],
+                                                            },
+                                                        ),
                                                         span: Span(
                                                             4,
                                                             5,
@@ -42,10 +52,20 @@ Ok(
                                             ),
                                         },
                                         requested: Spanned {
-                                            item: Method {
-                                                name: "c",
-                                                args: [],
-                                            },
+                                            item: Call(
+                                                Call {
+                                                    callee: Spanned {
+                                                        item: Variable(
+                                                            "c",
+                                                        ),
+                                                        span: Span(
+                                                            9,
+                                                            10,
+                                                        ),
+                                                    },
+                                                    args: [],
+                                                },
+                                            ),
                                             span: Span(
                                                 9,
                                                 10,
@@ -59,10 +79,20 @@ Ok(
                                 ),
                             },
                             requested: Spanned {
-                                item: Method {
-                                    name: "d",
-                                    args: [],
-                                },
+                                item: Call(
+                                    Call {
+                                        callee: Spanned {
+                                            item: Variable(
+                                                "d",
+                                            ),
+                                            span: Span(
+                                                14,
+                                                15,
+                                            ),
+                                        },
+                                        args: [],
+                                    },
+                                ),
                                 span: Span(
                                     14,
                                     15,
@@ -76,10 +106,20 @@ Ok(
                     ),
                 },
                 requested: Spanned {
-                    item: Method {
-                        name: "e",
-                        args: [],
-                    },
+                    item: Call(
+                        Call {
+                            callee: Spanned {
+                                item: Variable(
+                                    "e",
+                                ),
+                                span: Span(
+                                    19,
+                                    20,
+                                ),
+                            },
+                            args: [],
+                        },
+                    ),
                     span: Span(
                         19,
                         20,

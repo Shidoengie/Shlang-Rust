@@ -22,7 +22,7 @@ Ok(
                                             ),
                                         },
                                         requested: Spanned {
-                                            item: Property(
+                                            item: Variable(
                                                 "b",
                                             ),
                                             span: Span(
@@ -38,7 +38,7 @@ Ok(
                                 ),
                             },
                             requested: Spanned {
-                                item: Property(
+                                item: Variable(
                                     "c",
                                 ),
                                 span: Span(
@@ -54,7 +54,7 @@ Ok(
                     ),
                 },
                 requested: Spanned {
-                    item: Property(
+                    item: Variable(
                         "d",
                     ),
                     span: Span(

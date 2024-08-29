@@ -1,13 +1,13 @@
 use super::defaults;
-use crate::backend::scope::Scope;
+use super::scope::Scope;
 use crate::frontend::nodes::*;
 use crate::hashmap;
 use crate::lang_errors::*;
 use crate::spans::*;
+
 use slotmap::SlotMap;
 use std::collections::HashMap;
 use std::*;
-pub(super) type IError = InterpreterError;
 
 #[derive(Clone, Debug)]
 pub enum Control {
@@ -28,15 +28,11 @@ macro_rules! unwrap_val {
     };
 }
 
-pub(super) type EvalRes<T> = Result<T, Spanned<InterpreterError>>;
 const VOID: EvalRes<Control> = Ok(Control::Value(Value::Void));
 const NULL: EvalRes<Control> = Ok(Control::Value(Value::Null));
-fn unspec_err<T>(msg: &str, span: Span) -> EvalRes<T> {
-    return Err(IError::Unspecified(msg.to_string()).to_spanned(span));
-}
-fn type_err<T>(expected: Type, got: Type, span: Span) -> EvalRes<T> {
-    return Err(IError::InvalidType(vec![expected], got).to_spanned(span));
-}
+
+pub(super) type IError = InterpreterError;
+pub(super) type EvalRes<T> = Result<T, Spanned<InterpreterError>>;
 #[derive(Debug)]
 pub struct Interpreter {
     program: NodeStream,
@@ -383,7 +379,8 @@ impl Interpreter {
         Ok(Control::Value(result))
     }
 }
-//Field access
+
+///Variable and struct assignment
 impl Interpreter {
     fn eval_fieldacess(
         &mut self,
@@ -393,17 +390,17 @@ impl Interpreter {
     ) -> EvalRes<Control> {
         let target = unwrap_val!(self.eval_node(&request.target, parent)?);
 
-        self.eval_access(target, request.requested, base_env, parent)
+        self.eval_acess(target, *request.requested, base_env, parent)
     }
-    fn eval_access(
+    fn eval_acess(
         &mut self,
         target: Value,
-        requested: Spanned<AccessNode>,
+        requested: NodeSpan,
         base_env: &mut Scope,
         parent: &mut Scope,
     ) -> EvalRes<Control> {
         match target {
-            Value::Ref(id) => self.access_ref(id, requested, base_env, parent),
+            Value::Ref(id) => self.access_ref(id, requested.clone(), base_env, parent, requested),
 
             Value::Str(_) => self.eval_access_request(
                 requested,
@@ -424,25 +421,26 @@ impl Interpreter {
     fn access_ref(
         &mut self,
         id: RefKey,
-        request: Spanned<AccessNode>,
+        requested: NodeSpan,
         base_env: &mut Scope,
         parent: &mut Scope,
+        request: NodeSpan,
     ) -> EvalRes<Control> {
         match &self.heap[id] {
-            Value::Struct(obj) => self.access_struct(id, request, base_env, obj.clone()),
+            Value::Struct(obj) => self.access_struct(id, requested, base_env, obj.clone()),
             Value::List(_) => self.eval_access_request(
-                request,
+                requested,
                 base_env,
                 &mut defaults::list_struct().env,
                 Value::Ref(id),
             ),
-            val => self.eval_access(val.clone(), request, base_env, parent),
+            val => self.eval_acess(val.clone(), request, base_env, parent),
         }
     }
     fn access_struct(
         &mut self,
         id: RefKey,
-        requested: Spanned<AccessNode>,
+        requested: NodeSpan,
         base_env: &mut Scope,
         mut obj: Struct,
     ) -> EvalRes<Control> {
@@ -451,55 +449,17 @@ impl Interpreter {
     }
     fn eval_access_request(
         &mut self,
-        requested: Spanned<AccessNode>,
+        requested: NodeSpan,
         base_env: &mut Scope,
         obj_env: &mut Scope,
         obj: Value,
     ) -> EvalRes<Control> {
         match requested.item {
-            AccessNode::Method(method) => {
-                self.eval_method(method, base_env, obj_env, obj, requested.span)
-            }
-            AccessNode::Property(name) => {
-                let Some(val) = obj_env.get_var(&name) else {
-                    return Err(IError::NonExistentVar(name).to_spanned(requested.span));
-                };
-                Ok(Control::Value(val))
-            }
+            Node::FieldAccess(access) => self.eval_fieldacess(access, base_env, obj_env),
+            Node::Call(request) => self.eval_method(request, base_env, obj_env, obj),
+            _ => self.eval_node(&requested, obj_env),
         }
     }
-    fn eval_method(
-        &mut self,
-        method: Method,
-
-        base_env: &mut Scope,
-        obj_env: &mut Scope,
-        obj: Value,
-        span: Span,
-    ) -> EvalRes<Control> {
-        let Some(func_val) = obj_env.get_var(&method.name) else {
-            return Err(IError::NonExistentVar(method.name).to_spanned(span));
-        };
-
-        let mut arg_values: Vec<Value> = vec![obj];
-        for arg in method.args.iter() {
-            let argument = unwrap_val!(self.eval_node(&arg, base_env)?);
-            arg_values.push(argument);
-        }
-        let arg_span = if !method.args.is_empty() {
-            Span(span.1 + 1, method.args.last().unwrap().span.1)
-        } else {
-            Span(span.1 + 1, span.1 + 2)
-        };
-        match func_val {
-            Value::BuiltinFunc(func) => self.call_builtin(func, arg_values, arg_span, obj_env),
-            Value::Function(called) => self.call_func(called, arg_values, span, obj_env),
-            _ => type_err(Type::Function, func_val.get_type(), span),
-        }
-    }
-}
-///Variable and struct assignment
-impl Interpreter {
     fn assign_fields(
         &mut self,
         target: Struct,
@@ -529,18 +489,15 @@ impl Interpreter {
         let Value::Struct(mut obj) = self.heap[id].clone() else {
             return unspec_err("Expected Struct", request.target.span);
         };
-        /*
-           TODO:
-           redo this function so that when it searches for a field access with only a variable and a request
-        */
-        match (request.target.item, request.requested.item) {
-            (Node::FieldAccess(access), _) => {
+
+        match request.requested.item {
+            Node::FieldAccess(access) => {
                 self.assign_to_access(access, value, &mut obj.env)?;
                 self.heap[id] = Value::Struct(obj);
                 VOID
             }
-            (Node::Variable(var), AccessNode::Property(name)) => {
-                obj.env.assign_valid(name, value, request.requested.span)?;
+            Node::Variable(var) => {
+                self.assign_to_name(var, value, request.requested.span, &mut obj.env)?;
                 self.heap[id] = Value::Struct(obj);
                 VOID
             }
@@ -548,6 +505,23 @@ impl Interpreter {
         }
     }
 
+    fn assign_to_name(
+        &mut self,
+        name: String,
+        value: Value,
+        span: Span,
+        target: &mut Scope,
+    ) -> EvalRes<Control> {
+        if value.is_void() {
+            return Err(IError::VoidAssignment.to_spanned(span));
+        }
+
+        if target.assign(name.clone(), value).is_none() {
+            return Err(IError::InvalidAssignment(name).to_spanned(span));
+        }
+
+        VOID
+    }
     fn assign_to_index(
         &mut self,
         val: Value,
@@ -578,18 +552,16 @@ impl Interpreter {
         let init_val = unwrap_val!(self.eval_node(&request.value, parent)?);
 
         match request.clone().target.item {
-            Node::Variable(var) => {
-                parent.assign_valid(var, init_val, request.target.span);
-            }
+            Node::Variable(var) => self.assign_to_name(var, init_val, request.target.span, parent),
             Node::Index { target, index } => {
-                self.assign_to_index(init_val, *target, *index, parent);
+                self.assign_to_index(init_val, *target, *index, parent)
             }
             Node::FieldAccess(field) => {
                 self.assign_to_access(field, init_val, parent)?;
+                VOID
             }
             _ => todo!(),
-        };
-        VOID
+        }
     }
 }
 
@@ -601,6 +573,7 @@ impl Interpreter {
         base_env: &mut Scope,
         parent: &mut Scope,
     ) -> EvalRes<Control> {
+        dbg!(&request);
         let func_val = unwrap_val!(self.eval_node(&request.callee, parent)?);
         let call_args = request.args;
         let mut arg_values: Vec<Value> = vec![];
@@ -675,6 +648,34 @@ impl Interpreter {
 
 ///Struct handling
 impl Interpreter {
+    fn eval_method(
+        &mut self,
+        request: Call,
+        base_env: &mut Scope,
+        obj_env: &mut Scope,
+        obj: Value,
+    ) -> EvalRes<Control> {
+        let func_val = unwrap_val!(self.eval_node(&request.callee, obj_env)?);
+        let call_args = request.args;
+        let mut arg_values: Vec<Value> = vec![obj];
+        for arg in call_args.iter() {
+            let argument = unwrap_val!(self.eval_node(&arg, base_env)?);
+            arg_values.push(argument);
+        }
+        let arg_span = if !call_args.is_empty() {
+            Span(request.callee.span.1 + 1, call_args.last().unwrap().span.1)
+        } else {
+            Span(request.callee.span.1 + 1, request.callee.span.1 + 2)
+        };
+        match func_val {
+            Value::BuiltinFunc(func) => self.call_builtin(func, arg_values, arg_span, obj_env),
+            Value::Function(called) => {
+                self.call_func(called, arg_values, request.callee.span, obj_env)
+            }
+            _ => type_err(Type::Function, func_val.get_type(), request.callee.span),
+        }
+    }
+
     fn eval_constructor(
         &mut self,
         constructor: Constructor,
@@ -755,4 +756,10 @@ impl Interpreter {
         let val = self.heap.insert(Value::List(list));
         Ok(Control::Value(Value::Ref(val)))
     }
+}
+fn unspec_err<T>(msg: &str, span: Span) -> EvalRes<T> {
+    return Err(IError::Unspecified(msg.to_string()).to_spanned(span));
+}
+fn type_err<T>(expected: Type, got: Type, span: Span) -> EvalRes<T> {
+    return Err(IError::InvalidType(vec![expected], got).to_spanned(span));
 }

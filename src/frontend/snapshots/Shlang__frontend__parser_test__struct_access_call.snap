@@ -19,10 +19,20 @@ Ok(
                                 ),
                             },
                             requested: Spanned {
-                                item: Method {
-                                    name: "b",
-                                    args: [],
-                                },
+                                item: Call(
+                                    Call {
+                                        callee: Spanned {
+                                            item: Variable(
+                                                "b",
+                                            ),
+                                            span: Span(
+                                                1,
+                                                2,
+                                            ),
+                                        },
+                                        args: [],
+                                    },
+                                ),
                                 span: Span(
                                     1,
                                     2,
@@ -36,7 +46,7 @@ Ok(
                     ),
                 },
                 requested: Spanned {
-                    item: Property(
+                    item: Variable(
                         "c",
                     ),
                     span: Span(

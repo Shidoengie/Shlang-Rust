@@ -340,24 +340,9 @@ impl Spanned<Field> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct FieldAccess {
     pub target: NodeRef,
-    pub requested: Spanned<AccessNode>,
+    pub requested: NodeRef,
 }
-#[derive(Clone, Debug, PartialEq)]
-pub enum AccessNode {
-    Property(String),
-    Method(Method),
-}
-impl IntoSpanned for AccessNode {}
-#[derive(Clone, Debug, PartialEq)]
-pub struct Method {
-    pub name: String,
-    pub args: Vec<Spanned<Node>>,
-}
-impl Method {
-    pub fn to_spanned_access(self, span: Span) -> Spanned<AccessNode> {
-        Spanned::new(AccessNode::Method(self), span)
-    }
-}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct StructDef {
     pub name: Option<String>,

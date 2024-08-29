@@ -726,11 +726,11 @@ impl<'input> Parser<'input, Lexer<'input>> {
         self.next();
         return Ok(FieldAccess {
             target: bx!(target),
-            requested: Method {
-                name: requested,
+            requested: bx!(Call {
+                callee: bx!(Node::Variable(requested).to_spanned(span)),
                 args: method_params,
             }
-            .to_spanned_access(ident.span),
+            .to_nodespan(ident.span)),
         }
         .to_nodespan(span));
     }
@@ -741,7 +741,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let val = if self.is_expected(TokenType::LPAREN).is_none() {
             FieldAccess {
                 target: bx!(target),
-                requested: AccessNode::Property(requested).to_spanned(ident.span),
+                requested: bx!(Node::Variable(requested).to_spanned(ident.span)),
             }
             .to_nodespan(span)
         } else {

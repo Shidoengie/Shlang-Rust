@@ -20,7 +20,7 @@ Ok(
                                 ),
                             },
                             requested: Spanned {
-                                item: Property(
+                                item: Variable(
                                     "a",
                                 ),
                                 span: Span(

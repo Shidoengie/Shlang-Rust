@@ -1,5 +1,6 @@
 use slotmap::{new_key_type, SlotMap};
 
+use crate::backend::scope::Scope;
 use crate::spans::*;
 use std::collections::*;
 use std::fmt::Debug;
@@ -339,7 +340,23 @@ impl Spanned<Field> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct FieldAccess {
     pub target: NodeRef,
-    pub requested: NodeRef,
+    pub requested: Spanned<AccessNode>,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub enum AccessNode {
+    Property(String),
+    Method(Method),
+}
+impl IntoSpanned for AccessNode {}
+#[derive(Clone, Debug, PartialEq)]
+pub struct Method {
+    pub name: String,
+    pub args: Vec<Spanned<Node>>,
+}
+impl Method {
+    pub fn to_spanned_access(self, span: Span) -> Spanned<AccessNode> {
+        Spanned::new(AccessNode::Method(self), span)
+    }
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct StructDef {
@@ -387,80 +404,3 @@ pub struct ForLoop {
     pub proc: NodeStream,
 }
 pub type VarMap = HashMap<String, Value>;
-#[derive(Clone, Debug, PartialEq)]
-pub struct Scope {
-    pub parent: Option<Box<Scope>>,
-    pub vars: HashMap<String, Value>,
-    pub structs: HashMap<String, Struct>,
-}
-
-impl Scope {
-    pub fn get_var(&self, var_name: impl AsRef<str>) -> Option<Value> {
-        if let Some(var) = self.vars.get(var_name.as_ref()) {
-            return Some(var.clone());
-        }
-        if let Some(parent) = &self.parent {
-            return parent.get_var(var_name);
-        }
-        None
-    }
-    pub fn get_struct(&self, struct_name: &String) -> Option<Struct> {
-        if let Some(obj) = self.structs.get(struct_name) {
-            return Some(obj.clone());
-        }
-        if let Some(parent) = &self.parent {
-            return parent.get_struct(struct_name);
-        }
-        None
-    }
-    pub fn define(&mut self, var_name: String, val: Value) {
-        if let Value::Struct(obj) = &val {
-            self.structs.insert(var_name.clone(), obj.clone());
-        }
-        self.vars.insert(var_name, val);
-    }
-    pub fn new(
-        parent: Option<Box<Scope>>,
-        vars: HashMap<String, Value>,
-        structs: HashMap<String, Struct>,
-    ) -> Self {
-        Scope {
-            parent,
-            vars,
-            structs,
-        }
-    }
-    pub fn from_vars(vars: HashMap<String, Value>) -> Self {
-        Scope {
-            parent: None,
-            vars,
-            structs: HashMap::new(),
-        }
-    }
-    pub fn new_child_in(parent: Scope) -> Self {
-        Scope {
-            parent: Some(Box::new(parent)),
-            vars: HashMap::from([]),
-            structs: HashMap::from([]),
-        }
-    }
-    pub fn assign(&mut self, var_name: String, value: Value) -> Option<Value> {
-        if let Some(var) = self.vars.get_mut(&var_name) {
-            *var = value;
-            return Some(var.clone());
-        }
-        if let Some(parent) = &mut self.parent {
-            return parent.assign(var_name, value);
-        }
-        None
-    }
-}
-impl Default for Scope {
-    fn default() -> Self {
-        Scope {
-            parent: None,
-            vars: HashMap::from([]),
-            structs: HashMap::from([]),
-        }
-    }
-}

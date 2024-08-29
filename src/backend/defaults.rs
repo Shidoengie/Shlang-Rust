@@ -15,6 +15,8 @@ use std::thread;
 use std::time;
 use std::time::Duration;
 use std::time::SystemTime;
+
+use super::scope::Scope;
 const NULL: Value = Value::Null;
 pub fn default_scope() -> Scope {
     Scope {

@@ -1,6 +1,7 @@
 use backend::scope::Scope;
 use colored::Colorize;
 use frontend::nodes::Value;
+use frontend::nodes::ValueRepr;
 use lang_errors::*;
 use slotmap::SlotMap;
 use std::env;

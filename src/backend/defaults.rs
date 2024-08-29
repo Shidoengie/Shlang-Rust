@@ -79,7 +79,8 @@ pub fn var_map() -> VarMap {
         tan(tan,1),
         pow(pow,2),
         import(import_var,1),
-        del(delete_var,1)
+        del(delete_var,1),
+        range(range,-1)
     ]
 }
 
@@ -441,5 +442,68 @@ pub(super) mod functions {
         parent.vars = new_vars;
         parent.structs = new_structs;
         Value::Void
+    }
+    fn gen_range(from: f64, to: f64, inc: f64) -> Vec<Value> {
+        let capacity = from.round().abs() as usize + to.round().abs() as usize;
+        let mut buffer: Vec<Value> = Vec::with_capacity(capacity);
+        let mut current_num = from;
+        if to > 0.0 {
+            while current_num < to {
+                buffer.push(Value::Num(current_num));
+                current_num += inc;
+            }
+        } else {
+            while current_num > to {
+                buffer.push(Value::Num(current_num));
+                current_num += inc;
+            }
+        }
+        buffer
+    }
+    pub fn range(parent: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        match args.len() {
+            0 => {
+                return Value::Null;
+            }
+            1 => {
+                let Value::Num(to) = args[0] else { return NULL };
+                let new_range = gen_range(0.0, to, 1.0);
+                let val = heap.insert(Value::List(new_range));
+                Value::Ref(val)
+            }
+            2 => {
+                let Value::Num(from) = args[0] else {
+                    return NULL;
+                };
+                let Value::Num(to) = args[1] else { return NULL };
+                let new_range = gen_range(from, to, 1.0);
+                let val = heap.insert(Value::List(new_range));
+                Value::Ref(val)
+            }
+            _ => {
+                let Value::Num(from) = args[0] else {
+                    return NULL;
+                };
+                let Value::Num(to) = args[1] else { return NULL };
+                let Value::Num(inc) = args[2] else {
+                    return NULL;
+                };
+                if inc == 0.0 {
+                    return NULL;
+                }
+                if from == 0.0 && to == 0.0 {
+                    return NULL;
+                }
+                if from >= 0.0 && inc > 0.0 && to < 0.0 {
+                    return NULL;
+                }
+                if from <= 0.0 && inc < 0.0 && to > 0.0 {
+                    return NULL;
+                }
+                let new_range = gen_range(from, to, inc);
+                let val = heap.insert(Value::List(new_range));
+                Value::Ref(val)
+            }
+        }
     }
 }

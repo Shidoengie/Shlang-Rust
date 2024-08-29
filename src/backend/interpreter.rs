@@ -573,7 +573,6 @@ impl Interpreter {
         base_env: &mut Scope,
         parent: &mut Scope,
     ) -> EvalRes<Control> {
-        dbg!(&request);
         let func_val = unwrap_val!(self.eval_node(&request.callee, parent)?);
         let call_args = request.args;
         let mut arg_values: Vec<Value> = vec![];

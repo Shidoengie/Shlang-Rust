@@ -2,6 +2,7 @@ use slotmap::{new_key_type, SlotMap};
 
 use crate::backend::scope::Scope;
 use crate::spans::*;
+use std::borrow::Borrow;
 use std::collections::*;
 use std::fmt::Debug;
 use std::mem;
@@ -18,7 +19,9 @@ pub enum Value {
     Ref(RefKey),
     List(Vec<Value>),
 }
-
+pub trait ValueRepr {
+    fn repr(&self) -> String;
+}
 pub type TypedValue = (Value, Type);
 fn list_repr(list: &[Value]) -> String {
     if list.is_empty() {
@@ -46,7 +49,16 @@ impl Value {
             Value::Ref(_) => Type::Ref,
         }
     }
-    pub fn repr(&self) -> String {
+
+    pub fn is_void(&self) -> bool {
+        self == &Self::Void
+    }
+    pub fn matches_typeof(&self, val: &Self) -> bool {
+        mem::discriminant(self) == mem::discriminant(val)
+    }
+}
+impl ValueRepr for Value {
+    fn repr(&self) -> String {
         match self {
             Self::Num(num) => num.to_string(),
             Self::Bool(cond) => cond.to_string(),
@@ -55,14 +67,10 @@ impl Value {
             Self::Void => "void".to_string(),
             Self::List(list) => list_repr(list),
             Self::Struct(obj) => obj.repr(),
+            Self::Function(func) => func.repr(),
+            Self::Ref(id) => format!("ref {:?}", id),
             _ => "unnamed".to_string(),
         }
-    }
-    pub fn is_void(&self) -> bool {
-        self == &Self::Void
-    }
-    pub fn matches_typeof(&self, val: &Self) -> bool {
-        mem::discriminant(self) == mem::discriminant(val)
     }
 }
 impl ToString for Value {
@@ -74,6 +82,9 @@ impl ToString for Value {
             Self::Null => "null".to_string(),
             Self::Void => "void".to_string(),
             Self::List(list) => list_repr(list),
+            Self::Struct(obj) => obj.repr(),
+            Self::Function(func) => func.repr(),
+            Self::Ref(id) => format!("ref{:?}", id),
             _ => "unnamed".to_string(),
         }
     }
@@ -88,16 +99,19 @@ pub struct Struct {
     pub id: Option<String>,
     pub env: Scope,
 }
-impl Struct {
-    pub fn repr(&self) -> String {
-        let mut buffer = String::from("{");
+impl ValueRepr for Struct {
+    fn repr(&self) -> String {
+        let mut buffer = String::from("{ ");
         let vars = &self.env.vars;
         for (k, v) in vars.into_iter() {
             buffer += k;
             buffer += ":";
             buffer += &v.repr();
+            if vars.values().last().unwrap() != v {
+                buffer += ", "
+            }
         }
-        buffer += "}";
+        buffer += " }";
         buffer
     }
 }
@@ -106,9 +120,23 @@ pub struct Function {
     pub block: NodeStream,
     pub args: Vec<String>,
 }
+
 impl Function {
     pub fn new(block: NodeStream, args: Vec<String>) -> Self {
         Self { block, args }
+    }
+}
+impl ValueRepr for Function {
+    fn repr(&self) -> String {
+        let mut buffer = String::from("func(");
+        for i in &self.args {
+            buffer += i;
+            if self.args.last().unwrap() != i {
+                buffer += ", "
+            }
+        }
+        buffer += ")";
+        buffer
     }
 }
 impl From<Function> for Value {
@@ -119,6 +147,7 @@ impl From<Function> for Value {
 new_key_type! {
     pub struct RefKey;
 }
+
 type FuncPtr = fn(&mut Scope, Vec<Value>, &mut SlotMap<RefKey, Value>) -> Value;
 #[derive(Clone)]
 pub struct BuiltinFunc {

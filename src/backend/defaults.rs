@@ -80,7 +80,9 @@ pub fn var_map() -> VarMap {
         pow(pow,2),
         import(import_var,1),
         del(delete_var,1),
-        range(range,-1)
+        range(range,-1),
+        floor(floor,1),
+        round(round,1)
     ]
 }
 
@@ -93,7 +95,9 @@ pub fn num_struct() -> Struct {
         sin(sin, 1),
         cos(cos, 1),
         tan(tan, 1),
-        pow(pow, 2)
+        pow(pow, 2),
+        floor(floor, 1),
+        round(round, 1)
     ];
 
     Struct {
@@ -406,6 +410,18 @@ pub(super) mod functions {
         };
         Value::Num(val1.sqrt())
     }
+    pub fn floor(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
+        let Value::Num(val1) = &args[0] else {
+            return NULL;
+        };
+        Value::Num(val1.floor())
+    }
+    pub fn round(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
+        let Value::Num(val1) = &args[0] else {
+            return NULL;
+        };
+        Value::Num(val1.round())
+    }
     pub fn deref_val(val: Value, heap: &SlotMap<RefKey, Value>) -> Value {
         if let Value::Ref(id) = val {
             return heap[id].clone();
@@ -466,7 +482,7 @@ pub(super) mod functions {
             return Value::Null;
         };
         let mut inter = Interpreter::new(ast, functions);
-        inter.heap.clone_from(&heap);
+        inter.heap.clone_from(heap);
         let Ok(result) = inter.execute_with(&mut scope.clone()) else {
             return Value::Null;
         };

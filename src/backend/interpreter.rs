@@ -519,8 +519,8 @@ impl Interpreter {
     ) -> EvalRes<Control> {
         let target = unwrap_val!(self.eval_node(&target_node, parent)?);
         let index = unwrap_val!(self.eval_node(&index_node, parent)?);
-        let (Value::Ref(id), Value::Num(og_idx)) = (target, index) else {
-            todo!()
+        let (Value::Ref(id), Value::Num(og_idx)) = (target.clone(), index) else {
+            return type_err(Type::List, target.get_type(), target_node.span);
         };
         let mut list = match &self.heap[id] {
             Value::List(ls) => ls.clone(),
@@ -568,7 +568,7 @@ impl Interpreter {
         let mut arg_values: Vec<Value> = vec![];
 
         for arg in call_args.iter() {
-            let argument = unwrap_val!(self.eval_node(&arg, base_env)?);
+            let argument = unwrap_val!(self.eval_node(arg, base_env)?);
             arg_values.push(argument);
         }
         let arg_span = if !call_args.is_empty() {

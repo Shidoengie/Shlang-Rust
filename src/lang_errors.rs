@@ -107,7 +107,10 @@ impl LangError for Spanned<InterpreterError> {
                         .filter(|c| c != &'[' && c != &']'),
                 )
                 .replace(',', " or ");
-                format!("Invalid Types expected: {opts:?} but got {got:?}")
+                if accepted.len() > 1 {
+                    return format!("Invalid types expected: {opts:?} but got {got:?}");
+                }
+                format!("Invalid type expected: {opts:?} but got {got:?}")
             }
             InvalidControl => "Unexpected control flow node".to_string(),
             VoidAssignment => "Attempted to assign void to a variable".to_string(),

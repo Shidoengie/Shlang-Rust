@@ -37,14 +37,16 @@ pub(super) type EvalRes<T> = Result<T, Spanned<InterpreterError>>;
 pub struct Interpreter {
     program: NodeStream,
     pub heap: SlotMap<RefKey, Value>,
+    pub functions: HashMap<String, Function>,
 }
 
 ///Interface with the interpreter
 impl Interpreter {
-    pub fn new(program: NodeStream) -> Self {
+    pub fn new(program: NodeStream, functions: HashMap<String, Function>) -> Self {
         Self {
             program,
             heap: SlotMap::with_key(),
+            functions,
         }
     }
     pub fn execute(&mut self) -> EvalRes<Value> {
@@ -73,8 +75,9 @@ impl Interpreter {
         Self {
             program: vec![Node::DontResult.to_spanned(Span(0, 0))],
             heap: SlotMap::with_key(),
+            functions: HashMap::new(),
         }
-        .eval_node(&node, &mut Scope::new_child_in(defaults::default_scope()))
+        .eval_node(&node, &mut Scope::default())
     }
 
     pub fn parse_vars(&mut self, mut parent: Scope) -> EvalRes<Scope> {
@@ -374,6 +377,9 @@ impl Interpreter {
     fn default_scope(&self, name: String, span: Span) -> EvalRes<Control> {
         let maybe_result = Scope::new(None, defaults::var_map(), HashMap::from([])).get_var(&name);
         let Some(result) = maybe_result else {
+            if let Some(func) = self.functions.get(&name) {
+                return Ok(Control::Value(Value::Function(func.clone())));
+            };
             return Err(IError::NonExistentVar(name).to_spanned(span));
         };
         Ok(Control::Value(result))
@@ -497,30 +503,12 @@ impl Interpreter {
                 VOID
             }
             Node::Variable(var) => {
-                self.assign_to_name(var, value, request.requested.span, &mut obj.env)?;
+                obj.env.assign_valid(var, value, request.requested.span)?;
                 self.heap[id] = Value::Struct(obj);
                 VOID
             }
             _ => panic!(),
         }
-    }
-
-    fn assign_to_name(
-        &mut self,
-        name: String,
-        value: Value,
-        span: Span,
-        target: &mut Scope,
-    ) -> EvalRes<Control> {
-        if value.is_void() {
-            return Err(IError::VoidAssignment.to_spanned(span));
-        }
-
-        if target.assign(name.clone(), value).is_none() {
-            return Err(IError::InvalidAssignment(name).to_spanned(span));
-        }
-
-        VOID
     }
     fn assign_to_index(
         &mut self,
@@ -552,16 +540,18 @@ impl Interpreter {
         let init_val = unwrap_val!(self.eval_node(&request.value, parent)?);
 
         match request.clone().target.item {
-            Node::Variable(var) => self.assign_to_name(var, init_val, request.target.span, parent),
+            Node::Variable(var) => {
+                parent.assign_valid(var, init_val, request.target.span)?;
+            }
             Node::Index { target, index } => {
-                self.assign_to_index(init_val, *target, *index, parent)
+                self.assign_to_index(init_val, *target, *index, parent)?;
             }
             Node::FieldAccess(field) => {
                 self.assign_to_access(field, init_val, parent)?;
-                VOID
             }
             _ => todo!(),
-        }
+        };
+        VOID
     }
 }
 
@@ -573,6 +563,7 @@ impl Interpreter {
         base_env: &mut Scope,
         parent: &mut Scope,
     ) -> EvalRes<Control> {
+        dbg!(&request);
         let func_val = unwrap_val!(self.eval_node(&request.callee, parent)?);
         let call_args = request.args;
         let mut arg_values: Vec<Value> = vec![];
@@ -616,7 +607,10 @@ impl Interpreter {
                 return Err(IError::InvalidControl.to_spanned(span))
             }
             Control::Result(val) | Control::Return(val) | Control::Value(val) => {
-                return Ok(Control::Value(val))
+                if val.is_void() {
+                    return unspec_err("Attempted to return void", span);
+                }
+                return Ok(Control::Value(val));
             }
         }
     }

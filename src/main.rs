@@ -4,6 +4,7 @@ use frontend::nodes::Value;
 use frontend::nodes::ValueRepr;
 use lang_errors::*;
 use slotmap::SlotMap;
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io;
@@ -63,11 +64,11 @@ fn execute_file(args: Vec<String>) {
     let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
     let err_out = ErrorBuilder::new(source.clone());
     let mut parser = Parser::new(source.as_str());
-    let ast = catch!(err {
+    let (ast, functions) = catch!(err {
         err.print_msg(err_out);
         return;
     } in parser.parse());
-    let mut interpreter = Interpreter::new(ast);
+    let mut interpreter = Interpreter::new(ast, functions);
     interpreter.execute().map_err(|e| e.print_msg(err_out));
 }
 
@@ -78,11 +79,11 @@ fn repl() {
         let source = input(">: ");
         let err_out = ErrorBuilder::new(source.clone());
         let mut parser = Parser::new(source.as_str());
-        let ast = catch!(err {
+        let (ast, functions) = catch!(err {
             err.print_msg(err_out);
             continue;
         } in parser.parse());
-        let mut inter = Interpreter::new(ast);
+        let mut inter = Interpreter::new(ast, functions);
         inter.heap = heap;
         match inter.execute_with(&mut scope) {
             Ok(raw) => {

@@ -22,15 +22,11 @@ impl Scope {
         }
         None
     }
-    pub fn assign_valid(&mut self, name: String, value: Value, span: Span) -> EvalRes<Value> {
-        if value.is_void() {
-            return Err(IError::VoidAssignment.to_spanned(span));
-        }
-
+    pub fn assign_valid(&mut self, name: String, value: Value, span: Span) -> EvalRes<()> {
         if self.assign(name.clone(), value).is_none() {
             return Err(IError::InvalidAssignment(name).to_spanned(span));
         }
-        return Ok(Value::Void);
+        return Ok(());
     }
     pub fn get_struct(&self, struct_name: &String) -> Option<Struct> {
         if let Some(obj) = self.structs.get(struct_name) {

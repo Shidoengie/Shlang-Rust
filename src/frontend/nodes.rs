@@ -135,7 +135,7 @@ impl ValueRepr for Function {
                 buffer += ", "
             }
         }
-        buffer += ")";
+        buffer += ") ";
         buffer
     }
 }

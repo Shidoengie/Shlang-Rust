@@ -385,10 +385,10 @@ pub(super) mod functions {
         };
         let mut parser = Parser::new(source.as_str());
         let ast_result = parser.parse();
-        let Ok(ast) = ast_result else {
+        let Ok((ast, functions)) = ast_result else {
             return Value::Null;
         };
-        let mut inter = Interpreter::new(ast);
+        let mut inter = Interpreter::new(ast, functions);
         inter.heap = heap.clone();
         let Ok(result) = inter.execute_with(&mut scope.clone()) else {
             return Value::Null;
@@ -408,10 +408,10 @@ pub(super) mod functions {
             return NULL;
         };
         let mut parser = Parser::new(source.as_str());
-        let Ok(ast) = parser.parse() else {
+        let Ok((ast, functions)) = parser.parse() else {
             return NULL;
         };
-        let mut inter = Interpreter::new(ast);
+        let mut inter = Interpreter::new(ast, functions);
         let base = Scope::from_vars(vars!(
             __name__ => Value::Str("lib".to_string())
         ));
@@ -441,7 +441,7 @@ pub(super) mod functions {
             .collect();
         parent.vars = new_vars;
         parent.structs = new_structs;
-        Value::Void
+        Value::Null
     }
     fn gen_range(from: f64, to: f64, inc: f64) -> Vec<Value> {
         let capacity = from.round().abs() as usize + to.round().abs() as usize;

@@ -118,8 +118,8 @@ fn lex_file(file_path: String) {
     lex_from(source);
 }
 fn lex_from(source: String) {
-    let mut lexer = Lexer::new(&source);
-    while let Some(token) = lexer.next() {
+    let lexer = Lexer::new(&source);
+    for token in lexer {
         println!("{} <-> {token:#?}", &source[token.span.0..token.span.1]);
     }
 }

@@ -2,9 +2,9 @@ use slotmap::{new_key_type, SlotMap};
 
 use crate::backend::scope::Scope;
 use crate::spans::*;
-use std::borrow::Borrow;
+
 use std::collections::*;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::mem;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
@@ -29,9 +29,9 @@ fn list_repr(list: &[Value]) -> String {
     }
     let mut out = String::new();
     for val in list {
-        out += format!(",{}", val.to_string()).as_str();
+        out += format!(",{}", val.repr()).as_str();
     }
-    out = out.strip_prefix(",").unwrap().to_string();
+    out = out.strip_prefix(',').unwrap().to_string();
     out = "[".to_string() + out.as_str() + "]";
     out
 }
@@ -73,9 +73,9 @@ impl ValueRepr for Value {
         }
     }
 }
-impl ToString for Value {
-    fn to_string(&self) -> String {
-        match self {
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let out = match self {
             Self::Num(num) => num.to_string(),
             Self::Bool(cond) => cond.to_string(),
             Self::Str(txt) => txt.to_string(),
@@ -86,7 +86,8 @@ impl ToString for Value {
             Self::Function(func) => func.repr(),
             Self::Ref(id) => format!("ref{:?}", id),
             _ => "unnamed".to_string(),
-        }
+        };
+        write!(f, "{out}")
     }
 }
 impl IntoNodespan for Value {
@@ -103,7 +104,7 @@ impl ValueRepr for Struct {
     fn repr(&self) -> String {
         let mut buffer = String::from("{ ");
         let vars = &self.env.vars;
-        for (k, v) in vars.into_iter() {
+        for (k, v) in vars.iter() {
             buffer += k;
             buffer += ":";
             buffer += &v.repr();
@@ -196,8 +197,8 @@ pub enum Type {
     Ref,
 }
 
-impl ToString for Type {
-    fn to_string(&self) -> String {
+impl Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let txt = match self {
             Self::Void => "void",
             Self::Null => "null",
@@ -210,7 +211,7 @@ impl ToString for Type {
             Self::Struct(None) => "struct",
             Self::Ref => "ref",
         };
-        txt.to_string()
+        write!(f, "{txt}")
     }
 }
 #[derive(Clone, Debug, PartialEq)]

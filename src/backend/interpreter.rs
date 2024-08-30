@@ -56,7 +56,7 @@ impl Interpreter {
         self.execute_with(&mut scope)
     }
     pub fn execute_with(&mut self, scope: &mut Scope) -> EvalRes<Value> {
-        if self.program.len() == 0 {
+        if self.program.is_empty() {
             return Ok(Value::Null);
         }
         let mut last = Value::Null;
@@ -563,7 +563,6 @@ impl Interpreter {
         base_env: &mut Scope,
         parent: &mut Scope,
     ) -> EvalRes<Control> {
-        dbg!(&request);
         let func_val = unwrap_val!(self.eval_node(&request.callee, parent)?);
         let call_args = request.args;
         let mut arg_values: Vec<Value> = vec![];
@@ -652,7 +651,7 @@ impl Interpreter {
         let call_args = request.args;
         let mut arg_values: Vec<Value> = vec![obj];
         for arg in call_args.iter() {
-            let argument = unwrap_val!(self.eval_node(&arg, base_env)?);
+            let argument = unwrap_val!(self.eval_node(arg, base_env)?);
             arg_values.push(argument);
         }
         let arg_span = if !call_args.is_empty() {

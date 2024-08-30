@@ -1,3 +1,3 @@
-pub(self) mod defaults;
+mod defaults;
 pub mod interpreter;
 pub mod scope;

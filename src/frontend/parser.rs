@@ -648,7 +648,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             let target = self.consume(TokenType::IDENTIFIER)?;
             self.consume(TokenType::COLON)?;
             let expr = self.parse_only_expr()?;
-            let span = expr.span.clone();
+            let span = expr.span;
             let field_name = self.text(&target);
             fields.push(Spanned::new(
                 Field::Declaration(Declaration {
@@ -687,7 +687,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         self.next();
         let block = self.parse_block()?;
         let last = self.next().unwrap();
-        let name = self.text(&name_ident);
+        let name = self.text(name_ident);
         let span = name_ident.span + last.span;
         let mut fields: Vec<Spanned<Field>> = vec![];
         for node in block {
@@ -806,7 +806,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 Ok(func)
             }
             TokenType::LBRACK => {
-                let literal = self.parse_expr_list(&value, TokenType::RBRACK)?;
+                let literal = self.parse_expr_list(value, TokenType::RBRACK)?;
                 let span = value.span + self.peek_some()?.span;
                 self.next();
                 Ok(Node::ListLit(literal).to_spanned(span))
@@ -841,7 +841,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             let Node::Declaration(var) = expr.item else {
                 continue;
             };
-            let Node::Value(Value::Function(func)) = (*var.value).item else {
+            let Node::Value(Value::Function(func)) = (var.value).item else {
                 continue;
             };
             functions.insert(var.var_name, func);

@@ -4,7 +4,7 @@ use crate::Parser;
 use slotmap::SlotMap;
 
 use std::collections::HashMap;
-use std::env::vars;
+
 use std::f64::consts::{E, PI, TAU};
 use std::fs;
 
@@ -103,7 +103,13 @@ pub fn num_struct() -> Struct {
 }
 pub fn list_struct() -> Struct {
     use list_methods::*;
-    let env = vars![len(list_len, 1), push(list_push, 2)];
+    let env = vars![
+        len(list_len, 1),
+        push(list_push, 2),
+        pop(list_pop, 1),
+        remove(list_remove, 2),
+        pop_at(list_pop_at, 2)
+    ];
     Struct {
         id: None,
         env: Scope::from_vars(env),
@@ -111,6 +117,36 @@ pub fn list_struct() -> Struct {
 }
 pub(super) mod list_methods {
     use super::*;
+    pub fn list_pop(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        let Value::Ref(key) = &args[0] else {
+            return NULL;
+        };
+        let Value::List(mut list) = heap.get(*key).unwrap().clone() else {
+            return NULL;
+        };
+        let Some(value) = list.pop() else {
+            return NULL;
+        };
+        heap[*key] = Value::List(list);
+        return value;
+    }
+    pub fn list_remove(
+        _: &mut Scope,
+        args: Vec<Value>,
+        heap: &mut SlotMap<RefKey, Value>,
+    ) -> Value {
+        let [Value::Ref(key), target] = &args[..2] else {
+            return NULL;
+        };
+        let Value::List(list) = heap.get(*key).unwrap().clone() else {
+            return NULL;
+        };
+        let old_len = list.len();
+        let new_list: Vec<Value> = list.into_iter().filter(|v| v != target).collect();
+        let new_len = new_list.len();
+        heap[*key] = Value::List(new_list);
+        Value::Num((old_len - new_len) as f64)
+    }
     pub fn list_len(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
         let Value::Ref(key) = &args[0] else {
             return NULL;
@@ -119,6 +155,22 @@ pub(super) mod list_methods {
             return NULL;
         };
         Value::Num(list.len() as f64)
+    }
+    pub fn list_pop_at(
+        _: &mut Scope,
+        args: Vec<Value>,
+        heap: &mut SlotMap<RefKey, Value>,
+    ) -> Value {
+        let [Value::Ref(key), Value::Num(og_index)] = &args[..2] else {
+            return NULL;
+        };
+        let index = og_index.floor() as usize;
+        let Value::List(mut list) = heap.get(*key).unwrap().clone() else {
+            return NULL;
+        };
+        list.remove(index);
+        heap[*key] = Value::List(list.clone());
+        Value::Ref(*key)
     }
     pub fn list_push(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
         let [Value::Ref(key), val] = &args[..2] else {
@@ -129,7 +181,7 @@ pub(super) mod list_methods {
         };
         list.push(val.clone());
         heap[*key] = Value::List(list.clone());
-        Value::List(list)
+        Value::Ref(*key)
     }
 }
 pub fn str_struct() -> Struct {
@@ -140,7 +192,8 @@ pub fn str_struct() -> Struct {
         len(len, 1),
         remove(remove, 2),
         replace(replace, 2),
-        char_at(char_at, 2)
+        char_at(char_at, 2),
+        split(split, -1)
     ];
     Struct {
         id: None,
@@ -167,11 +220,7 @@ pub(super) mod string_methods {
         }
     }
 
-    pub fn replace(
-        scope: &mut Scope,
-        args: Vec<Value>,
-        heap: &mut SlotMap<RefKey, Value>,
-    ) -> Value {
+    pub fn replace(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
         let [Value::Str(ref value), Value::Str(ref target), Value::Str(ref filler)] = args[..3]
         else {
             return NULL;
@@ -182,7 +231,9 @@ pub(super) mod string_methods {
         let [Value::Str(value), Value::Num(start), Value::Num(end)] = &args[..3] else {
             return NULL;
         };
-        let sub = &value[start.clone() as usize..end.clone() as usize];
+        let start_index = start.floor() as usize;
+        let end_index = end.floor() as usize;
+        let sub = &value[start_index..end_index];
         Value::Str(sub.to_string())
     }
     pub fn len(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
@@ -206,13 +257,39 @@ pub(super) mod string_methods {
             .map(|c| Value::Str(c.to_string()))
             .unwrap_or(Value::Null)
     }
+    pub fn split(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        let Value::Str(value) = &args[0] else {
+            return NULL;
+        };
+        match args.len() {
+            1 => {
+                let split_str = value
+                    .split(' ')
+                    .map(|v| Value::Str(String::from(v)))
+                    .collect();
+                let val = heap.insert(Value::List(split_str));
+                Value::Ref(val)
+            }
+            _ => {
+                let Value::Str(seperator) = &args[1] else {
+                    return NULL;
+                };
+                let split_str = value
+                    .split(seperator)
+                    .map(|v| Value::Str(String::from(v)))
+                    .collect();
+                let val = heap.insert(Value::List(split_str));
+                Value::Ref(val)
+            }
+        }
+    }
 }
 pub(super) mod functions {
     use super::*;
     pub fn delete_var(
         scope: &mut Scope,
         args: Vec<Value>,
-        heap: &mut SlotMap<RefKey, Value>,
+        _: &mut SlotMap<RefKey, Value>,
     ) -> Value {
         let Value::Str(val) = &args[0] else {
             return NULL;
@@ -234,7 +311,7 @@ pub(super) mod functions {
         }
         let mut out = "".to_string();
         for val in args {
-            out += format!(" {}", deref_val(val, heap).to_string()).as_str();
+            out += format!(" {}", deref_val(val, heap)).as_str();
         }
         out = out.trim().to_string();
         println!("{out}");
@@ -252,7 +329,7 @@ pub(super) mod functions {
         }
         let mut out = "".to_string();
         for val in args {
-            out += format!(" {}", deref_val(val, heap).to_string()).as_str();
+            out += format!(" {}", deref_val(val, heap)).as_str();
         }
         out = out.trim().to_string();
         print!("{out}");
@@ -369,7 +446,7 @@ pub(super) mod functions {
     }
     pub fn input_builtin(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
         if !args.is_empty() {
-            print!("{}", args[0].to_string());
+            print!("{}", args[0]);
             io::stdout().flush().unwrap();
         }
         let mut result = String::new();
@@ -389,7 +466,7 @@ pub(super) mod functions {
             return Value::Null;
         };
         let mut inter = Interpreter::new(ast, functions);
-        inter.heap = heap.clone();
+        inter.heap.clone_from(&heap);
         let Ok(result) = inter.execute_with(&mut scope.clone()) else {
             return Value::Null;
         };
@@ -460,7 +537,7 @@ pub(super) mod functions {
         }
         buffer
     }
-    pub fn range(parent: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+    pub fn range(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
         match args.len() {
             0 => {
                 return Value::Null;

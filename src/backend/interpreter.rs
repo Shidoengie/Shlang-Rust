@@ -1,4 +1,5 @@
 use super::defaults;
+use super::defaults::default_scope;
 use super::scope::Scope;
 use crate::frontend::nodes::*;
 use crate::hashmap;
@@ -375,7 +376,7 @@ impl Interpreter {
         Ok(Control::Value(result))
     }
     fn default_scope(&self, name: String, span: Span) -> EvalRes<Control> {
-        let maybe_result = Scope::new(None, defaults::var_map(), HashMap::from([])).get_var(&name);
+        let maybe_result = default_scope().get_var(&name);
         let Some(result) = maybe_result else {
             if let Some(func) = self.functions.get(&name) {
                 return Ok(Control::Value(Value::Function(func.clone())));
@@ -460,28 +461,18 @@ impl Interpreter {
         obj_env: &mut Scope,
         obj: Value,
     ) -> EvalRes<Control> {
-        match requested.item {
-            Node::FieldAccess(access) => self.eval_fieldacess(access, base_env, obj_env),
+        match requested.item.clone() {
             Node::Call(request) => self.eval_method(request, base_env, obj_env, obj),
-            _ => self.eval_node(&requested, obj_env),
-        }
-    }
-    fn assign_fields(
-        &mut self,
-        target: Struct,
-        params: HashMap<String, NodeSpan>,
-        parent: &mut Scope,
-    ) -> EvalRes<Control> {
-        let mut obj = target;
-        for (k, v) in params {
-            if !obj.env.vars.contains_key(&k) {
-                return unspec_err("Attempted to assign to a non existent struct field", v.span);
+            Node::Variable(name) => {
+                let Some(result) = obj_env.get_var(&name) else {
+                    return NULL;
+                };
+                Ok(Control::Value(result))
             }
-            let result = self.eval_node(&v, parent)?;
-            obj.env.vars.insert(k, unwrap_val!(result));
+            _ => unimplemented!(),
         }
-        Ok(Control::Value(Value::Struct(obj.clone())))
     }
+
     fn assign_to_access(
         &mut self,
         request: FieldAccess,
@@ -503,7 +494,9 @@ impl Interpreter {
                 VOID
             }
             Node::Variable(var) => {
-                obj.env.assign_valid(var, value, request.requested.span)?;
+                if obj.env.assign(var.clone(), value).is_none() {
+                    return NULL;
+                }
                 self.heap[id] = Value::Struct(obj);
                 VOID
             }
@@ -667,17 +660,40 @@ impl Interpreter {
             _ => type_err(Type::Function, func_val.get_type(), request.callee.span),
         }
     }
-
+    fn get_struct(&self, name: &String, span: Span, parent: &mut Scope) -> EvalRes<Struct> {
+        if let Some(obj) = parent.get_struct(&name) {
+            return Ok(obj);
+        }
+        let maybe_result = default_scope().get_struct(name);
+        let Some(result) = maybe_result else {
+            return unspec_err("Attempted to construct a non existent struct", span);
+        };
+        Ok(result)
+    }
+    fn construct_fields(
+        &mut self,
+        target: Struct,
+        params: HashMap<String, NodeSpan>,
+        parent: &mut Scope,
+    ) -> EvalRes<Control> {
+        let mut obj = target;
+        for (k, v) in params {
+            if !obj.env.vars.contains_key(&k) {
+                return unspec_err("Attempted to assign to a non existent struct field", v.span);
+            }
+            let result = self.eval_node(&v, parent)?;
+            obj.env.vars.insert(k, unwrap_val!(result));
+        }
+        Ok(Control::Value(Value::Struct(obj.clone())))
+    }
     fn eval_constructor(
         &mut self,
         constructor: Constructor,
         parent: &mut Scope,
         span: Span,
     ) -> EvalRes<Control> {
-        let Some(request) = parent.get_struct(&constructor.name) else {
-            return unspec_err("Attempted to construct a non existent struct", span);
-        };
-        let struct_val = self.assign_fields(request, constructor.params, parent)?;
+        let request = self.get_struct(&constructor.name, span, parent)?;
+        let struct_val = self.construct_fields(request, constructor.params, parent)?;
         let key = self.heap.insert(unwrap_val!(struct_val));
         Ok(Control::Value(Value::Ref(key)))
     }

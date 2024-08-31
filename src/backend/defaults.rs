@@ -1,4 +1,6 @@
 use crate::frontend::nodes::*;
+use crate::lang_errors::LangError;
+use crate::spans::Span;
 use crate::Interpreter;
 use crate::Parser;
 use slotmap::SlotMap;
@@ -6,6 +8,7 @@ use slotmap::SlotMap;
 use std::collections::HashMap;
 
 use std::f64::consts::{E, PI, TAU};
+use std::fmt::Display;
 use std::fs;
 
 use functions::*;
@@ -16,14 +19,85 @@ use std::time;
 use std::time::Duration;
 use std::time::SystemTime;
 
+use super::interpreter::IError;
 use super::scope::Scope;
 const NULL: Value = Value::Null;
-pub fn default_scope() -> Scope {
-    Scope {
-        parent: None,
-        vars: var_map(),
-        structs: HashMap::from([]),
-    }
+macro_rules! get_params {
+    ($param1:pat = $type1:expr ; $list:expr,$heap:expr) => {
+        let $param1 = &$list[0] else {
+            return type_err_obj(&$type1, &$list[0].get_type(), 1, $heap);
+        };
+    };
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr ; $list:expr,$heap:expr) => {
+        let $param1 = &$list[0] else {
+            return type_err_obj(&$type1, &$list[0].get_type(), 1, $heap);
+        };
+        let $param2 = &$list[1] else {
+            return type_err_obj(&$type2, &$list[1].get_type(), 2, $heap);
+        };
+    };
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr  ; $list:expr,$heap:expr) => {
+        let $param1 = &$list[0] else {
+            return type_err_obj(&$type1, &$list[0].get_type(), 1, $heap);
+        };
+        let $param2 = &$list[1] else {
+            return type_err_obj(&$type2, &$list[1].get_type(), 2, $heap);
+        };
+        let $param3 = &$list[2] else {
+            return type_err_obj(&$type3, &$list[2].get_type(), 3, $heap);
+        };
+    };
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr  ; $list:expr,$heap:expr) => {
+        let $param1 = &$list[0] else {
+            return type_err_obj(&$type1, &$list[0].get_type(), 1, $heap);
+        };
+        let $param2 = &$list[1] else {
+            return type_err_obj(&$type2, &$list[1].get_type(), 2, $heap);
+        };
+        let $param3 = &$list[2] else {
+            return type_err_obj(&$type3, &$list[2].get_type(), 3, $heap);
+        };
+        let $param4 = &$list[3] else {
+            return type_err_obj(&$type4, &$list[3].get_type(), 4, $heap);
+        };
+    };
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr ; $list:expr,$heap:expr) => {
+        let $param1 = &$list[0] else {
+            return type_err_obj(&$type1, &$list[0].get_type(), 1, $heap);
+        };
+        let $param2 = &$list[1] else {
+            return type_err_obj(&$type2, &$list[1].get_type(), 2, $heap);
+        };
+        let $param3 = &$list[2] else {
+            return type_err_obj(&$type3, &$list[2].get_type(), 3, $heap);
+        };
+        let $param4 = &$list[3] else {
+            return type_err_obj(&$type4, &$list[3].get_type(), 4, $heap);
+        };
+        let $param5 = &$list[3] else {
+            return type_err_obj(&$type5, &$list[4].get_type(), 5, $heap);
+        };
+    };
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr, $param6:pat = $type6:expr; $list:expr,$heap:expr) => {
+        let $param1 = &$list[0] else {
+            return type_err_obj(&$type1, &$list[0].get_type(), 1, $heap);
+        };
+        let $param2 = &$list[1] else {
+            return type_err_obj(&$type2, &$list[1].get_type(), 2, $heap);
+        };
+        let $param3 = &$list[2] else {
+            return type_err_obj(&$type3, &$list[2].get_type(), 3, $heap);
+        };
+        let $param4 = &$list[3] else {
+            return type_err_obj(&$type4, &$list[3].get_type(), 4, $heap);
+        };
+        let $param5 = &$list[3] else {
+            return type_err_obj(&$type5, &$list[4].get_type(), 5, $heap);
+        };
+        let $param6 = &$list[3] else {
+            return type_err_obj(&$type6, &$list[5].get_type(), 6, $heap);
+        };
+    };
 }
 
 macro_rules! vars {
@@ -55,8 +129,8 @@ macro_rules! vars_internal {
         ),] $($($left)*)? )
     };
 }
-pub fn var_map() -> VarMap {
-    vars![
+pub fn default_scope() -> Scope {
+    let vars = vars![
         noice => Value::Num(69.0),
         PI => Value::Num(PI),
         TAU => Value::Num(TAU),
@@ -83,7 +157,36 @@ pub fn var_map() -> VarMap {
         range(range,-1),
         floor(floor,1),
         round(round,1)
-    ]
+    ];
+    let structs = vars! {
+        Error => error_struct(String::new()),
+    };
+
+    Scope {
+        parent: None,
+        vars,
+        structs,
+    }
+}
+fn error_struct(msg: String) -> Struct {
+    let props = vars![
+        msg => Value::Str(msg)
+    ];
+    Struct {
+        id: Some("Error".to_string()),
+        env: Scope::from_vars(props),
+    }
+}
+fn create_err(msg: impl Display, heap: &mut SlotMap<RefKey, Value>) -> Value {
+    let err_obg = error_struct(msg.to_string());
+    let id = heap.insert(Value::Struct(err_obg));
+    return Value::Ref(id);
+}
+fn type_err_obj(expected: &Type, got: &Type, at: i32, heap: &mut SlotMap<RefKey, Value>) -> Value {
+    create_err(
+        format!("Invalid type expected {expected} but got {got} at argument:{at}"),
+        heap,
+    )
 }
 
 pub fn num_struct() -> Struct {
@@ -119,12 +222,12 @@ pub fn list_struct() -> Struct {
         env: Scope::from_vars(env),
     }
 }
-pub(super) mod list_methods {
+mod list_methods {
     use super::*;
     pub fn list_pop(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Ref(key) = &args[0] else {
-            return NULL;
-        };
+        get_params!(
+            Value::Ref(key) = Type::Ref
+        ;args,heap);
         let Value::List(mut list) = heap.get(*key).unwrap().clone() else {
             return NULL;
         };
@@ -139,22 +242,22 @@ pub(super) mod list_methods {
         args: Vec<Value>,
         heap: &mut SlotMap<RefKey, Value>,
     ) -> Value {
-        let [Value::Ref(key), target] = &args[..2] else {
-            return NULL;
-        };
+        get_params!(
+            Value::Ref(key) = Type::Ref
+        ;args,heap);
         let Value::List(list) = heap.get(*key).unwrap().clone() else {
             return NULL;
         };
         let old_len = list.len();
-        let new_list: Vec<Value> = list.into_iter().filter(|v| v != target).collect();
+        let new_list: Vec<Value> = list.into_iter().filter(|v| v != &args[1]).collect();
         let new_len = new_list.len();
         heap[*key] = Value::List(new_list);
         Value::Num((old_len - new_len) as f64)
     }
     pub fn list_len(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Ref(key) = &args[0] else {
-            return NULL;
-        };
+        get_params!(
+            Value::Ref(key) = Type::Ref
+        ;args,heap);
         let Value::List(list) = heap.get(*key).unwrap() else {
             return NULL;
         };
@@ -165,9 +268,10 @@ pub(super) mod list_methods {
         args: Vec<Value>,
         heap: &mut SlotMap<RefKey, Value>,
     ) -> Value {
-        let [Value::Ref(key), Value::Num(og_index)] = &args[..2] else {
-            return NULL;
-        };
+        get_params!(
+            Value::Ref(key) = Type::Ref,
+            Value::Num(og_index) = Type::Num
+        ;args,heap);
         let index = og_index.floor() as usize;
         let Value::List(mut list) = heap.get(*key).unwrap().clone() else {
             return NULL;
@@ -177,14 +281,14 @@ pub(super) mod list_methods {
         Value::Ref(*key)
     }
     pub fn list_push(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
-        let [Value::Ref(key), val] = &args[..2] else {
-            return NULL;
-        };
+        get_params!(
+            Value::Ref(key) = Type::Ref
+        ;args,heap);
         let Value::List(mut list) = heap.get(*key).unwrap().clone() else {
             return NULL;
         };
-        list.push(val.clone());
-        heap[*key] = Value::List(list.clone());
+        list.push(args[1].clone());
+        heap[*key] = Value::List(list);
         Value::Ref(*key)
     }
 }
@@ -204,17 +308,18 @@ pub fn str_struct() -> Struct {
         env: Scope::new(None, env, HashMap::from([])),
     }
 }
-pub(super) mod string_methods {
+mod string_methods {
     use super::*;
-    pub fn remove(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Str(ref mut value) = args[0].clone() else {
-            return NULL;
-        };
+    pub fn remove(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Str(val) = Type::Str
+        ;args,heap);
+        let mut value = val.clone();
         let target = &args[1];
         match target {
             Value::Num(index) => {
                 if index < &0.0 || index >= &(value.len() as f64) {
-                    return NULL;
+                    return create_err("Index out of bounds", heap);
                 }
                 value.remove(*index as usize);
                 return Value::Str(value.to_string());
@@ -224,36 +329,37 @@ pub(super) mod string_methods {
         }
     }
 
-    pub fn replace(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let [Value::Str(ref value), Value::Str(ref target), Value::Str(ref filler)] = args[..3]
-        else {
-            return NULL;
-        };
+    pub fn replace(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Str(value) = Type::Str,
+            Value::Str(target) = Type::Str,
+            Value::Str(filler) = Type::Str
+        ;args,heap);
         Value::Str(value.replace(target, filler))
     }
-    pub fn substr(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let [Value::Str(value), Value::Num(start), Value::Num(end)] = &args[..3] else {
-            return NULL;
-        };
+    pub fn substr(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Str(value) = Type::Str,
+            Value::Num(start) = Type::Num,
+            Value::Num(end) = Type::Num
+        ;args,heap);
         let start_index = start.floor() as usize;
         let end_index = end.floor() as usize;
         let sub = &value[start_index..end_index];
         Value::Str(sub.to_string())
     }
-    pub fn len(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Str(value) = &args[0] else {
-            return NULL;
-        };
+    pub fn len(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Str(value) = Type::Str
+        ;args,heap);
         Value::Num(value.len() as f64)
     }
 
-    pub fn char_at(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Str(value) = &args[0] else {
-            return NULL;
-        };
-        let Value::Num(index) = &args[1] else {
-            return NULL;
-        };
+    pub fn char_at(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Str(value) = Type::Str,
+            Value::Num(index) = Type::Num
+        ;args,heap);
 
         value
             .chars()
@@ -262,9 +368,9 @@ pub(super) mod string_methods {
             .unwrap_or(Value::Null)
     }
     pub fn split(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Str(value) = &args[0] else {
-            return NULL;
-        };
+        get_params!(
+            Value::Str(value) = Type::Str
+        ;args,heap);
         match args.len() {
             1 => {
                 let split_str = value
@@ -288,16 +394,16 @@ pub(super) mod string_methods {
         }
     }
 }
-pub(super) mod functions {
+mod functions {
+    use crate::catch;
+
     use super::*;
     pub fn delete_var(
         scope: &mut Scope,
         args: Vec<Value>,
-        _: &mut SlotMap<RefKey, Value>,
+        heap: &mut SlotMap<RefKey, Value>,
     ) -> Value {
-        let Value::Str(val) = &args[0] else {
-            return NULL;
-        };
+        get_params!(Value::Str(val) = Type::Str;args,heap);
         if !scope.vars.contains_key(val) {
             return NULL;
         }
@@ -340,12 +446,14 @@ pub(super) mod functions {
         io::stdout().flush().unwrap();
         NULL
     }
-    pub fn open_textfile(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Str(path) = &args[0] else {
-            return NULL;
-        };
+    pub fn open_textfile(
+        _: &mut Scope,
+        args: Vec<Value>,
+        heap: &mut SlotMap<RefKey, Value>,
+    ) -> Value {
+        get_params!(Value::Str(path) = Type::Str;args,heap);
         let Ok(contents) = fs::read_to_string(path) else {
-            return NULL;
+            return create_err("Failed to open file", heap);
         };
         return Value::Str(contents);
     }
@@ -362,64 +470,68 @@ pub(super) mod functions {
         let out = val.get_type().to_string();
         Value::Str(out)
     }
-    pub fn parse_num(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Str(input) = &args[0] else {
-            return NULL;
+    pub fn parse_num(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(Value::Str(input) = Type::Str;args,heap);
+        let Ok(val) = input.parse() else {
+            return create_err("Invalid float format", heap);
         };
-        Value::Num(input.parse().unwrap())
+        Value::Num(val)
     }
-    pub fn min(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let [Value::Num(val1), Value::Num(val2)] = &args[..2] else {
-            return NULL;
-        };
+    pub fn min(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Num(val1) = Type::Num,
+            Value::Num(val2) = Type::Num
+        ;args,heap);
         Value::Num(val1.min(*val2))
     }
-    pub fn max(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let [Value::Num(val1), Value::Num(val2)] = &args[..2] else {
-            return NULL;
-        };
+    pub fn max(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Num(val1) = Type::Num,
+            Value::Num(val2) = Type::Num
+        ;args,heap);
         Value::Num(val1.max(*val2))
     }
-    pub fn pow(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let [Value::Num(val1), Value::Num(val2)] = &args[..2] else {
-            return NULL;
-        };
+    pub fn pow(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Num(val1) = Type::Num,
+            Value::Num(val2) = Type::Num
+        ;args,heap);
         Value::Num(val1.powf(*val2))
     }
-    pub fn cos(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Num(val1) = &args[0] else {
-            return NULL;
-        };
+    pub fn cos(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Num(val1) = Type::Num
+        ;args,heap);
         Value::Num(val1.cos())
     }
-    pub fn tan(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Num(val1) = &args[0] else {
-            return NULL;
-        };
+    pub fn tan(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Num(val1) = Type::Num
+        ;args,heap);
         Value::Num(val1.tan())
     }
-    pub fn sin(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Num(val1) = &args[0] else {
-            return NULL;
-        };
+    pub fn sin(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Num(val1) = Type::Num
+        ;args,heap);
         Value::Num(val1.sin())
     }
-    pub fn sqrt(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Num(val1) = &args[0] else {
-            return NULL;
-        };
+    pub fn sqrt(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Num(val1) = Type::Num
+        ;args,heap);
         Value::Num(val1.sqrt())
     }
-    pub fn floor(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Num(val1) = &args[0] else {
-            return NULL;
-        };
+    pub fn floor(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Num(val1) = Type::Num
+        ;args,heap);
         Value::Num(val1.floor())
     }
-    pub fn round(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Num(val1) = &args[0] else {
-            return NULL;
-        };
+    pub fn round(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Num(val1) = Type::Num
+        ;args,heap);
         Value::Num(val1.round())
     }
     pub fn deref_val(val: Value, heap: &SlotMap<RefKey, Value>) -> Value {
@@ -453,10 +565,14 @@ pub(super) mod functions {
                 .as_secs_f64(),
         )
     }
-    pub fn wait_builtin(_: &mut Scope, args: Vec<Value>, _: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Num(val1) = &args[0] else {
-            return NULL;
-        };
+    pub fn wait_builtin(
+        _: &mut Scope,
+        args: Vec<Value>,
+        heap: &mut SlotMap<RefKey, Value>,
+    ) -> Value {
+        get_params!(
+            Value::Num(val1) = Type::Num
+        ;args,heap);
         thread::sleep(Duration::from_millis((val1 * 1000.0).floor() as u64));
         NULL
     }
@@ -473,9 +589,9 @@ pub(super) mod functions {
         return Value::Str(String::from(result.trim()));
     }
     pub fn eval(scope: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
-        let Value::Str(source) = &args[0] else {
-            return NULL;
-        };
+        get_params!(
+            Value::Str(source) = Type::Str
+        ;args,heap);
         let mut parser = Parser::new(source.as_str());
         let ast_result = parser.parse();
         let Ok((ast, functions)) = ast_result else {
@@ -494,23 +610,28 @@ pub(super) mod functions {
         args: Vec<Value>,
         heap: &mut SlotMap<RefKey, Value>,
     ) -> Value {
-        let Value::Str(path) = &args[0] else {
-            return NULL;
-        };
+        get_params!(
+            Value::Str(path) = Type::Str
+        ;args,heap);
         let Ok(source) = fs::read_to_string(path) else {
-            return NULL;
+            return create_err("Failed to read file", heap);
         };
         let mut parser = Parser::new(source.as_str());
-        let Ok((ast, functions)) = parser.parse() else {
-            return NULL;
-        };
+
+        let (ast, functions) = catch!(
+            err {
+                return create_err(err.msg(), heap);
+            } in parser.parse()
+        );
         let mut inter = Interpreter::new(ast, functions);
         let base = Scope::from_vars(vars!(
             __name__ => Value::Str("lib".to_string())
         ));
-        let Ok(scope) = inter.parse_vars(base) else {
-            return NULL;
-        };
+        let scope = catch!(
+            err {
+                return create_err(err.msg(), heap);
+            } in inter.parse_vars(base)
+        );
         let heapstuff = |(name, val): (&String, &Value)| -> (String, Value) {
             let mut new_val = val.to_owned();
             if let Value::Ref(id) = val {
@@ -556,42 +677,46 @@ pub(super) mod functions {
     pub fn range(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
         match args.len() {
             0 => {
-                return Value::Null;
+                return create_err("Expected at least 1 argument", heap);
             }
             1 => {
-                let Value::Num(to) = args[0] else { return NULL };
-                let new_range = gen_range(0.0, to, 1.0);
+                get_params!(
+                    Value::Num(to) = Type::Num
+                ;args,heap);
+                let new_range = gen_range(0.0, *to, 1.0);
                 let val = heap.insert(Value::List(new_range));
                 Value::Ref(val)
             }
             2 => {
-                let Value::Num(from) = args[0] else {
-                    return NULL;
-                };
-                let Value::Num(to) = args[1] else { return NULL };
-                let new_range = gen_range(from, to, 1.0);
+                get_params!(
+                    Value::Num(from) = Type::Num,
+                    Value::Num(to) = Type::Num
+                ;args,heap);
+                if from == &0.0 && to == &0.0 {
+                    return create_err("Invalid range", heap);
+                }
+                let new_range = gen_range(*from, *to, 1.0);
                 let val = heap.insert(Value::List(new_range));
                 Value::Ref(val)
             }
             _ => {
-                let Value::Num(from) = args[0] else {
-                    return NULL;
-                };
-                let Value::Num(to) = args[1] else { return NULL };
-                let Value::Num(inc) = args[2] else {
-                    return NULL;
-                };
+                get_params!(
+                    Value::Num(mut from) = Type::Num,
+                    Value::Num(mut to) = Type::Num,
+                    Value::Num(mut inc) = Type::Num
+                ;args,heap);
+
                 if inc == 0.0 {
-                    return NULL;
+                    return create_err("Increment cant be bellow 0", heap);
                 }
                 if from == 0.0 && to == 0.0 {
-                    return NULL;
+                    return create_err("Invalid range", heap);
                 }
                 if from >= 0.0 && inc > 0.0 && to < 0.0 {
-                    return NULL;
+                    return create_err("Invalid range", heap);
                 }
                 if from <= 0.0 && inc < 0.0 && to > 0.0 {
-                    return NULL;
+                    return create_err("Invalid range", heap);
                 }
                 let new_range = gen_range(from, to, inc);
                 let val = heap.insert(Value::List(new_range));

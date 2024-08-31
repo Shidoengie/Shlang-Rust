@@ -837,16 +837,16 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let mut functions: HashMap<String, Function> = HashMap::new();
         while self.peek().is_some() {
             let expr = self.parse_expr()?;
-            body.push(expr.clone());
-            let Node::Declaration(var) = expr.item else {
+            let Node::Declaration(ref var) = expr.item else {
+                body.push(expr.clone());
                 continue;
             };
-            let Node::Value(Value::Function(func)) = (var.value).item else {
+            let Node::Value(Value::Function(ref func)) = (var.value).item else {
+                body.push(expr.clone());
                 continue;
             };
-            functions.insert(var.var_name, func);
+            functions.insert(var.var_name.clone(), func.clone());
         }
-
         Ok((self.filter_block(body), functions))
     }
 }

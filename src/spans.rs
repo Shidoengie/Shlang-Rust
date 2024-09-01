@@ -29,6 +29,7 @@ pub trait IntoSpanned {
         Spanned::new(self.clone(), span)
     }
 }
+impl<T> IntoSpanned for T {}
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub struct Span(pub usize, pub usize);
 impl Span {

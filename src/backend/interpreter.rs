@@ -6,6 +6,7 @@ use crate::hashmap;
 use crate::lang_errors::*;
 use crate::spans::*;
 
+use fmt::Display;
 use slotmap::SlotMap;
 use std::collections::HashMap;
 use std::*;
@@ -22,8 +23,8 @@ pub enum Control {
 macro_rules! unwrap_val {
     ($val:expr) => {
         match $val {
-            Control::Result(inner) | Control::Value(inner) => inner.clone(),
-            Control::Return(inner) => return Ok(Control::Return(inner.clone())),
+            Control::Result(inner) | Control::Value(inner) => inner,
+            Control::Return(inner) => return Ok(Control::Return(inner)),
             _ => Value::Null,
         }
     };
@@ -96,12 +97,7 @@ impl Interpreter {
     fn eval_node(&mut self, node: &NodeSpan, parent: &mut Scope) -> EvalRes<Control> {
         let (span, expr) = (node.span, node.item.clone());
         match expr {
-            Node::Value(val) => {
-                // let kind = val.clone().get_type();
-                // Ok((*val, kind))
-
-                Ok(Control::Value(val))
-            }
+            Node::Value(val) => Ok(Control::Value(val)),
 
             Node::Variable(var) => self.eval_var(var, span, parent),
             Node::Call(request) => self.eval_call(request, &mut parent.clone(), parent),
@@ -132,6 +128,7 @@ impl Interpreter {
             Node::FieldAccess(request) => {
                 self.eval_fieldacess(request, &mut parent.clone(), parent)
             }
+            Node::ConstuctorFunc { name, args } => self.constructor_func(name, args, parent, span),
             Node::Index { target, index } => self.eval_index(*target, *index, parent),
             Node::ListLit(lit) => self.eval_list(lit, parent),
             _ => {
@@ -421,8 +418,11 @@ impl Interpreter {
                 &mut defaults::num_struct().env,
                 target,
             ),
-
-            a => panic!("{a:?}"),
+            Value::Null => return NULL,
+            a => unspec_err(
+                format!("Requested type {} has no properties", a.get_type()),
+                requested.span,
+            ),
         }
     }
     fn access_ref(
@@ -531,10 +531,10 @@ impl Interpreter {
 
     fn assign(&mut self, request: Assignment, parent: &mut Scope) -> EvalRes<Control> {
         let init_val = unwrap_val!(self.eval_node(&request.value, parent)?);
-
-        match request.clone().target.item {
+        let span = request.target.span;
+        match request.target.item {
             Node::Variable(var) => {
-                parent.assign_valid(var, init_val, request.target.span)?;
+                parent.assign_valid(var, init_val, span)?;
             }
             Node::Index { target, index } => {
                 self.assign_to_index(init_val, *target, *index, parent)?;
@@ -542,7 +542,7 @@ impl Interpreter {
             Node::FieldAccess(field) => {
                 self.assign_to_access(field, init_val, parent)?;
             }
-            _ => todo!(),
+            _ => return unspec_err("", span),
         };
         VOID
     }
@@ -666,7 +666,7 @@ impl Interpreter {
         }
         let maybe_result = default_scope().get_struct(name);
         let Some(result) = maybe_result else {
-            return unspec_err("Attempted to construct a non existent struct", span);
+            return unspec_err("Attempted to get a non existent struct", span);
         };
         Ok(result)
     }
@@ -695,6 +695,37 @@ impl Interpreter {
         let request = self.get_struct(&constructor.name, span, parent)?;
         let struct_val = self.construct_fields(request, constructor.params, parent)?;
         let key = self.heap.insert(unwrap_val!(struct_val));
+        Ok(Control::Value(Value::Ref(key)))
+    }
+    fn constructor_func(
+        &mut self,
+        name: String,
+        args: Vec<NodeSpan>,
+        parent: &mut Scope,
+        span: Span,
+    ) -> EvalRes<Control> {
+        let mut request = self.get_struct(&name, span, parent)?;
+        if args.len() > request.env.vars.len() {
+            return unspec_err("Supplied arguments exceed ammount of variables", span);
+        }
+        let mut args_iter = args.iter();
+        for (k, v) in request.env.vars.clone() {
+            let arg = match (v, args_iter.next()) {
+                (Value::Null, None) => {
+                    return unspec_err(
+                        "Supplied arguments are bellow the ammount of variables",
+                        span,
+                    )
+                }
+                (_, None) => continue,
+                (_, Some(v)) => v,
+            };
+
+            let arg_val = unwrap_val!(self.eval_node(arg, parent)?);
+            request.env.vars.insert(k, arg_val);
+        }
+
+        let key = self.heap.insert(Value::Struct(request));
         Ok(Control::Value(Value::Ref(key)))
     }
     fn eval_structdef(&mut self, def: StructDef, parent: &mut Scope) -> EvalRes<Control> {
@@ -765,7 +796,7 @@ impl Interpreter {
         Ok(Control::Value(Value::Ref(val)))
     }
 }
-fn unspec_err<T>(msg: &str, span: Span) -> EvalRes<T> {
+fn unspec_err<T>(msg: impl Display, span: Span) -> EvalRes<T> {
     return Err(IError::Unspecified(msg.to_string()).to_spanned(span));
 }
 fn type_err<T>(expected: Type, got: Type, span: Span) -> EvalRes<T> {

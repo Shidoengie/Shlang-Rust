@@ -102,7 +102,12 @@ pub struct Struct {
 }
 impl ValueRepr for Struct {
     fn repr(&self) -> String {
-        let mut buffer = String::from("{ ");
+        let mut buffer = if let Some(name) = &self.id {
+            name.to_owned()
+        } else {
+            String::new()
+        };
+        buffer += "{ ";
         let vars = &self.env.vars;
         for (k, v) in vars.iter() {
             buffer += k;
@@ -239,6 +244,10 @@ pub enum Node {
     ForLoop(ForLoop),
     DoBlock(NodeStream),
     Constructor(Constructor),
+    ConstuctorFunc {
+        name: String,
+        args: Vec<NodeSpan>,
+    },
     StructDef(StructDef),
     FieldAccess(FieldAccess),
     DontResult,
@@ -255,7 +264,6 @@ impl Node {
         )
     }
 }
-impl IntoSpanned for Node {}
 
 pub type NodeSpan = Spanned<Node>;
 pub type NodeRef = Box<Spanned<Node>>;

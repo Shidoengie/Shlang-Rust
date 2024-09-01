@@ -134,6 +134,7 @@ pub fn default_scope() -> Scope {
         noice => Value::Num(69.0),
         PI => Value::Num(PI),
         TAU => Value::Num(TAU),
+        print_err(print_err,1),
         wait(wait_builtin,1),
         time(unix_time,0),
         open_file(open_textfile,1),
@@ -277,7 +278,7 @@ mod list_methods {
             return NULL;
         };
         list.remove(index);
-        heap[*key] = Value::List(list.clone());
+        heap[*key] = Value::List(list);
         Value::Ref(*key)
     }
     pub fn list_push(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
@@ -395,6 +396,8 @@ mod string_methods {
     }
 }
 mod functions {
+    use colored::Colorize;
+
     use crate::catch;
 
     use super::*;
@@ -421,11 +424,34 @@ mod functions {
         }
         let mut out = "".to_string();
         for val in args {
-            out += format!(" {}", deref_val(val, heap)).as_str();
+            let derefed = deref_val(val, heap);
+            out += format!(" {derefed}").as_str();
         }
         out = out.trim().to_string();
         println!("{out}");
         Value::Null
+    }
+    fn print_err_msg(msg: impl Display) {
+        println!("{} {msg}", "ERROR!".red());
+    }
+    pub fn print_err(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        let val = deref_val(args[0].clone(), heap);
+        match &val {
+            Value::Struct(obj) => {
+                let Some(ref id) = obj.id else {
+                    print_err_msg(val);
+                    return NULL;
+                };
+                if id != "Error" {
+                    print_err_msg(val);
+                    return NULL;
+                }
+                let msg = obj.env.get_var("msg").unwrap();
+                print_err_msg(msg);
+            }
+            _ => print_err_msg(val),
+        };
+        NULL
     }
     pub fn print_builtin(
         _: &mut Scope,

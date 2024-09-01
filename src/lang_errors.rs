@@ -78,7 +78,7 @@ impl LangError for Spanned<ParseError> {
         }
     }
 }
-impl IntoSpanned for ParseError {}
+
 #[derive(Debug, Clone)]
 pub enum InterpreterError {
     MixedTypes(Type, Type),
@@ -93,7 +93,7 @@ pub enum InterpreterError {
     InvalidBinary(Type),
     Unspecified(String),
 }
-impl IntoSpanned for InterpreterError {}
+
 impl LangError for Spanned<InterpreterError> {
     fn msg(&self) -> String {
         use InterpreterError::*;
@@ -121,9 +121,17 @@ impl LangError for Spanned<InterpreterError> {
             }
             InvalidConstructor => "Attempted to construct a non existent struct".to_string(),
             InvalidOp(op, inv) => format!("Cant do {op:?} operation with type {inv:?}"),
-            InvalidArgSize(expected, got) => format!(
-                "Invalid args size expected {expected:?} arguments but got {got:?} arguments"
-            ),
+            InvalidArgSize(expected, got) => {
+                let expected_txt = if expected == &1 {
+                    "argument"
+                } else {
+                    "arguments"
+                };
+                let got_txt = if got == &1 { "argument" } else { "arguments" };
+                format!(
+                "Invalid argument size expected {expected:?} {expected_txt} but got {got:?} {got_txt}"
+                )
+            }
             InvalidBinary(got) => format!("Invalid type in binary operation: {:?}", got),
             Unspecified(msg) => msg.to_string(),
         }

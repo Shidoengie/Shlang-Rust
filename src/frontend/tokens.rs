@@ -2,6 +2,8 @@ use crate::spans::*;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenType {
     STR,
+    DUAL_PIPE,
+    DUAL_AMPERSAND,
     NUM,
     IDENTIFIER,
     SEMICOLON,

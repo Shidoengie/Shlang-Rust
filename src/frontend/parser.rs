@@ -520,7 +520,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let Some(op) = self.peek() else {
             return Ok(left);
         };
-        if op.isnt(&TokenType::OR) && op.isnt(&TokenType::PIPE) {
+        if op.isnt(&TokenType::OR) && op.isnt(&TokenType::DUAL_PIPE) {
             return Ok(left);
         }
         self.next();
@@ -533,7 +533,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let Some(op) = self.peek() else {
             return Ok(left);
         };
-        if op.isnt(&TokenType::AND) && op.isnt(&TokenType::AMPERSAND) {
+        if op.isnt(&TokenType::AND) && op.isnt(&TokenType::DUAL_AMPERSAND) {
             return Ok(left);
         }
         self.next();

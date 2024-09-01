@@ -214,9 +214,12 @@ pub fn list_struct() -> Struct {
     let env = vars![
         len(list_len, 1),
         push(list_push, 2),
+        append(list_append, 2),
         pop(list_pop, 1),
         remove(list_remove, 2),
-        pop_at(list_pop_at, 2)
+        pop_at(list_pop_at, 2),
+        join(join, 2),
+        has(list_has, 2)
     ];
     Struct {
         id: None,
@@ -275,22 +278,77 @@ mod list_methods {
         ;args,heap);
         let index = og_index.floor() as usize;
         let Value::List(mut list) = heap.get(*key).unwrap().clone() else {
-            return NULL;
+            return type_err_obj(&Type::List, &heap.get(*key).unwrap().get_type(), 1, heap);
         };
         list.remove(index);
         heap[*key] = Value::List(list);
         Value::Ref(*key)
+    }
+    pub fn list_append(
+        _: &mut Scope,
+        args: Vec<Value>,
+        heap: &mut SlotMap<RefKey, Value>,
+    ) -> Value {
+        get_params!(
+            Value::Ref(list_id) = Type::Ref,
+            Value::Ref(pushed_id) = Type::Ref
+        ;args,heap);
+        let Value::List(mut list) = heap.get(*list_id).unwrap().clone() else {
+            return type_err_obj(
+                &Type::List,
+                &heap.get(*list_id).unwrap().get_type(),
+                1,
+                heap,
+            );
+        };
+        let Value::List(mut pushed) = heap.get(*pushed_id).unwrap().clone() else {
+            return type_err_obj(
+                &Type::List,
+                &heap.get(*pushed_id).unwrap().get_type(),
+                1,
+                heap,
+            );
+        };
+        list.append(&mut pushed);
+        heap[*list_id] = Value::List(list);
+        Value::Ref(*list_id)
     }
     pub fn list_push(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
         get_params!(
             Value::Ref(key) = Type::Ref
         ;args,heap);
         let Value::List(mut list) = heap.get(*key).unwrap().clone() else {
-            return NULL;
+            return type_err_obj(&Type::List, &heap.get(*key).unwrap().get_type(), 1, heap);
         };
         list.push(args[1].clone());
         heap[*key] = Value::List(list);
         Value::Ref(*key)
+    }
+
+    pub fn join(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Ref(key) = Type::Ref,
+            Value::Str(seperator) = Type::Str
+        ;args,heap);
+        let Value::List(list) = heap.get(*key).unwrap() else {
+            return type_err_obj(&Type::List, &heap.get(*key).unwrap().get_type(), 1, heap);
+        };
+        let mut buffer = String::new();
+        for i in list {
+            buffer += &i.to_string();
+            buffer += seperator.as_str();
+        }
+        Value::Str(buffer)
+    }
+    pub fn list_has(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Ref(key) = Type::Ref
+        ;args,heap);
+        let Value::List(list) = heap.get(*key).unwrap() else {
+            return type_err_obj(&Type::List, &heap.get(*key).unwrap().get_type(), 1, heap);
+        };
+
+        Value::Bool(list.contains(&args[1]))
     }
 }
 pub fn str_struct() -> Struct {
@@ -302,7 +360,10 @@ pub fn str_struct() -> Struct {
         remove(remove, 2),
         replace(replace, 2),
         char_at(char_at, 2),
-        split(split, -1)
+        split(split, -1),
+        to_upper(to_upper, 1),
+        to_lower(to_lower, 1),
+        has(has_val, 2)
     ];
     Struct {
         id: None,
@@ -311,6 +372,13 @@ pub fn str_struct() -> Struct {
 }
 mod string_methods {
     use super::*;
+    pub fn has_val(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Str(value) = Type::Str,
+            Value::Str(pat) = Type::Str
+        ;args,heap);
+        Value::Bool(value.contains(pat))
+    }
     pub fn remove(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
         get_params!(
             Value::Str(val) = Type::Str
@@ -348,6 +416,18 @@ mod string_methods {
         let end_index = end.floor() as usize;
         let sub = &value[start_index..end_index];
         Value::Str(sub.to_string())
+    }
+    pub fn to_upper(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Str(value) = Type::Str
+        ;args,heap);
+        Value::Str(value.to_uppercase())
+    }
+    pub fn to_lower(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        get_params!(
+            Value::Str(value) = Type::Str
+        ;args,heap);
+        Value::Str(value.to_lowercase())
     }
     pub fn len(_: &mut Scope, args: Vec<Value>, heap: &mut SlotMap<RefKey, Value>) -> Value {
         get_params!(

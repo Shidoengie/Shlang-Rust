@@ -731,20 +731,11 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         Ok(body)
     }
-    fn parse_constructor_func(&mut self, ident: Token, name: String) -> ParseRes<NodeSpan> {
-        let token = self.skip_some()?;
-        let args = self.parse_expr_list(&token, TokenType::RPAREN)?;
-        let last = self.peek_some()?;
-        self.next();
-        let span = ident.span + last.span;
-        Ok(Node::ConstuctorFunc { name, args }.to_spanned(span))
-    }
+
     fn parse_constructor(&mut self) -> ParseRes<NodeSpan> {
         let ident = self.consume(TokenType::IDENTIFIER)?;
         let name = self.text(&ident);
-        if self.is_expected(TokenType::LPAREN).is_some() {
-            return self.parse_constructor_func(ident, name);
-        }
+
         let params = self.struct_params()?;
         let last = self.peek_some()?;
         self.next();

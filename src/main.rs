@@ -1,5 +1,6 @@
 use backend::scope::Scope;
 use colored::Colorize;
+use fmt::Display;
 use frontend::nodes::Value;
 use frontend::nodes::ValueRepr;
 use lang_errors::*;
@@ -69,9 +70,25 @@ fn execute_file(args: Vec<String>) {
         return;
     } in parser.parse());
     let mut interpreter = Interpreter::new(ast, functions);
-    interpreter.execute().map_err(|e| e.print_msg(err_out));
+    let _ = interpreter.execute().map_err(|e| e.print_msg(err_out));
 }
-
+fn print_repl_res(val: Value, heap: &SlotMap<RefKey, Value>) {
+    let output = deref_val(val, heap);
+    if let Value::Struct(ref obj) = output {
+        let Some(ref id) = obj.id else {
+            println!("{}", obj.repr().bright_black());
+            return;
+        };
+        if id != "Error" {
+            println!("{}", obj.repr().bright_black());
+            return;
+        }
+        let msg = obj.env.get_var("msg").unwrap();
+        println!("{} {msg}", "ERROR!".red());
+        return;
+    }
+    println!("{}", output.repr().bright_black());
+}
 fn repl() {
     let mut scope = Scope::default();
     let mut heap: SlotMap<RefKey, Value> = SlotMap::with_key();
@@ -86,10 +103,7 @@ fn repl() {
         let mut inter = Interpreter::new(ast, functions);
         inter.heap = heap;
         match inter.execute_with(&mut scope) {
-            Ok(raw) => {
-                let output = deref_val(raw, &inter.heap);
-                println!("{}", output.repr().bright_black())
-            }
+            Ok(raw) => print_repl_res(raw, &inter.heap),
             Err(err) => err.print_msg(err_out),
         };
         heap = inter.heap;

@@ -154,18 +154,26 @@ new_key_type! {
     pub struct RefKey;
 }
 
-type FuncPtr = fn(&mut Scope, Vec<Value>, &mut SlotMap<RefKey, Value>) -> Value;
+pub struct FuncData<'a> {
+    pub parent: &'a mut Scope,
+    pub args: Vec<Value>,
+    pub heap: &'a mut SlotMap<RefKey, Value>,
+    pub global_funcs: &'a mut HashMap<String, Function>,
+}
+
+type FuncPtr = fn(FuncData) -> Value;
+
 #[derive(Clone)]
 pub struct BuiltinFunc {
     pub function: FuncPtr,
-    pub arg_size: i16,
+    pub arg_range: Option<(u8, u8)>,
     pub id: String,
 }
 impl Debug for BuiltinFunc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BuiltinFunc")
             .field("id", &self.id)
-            .field("arg_size", &self.arg_size)
+            .field("arg_size", &self.arg_range)
             .finish()
     }
 }
@@ -175,10 +183,10 @@ impl PartialEq for BuiltinFunc {
     }
 }
 impl BuiltinFunc {
-    pub fn new(id: String, function: FuncPtr, arg_size: i16) -> Self {
+    pub fn new(id: String, function: FuncPtr, arg_range: Option<(u8, u8)>) -> Self {
         Self {
             function,
-            arg_size,
+            arg_range,
             id,
         }
     }
@@ -244,10 +252,7 @@ pub enum Node {
     ForLoop(ForLoop),
     DoBlock(NodeStream),
     Constructor(Constructor),
-    ConstuctorFunc {
-        name: String,
-        args: Vec<NodeSpan>,
-    },
+
     StructDef(StructDef),
     FieldAccess(FieldAccess),
     DontResult,

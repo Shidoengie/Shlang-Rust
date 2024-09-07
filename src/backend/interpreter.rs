@@ -6,6 +6,7 @@ use crate::hashmap;
 use crate::lang_errors::*;
 use crate::spans::*;
 
+use fmt::format;
 use fmt::Display;
 use slotmap::SlotMap;
 use std::collections::HashMap;
@@ -128,7 +129,7 @@ impl Interpreter {
             Node::FieldAccess(request) => {
                 self.eval_fieldacess(request, &mut parent.clone(), parent)
             }
-            Node::ConstuctorFunc { name, args } => self.constructor_func(name, args, parent, span),
+
             Node::Index { target, index } => self.eval_index(*target, *index, parent),
             Node::ListLit(lit) => self.eval_list(lit, parent),
             _ => {
@@ -613,6 +614,7 @@ impl Interpreter {
         }
         arg_map
     }
+
     fn call_builtin(
         &mut self,
         called: BuiltinFunc,
@@ -620,13 +622,14 @@ impl Interpreter {
         span: Span,
         parent: &mut Scope,
     ) -> EvalRes<Control> {
-        if called.arg_size != -1 && arg_values.len() as i16 != called.arg_size {
-            return Err(
-                IError::InvalidArgSize(called.arg_size as u32, arg_values.len() as u32)
-                    .to_spanned(span),
-            );
-        }
-        let result = (called.function)(parent, arg_values, &mut self.heap);
+        check_args(called.arg_range, arg_values.len(), span)?;
+        let data = FuncData {
+            heap: &mut self.heap,
+            global_funcs: &mut self.functions,
+            parent,
+            args: arg_values,
+        };
+        let result = (called.function)(data);
         Ok(Control::Value(result))
     }
 }
@@ -697,37 +700,7 @@ impl Interpreter {
         let key = self.heap.insert(unwrap_val!(struct_val));
         Ok(Control::Value(Value::Ref(key)))
     }
-    fn constructor_func(
-        &mut self,
-        name: String,
-        args: Vec<NodeSpan>,
-        parent: &mut Scope,
-        span: Span,
-    ) -> EvalRes<Control> {
-        let mut request = self.get_struct(&name, span, parent)?;
-        if args.len() > request.env.vars.len() {
-            return unspec_err("Supplied arguments exceed ammount of variables", span);
-        }
-        let mut args_iter = args.iter();
-        for (k, v) in request.env.vars.clone() {
-            let arg = match (v, args_iter.next()) {
-                (Value::Null, None) => {
-                    return unspec_err(
-                        "Supplied arguments are bellow the ammount of variables",
-                        span,
-                    )
-                }
-                (_, None) => continue,
-                (_, Some(v)) => v,
-            };
 
-            let arg_val = unwrap_val!(self.eval_node(arg, parent)?);
-            request.env.vars.insert(k, arg_val);
-        }
-
-        let key = self.heap.insert(Value::Struct(request));
-        Ok(Control::Value(Value::Ref(key)))
-    }
     fn eval_structdef(&mut self, def: StructDef, parent: &mut Scope) -> EvalRes<Control> {
         let mut struct_env = Scope::default();
         for field in def.fields {
@@ -801,4 +774,20 @@ fn unspec_err<T>(msg: impl Display, span: Span) -> EvalRes<T> {
 }
 fn type_err<T>(expected: Type, got: Type, span: Span) -> EvalRes<T> {
     return Err(IError::InvalidType(vec![expected], got).to_spanned(span));
+}
+fn check_args(arg_range: Option<(u8, u8)>, given_size: usize, span: Span) -> EvalRes<()> {
+    let Some(range) = arg_range else {
+        return Ok(());
+    };
+    if range.1 == 0 && given_size != 0 {
+        return unspec_err(format!("Expected no arguments but got {given_size}"), span);
+    }
+
+    if given_size > range.1.into() {
+        return unspec_err(format!("Given arguments are greater then expected; Expected atmost {max} but got {given_size}",max=range.1), span);
+    }
+    if given_size < range.0.into() {
+        return unspec_err(format!("Given arguments are lesser then expected; Expected atleast {min} but got {given_size}",min=range.0), span);
+    }
+    return Ok(());
 }

@@ -1,3 +1,4 @@
+mod func_methods;
 mod functions;
 mod lists;
 mod numbers;
@@ -6,6 +7,7 @@ use crate::backend::scope::Scope;
 use crate::frontend::nodes::*;
 use crate::vars;
 use crate::vars_internal;
+pub use func_methods::*;
 use functions::*;
 pub use lists::*;
 pub use numbers::*;

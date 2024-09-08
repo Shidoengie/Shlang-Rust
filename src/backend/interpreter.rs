@@ -81,7 +81,26 @@ impl Interpreter {
         }
         .eval_node(&node, &mut Scope::default())
     }
-
+    pub fn execute_node_with(node: NodeSpan, parent: &mut Scope) -> EvalRes<Control> {
+        Self {
+            program: vec![Node::DontResult.to_spanned(Span(0, 0))],
+            heap: SlotMap::with_key(),
+            functions: HashMap::new(),
+        }
+        .eval_node(&node, parent)
+    }
+    pub fn execute_func_with(
+        func: Function,
+        parent: &mut Scope,
+        args: Vec<Value>,
+    ) -> EvalRes<Control> {
+        Self {
+            program: vec![Node::DontResult.to_spanned(Span(0, 0))],
+            heap: SlotMap::with_key(),
+            functions: HashMap::new(),
+        }
+        .call_func(func, args, Span::EMPTY, parent)
+    }
     pub fn parse_vars(&mut self, mut parent: Scope) -> EvalRes<Scope> {
         if self.program.is_empty() {
             return Ok(Scope::default());
@@ -384,7 +403,7 @@ impl Interpreter {
     }
 }
 
-///Variable and struct assignment
+///Variable and struct assignment and struct access
 impl Interpreter {
     fn eval_fieldacess(
         &mut self,
@@ -394,9 +413,9 @@ impl Interpreter {
     ) -> EvalRes<Control> {
         let target = unwrap_val!(self.eval_node(&request.target, parent)?);
 
-        self.eval_acess(target, *request.requested, base_env, parent)
+        self.eval_access(target, *request.requested, base_env, parent)
     }
-    fn eval_acess(
+    fn eval_access(
         &mut self,
         target: Value,
         requested: NodeSpan,
@@ -418,6 +437,13 @@ impl Interpreter {
                 &mut defaults::num_struct().env,
                 target,
             ),
+            Value::Function(_) => self.eval_access_request(
+                requested,
+                base_env,
+                &mut defaults::func_struct().env,
+                target,
+            ),
+
             Value::Null => return NULL,
             a => unspec_err(
                 format!("Requested type {} has no properties", a.get_type()),
@@ -441,7 +467,7 @@ impl Interpreter {
                 &mut defaults::list_struct().env,
                 Value::Ref(id),
             ),
-            val => self.eval_acess(val.clone(), request, base_env, parent),
+            val => self.eval_access(val.clone(), request, base_env, parent),
         }
     }
     fn access_struct(

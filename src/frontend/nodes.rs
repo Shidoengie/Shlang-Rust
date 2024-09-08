@@ -1,7 +1,7 @@
-use slotmap::{new_key_type, SlotMap};
-
 use crate::backend::scope::Scope;
 use crate::spans::*;
+use rayon::prelude::*;
+use slotmap::{new_key_type, SlotMap};
 
 use std::collections::*;
 use std::fmt::{Debug, Display};
@@ -23,17 +23,17 @@ pub trait ValueRepr {
     fn repr(&self) -> String;
 }
 pub type TypedValue = (Value, Type);
-fn list_repr(list: &[Value]) -> String {
+pub fn list_join(list: &[Value], seperator: &str) -> String {
     if list.is_empty() {
         return "[]".to_owned();
     }
-    let mut out = String::new();
-    for val in list {
-        out += format!(",{}", val.repr()).as_str();
-    }
-    out = out.strip_prefix(',').unwrap().to_string();
-    out = "[".to_string() + out.as_str() + "]";
-    out
+    let out = String::from_par_iter(list.par_iter().enumerate().map(|(i, v)| {
+        if i == list.len() - 1 {
+            return v.to_string();
+        }
+        v.to_string() + seperator
+    }));
+    return format!("[{out}]");
 }
 impl Value {
     pub fn get_type(&self) -> Type {
@@ -65,7 +65,7 @@ impl ValueRepr for Value {
             Self::Str(txt) => format!("\"{txt}\""),
             Self::Null => "null".to_string(),
             Self::Void => "void".to_string(),
-            Self::List(list) => list_repr(list),
+            Self::List(list) => list_join(list, ","),
             Self::Struct(obj) => obj.repr(),
             Self::Function(func) => func.repr(),
             Self::Ref(id) => format!("ref {:?}", id),
@@ -81,7 +81,7 @@ impl Display for Value {
             Self::Str(txt) => txt.to_string(),
             Self::Null => "null".to_string(),
             Self::Void => "void".to_string(),
-            Self::List(list) => list_repr(list),
+            Self::List(list) => list_join(list, ","),
             Self::Struct(obj) => obj.repr(),
             Self::Function(func) => func.repr(),
             Self::Ref(id) => format!("ref{:?}", id),
@@ -107,17 +107,17 @@ impl ValueRepr for Struct {
         } else {
             String::new()
         };
-        buffer += "{ ";
+        buffer += "{";
         let vars = &self.env.vars;
-        for (k, v) in vars.iter() {
+        for (index, (k, v)) in vars.iter().enumerate() {
             buffer += k;
             buffer += ":";
             buffer += &v.repr();
-            if vars.values().last().unwrap() != v {
+            if index < vars.len() - 1 {
                 buffer += ", "
             }
         }
-        buffer += " }";
+        buffer += "}";
         buffer
     }
 }

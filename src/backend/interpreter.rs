@@ -1,6 +1,6 @@
-use super::defaults;
-use super::defaults::default_scope;
 use super::scope::Scope;
+use crate::backend::defaults;
+use crate::backend::defaults::default_scope;
 use crate::frontend::nodes::*;
 use crate::hashmap;
 use crate::lang_errors::*;

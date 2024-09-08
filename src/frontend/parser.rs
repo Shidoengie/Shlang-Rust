@@ -41,17 +41,6 @@ impl<'input> Parser<'input, Lexer<'input>> {
         Value::Num(text.parse().unwrap())
     }
 
-    /// A hack used to fix most escape charaters
-    /// should be replaced with actual escape charater parsing but this is easier while being slightly broken
-    pub fn escaped_text(&mut self, token: &Token) -> String {
-        self.input[token.span.0..token.span.1]
-            .to_string()
-            .replace("\\n", "\n")
-            .replace("\\t", "\t")
-            .replace("\\r", "\r")
-            .replace("\\0", "\0")
-            .replace("\\\"", "\"")
-    }
     /// peeks the current token
     fn peek(&mut self) -> Option<Token> {
         self.tokens.peek().cloned()
@@ -805,7 +794,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         };
 
         match &value.kind {
-            TokenType::STR => Ok(Value::Str(self.escaped_text(value)).to_nodespan(value.span)),
+            TokenType::STR(lit) => Ok(Value::Str(lit.to_string()).to_nodespan(value.span)),
             TokenType::STRUCT => self.parse_struct(),
             TokenType::VAR => self.parse_vardef(),
             TokenType::NUM => Ok(self.parse_num(value).to_nodespan(value.span)),

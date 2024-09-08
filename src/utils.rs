@@ -36,3 +36,10 @@ macro_rules! hashmap {
     };
 
 }
+#[macro_export]
+macro_rules! char_vec {
+    ($chars:expr) => {{
+        let val: Vec<char> = $chars.par_chars().collect();
+        CharVec(val)
+    }};
+}

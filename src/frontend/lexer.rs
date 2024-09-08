@@ -1,15 +1,16 @@
 use std::str::Chars;
 
-use crate::spans::Span;
-
 use super::tokens;
 use super::tokens::*;
+use crate::charvec::CharVec;
+use crate::spans::Span;
 
 #[derive(Debug, Clone)]
 pub struct Lexer<'a> {
     chars: Chars<'a>,
     source: String,
-    size: usize,
+
+    index: usize,
 }
 impl<'a> Lexer<'a> {
     fn peek(&self) -> Option<char> {
@@ -17,6 +18,7 @@ impl<'a> Lexer<'a> {
     }
     fn peek_advance(&mut self) -> Option<char> {
         self.advance();
+
         self.peek()
     }
     fn peek_next(&mut self) -> Option<char> {
@@ -25,18 +27,16 @@ impl<'a> Lexer<'a> {
         cur_chars.next()
     }
     fn advance(&mut self) -> Option<char> {
+        self.index += 1;
         self.chars.next()
     }
     fn current_is(&mut self, expected: char) -> bool {
         self.peek() == Some(expected)
     }
-    fn index(&self) -> usize {
-        self.size - self.chars.clone().count()
-    }
 
     fn num(&mut self) -> Token {
         let mut dot_count: u16 = 0;
-        let start = self.index();
+        let start = self.index;
         let mut current = self.peek();
         while let Some(val) = current {
             if !val.is_numeric() && val != '.' && val != '_' {
@@ -59,30 +59,35 @@ impl<'a> Lexer<'a> {
         }
         let is_float = dot_count != 0;
         if is_float {
-            return Token::new(TokenType::NUM, Span(start - 1, self.index()));
+            return Token::new(TokenType::NUM, Span(start - 1, self.index));
         }
-        Token::new(TokenType::NUM, Span(start - 1, self.index()))
+        Token::new(TokenType::NUM, Span(start - 1, self.index))
     }
     fn ident(&mut self) -> Token {
-        let start = self.index() - 1;
+        let start = self.index - 1;
         let mut current = self.peek();
         while let Some(val) = current {
-            if !val.is_alphanumeric() && val != '_' {
-                break;
+            if val.is_alphanumeric() || val == '_' {
+                current = self.peek_advance();
+                continue;
             }
-            current = self.peek_advance();
+
+            break;
         }
-        let stop = self.index();
-        let span = &self.source[start..stop];
+        let stop = self.index;
+        let Some(span) = self.source.get(start..stop) else {
+            panic!("Identifiers can only be ASCII");
+        };
         let Some(keyword) = tokens::map_keyword(span.to_string()) else {
             return Token::new(TokenType::IDENTIFIER, Span(start, stop));
         };
         Token::new(keyword, Span(start, stop))
     }
     fn str(&mut self, quote: char) -> Option<Token> {
-        let start = self.index();
+        let start = self.index;
         let mut last = self.advance();
         let mut escaped = false;
+        let mut buffer: Vec<char> = vec![];
         loop {
             match (escaped, last?) {
                 (false, '\\') => escaped = true,
@@ -90,14 +95,33 @@ impl<'a> Lexer<'a> {
                     if q == quote {
                         break;
                     }
+                    buffer.push(q);
+                    let bytecount = q.len_utf8();
+                    self.index += bytecount.checked_sub(1).unwrap_or(0);
                 }
-                _ => escaped = false,
+                (true, ch) => {
+                    let escape_map = match ch {
+                        'n' => '\n',
+                        't' => '\t',
+                        '\\' => '\\',
+                        '0' => '\0',
+                        '"' => '\"',
+                        '\'' => '\'',
+
+                        _ => panic!("invalid escape sequence"),
+                    };
+                    buffer.push(escape_map);
+                    escaped = false;
+                }
             }
+
             last = self.advance();
         }
 
-        let stop = self.index() - 1;
-        Some(Token::new(TokenType::STR, Span(start, stop)))
+        Some(Token::new(
+            TokenType::STR(CharVec(buffer)),
+            Span(start, self.index),
+        ))
     }
     fn push_advance(&mut self, kind: TokenType, range: Span) -> Token {
         self.advance();
@@ -111,7 +135,7 @@ impl<'a> Lexer<'a> {
         range_start: usize,
     ) -> Option<Token> {
         if self.current_is(expected) {
-            return Some(self.push_advance(long_token, Span(range_start, self.index())));
+            return Some(self.push_advance(long_token, Span(range_start, self.index)));
         }
         Some(Token::new(short_token, Span(range_start, range_start + 1)))
     }
@@ -167,7 +191,8 @@ impl<'a> Lexer<'a> {
         return Self {
             chars: src.chars(),
             source: String::from(src),
-            size: src.chars().count(),
+
+            index: 0,
         };
     }
 }
@@ -175,7 +200,7 @@ impl<'a> Iterator for Lexer<'a> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let start = self.index();
+        let start = self.index;
         let last = self.advance()?;
         let range = Span(start, start + 1);
         match last {

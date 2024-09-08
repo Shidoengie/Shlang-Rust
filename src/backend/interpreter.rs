@@ -6,7 +6,6 @@ use crate::hashmap;
 use crate::lang_errors::*;
 use crate::spans::*;
 
-use fmt::format;
 use fmt::Display;
 use slotmap::SlotMap;
 use std::collections::HashMap;

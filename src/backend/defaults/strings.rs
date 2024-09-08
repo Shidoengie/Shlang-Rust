@@ -99,7 +99,6 @@ fn char_at(data: FuncData) -> Value {
         og_index.floor() as usize
     };
 
-    dbg!(index);
     if index >= value.len() {
         return create_err("Index out of bounds", data.heap);
     }

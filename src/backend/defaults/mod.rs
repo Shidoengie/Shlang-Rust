@@ -1,3 +1,4 @@
+mod closures;
 mod func_methods;
 mod functions;
 mod lists;
@@ -7,6 +8,7 @@ use crate::backend::scope::Scope;
 use crate::frontend::nodes::*;
 use crate::vars;
 use crate::vars_internal;
+use closures::closure_obj;
 pub use func_methods::*;
 use functions::*;
 pub use lists::*;
@@ -53,6 +55,7 @@ pub fn default_scope() -> Scope {
     ];
     let structs = vars! {
         Error => error_struct(String::new()),
+        Closure => closure_obj(),
     };
 
     Scope {
@@ -61,7 +64,8 @@ pub fn default_scope() -> Scope {
         structs,
     }
 }
-pub(self) fn error_struct(msg: String) -> Struct {
+
+fn error_struct(msg: String) -> Struct {
     let props = vars![
         msg => Value::Str(msg)
     ];
@@ -70,17 +74,12 @@ pub(self) fn error_struct(msg: String) -> Struct {
         env: Scope::from_vars(props),
     }
 }
-pub(self) fn create_err(msg: impl Display, heap: &mut SlotMap<RefKey, Value>) -> Value {
+fn create_err(msg: impl Display, heap: &mut SlotMap<RefKey, Value>) -> Value {
     let err_obg = error_struct(msg.to_string());
     let id = heap.insert(Value::Struct(err_obg));
     return Value::Ref(id);
 }
-pub(self) fn type_err_obj(
-    expected: &Type,
-    got: &Type,
-    at: i32,
-    heap: &mut SlotMap<RefKey, Value>,
-) -> Value {
+fn type_err_obj(expected: &Type, got: &Type, at: i32, heap: &mut SlotMap<RefKey, Value>) -> Value {
     create_err(
         format!("Invalid type expected {expected} but got {got} at argument:{at}"),
         heap,
@@ -139,7 +138,7 @@ macro_rules! get_params {
         let $param4 = &$data.args[3] else {
             return type_err_obj(&$type4, &$data.args[3].get_type(), 4, $data.heap);
         };
-        let $param5 = &$data.args[3] else {
+        let $param5 = &$data.args[4] else {
             return type_err_obj(&$type5, &$data.args[4].get_type(), 5, $data.heap);
         };
     };
@@ -156,10 +155,10 @@ macro_rules! get_params {
         let $param4 = &$data.args[3] else {
             return type_err_obj(&$type4, &$data.args[3].get_type(), 4, $data.heap);
         };
-        let $param5 = &$data.args[3] else {
+        let $param5 = &$data.args[4] else {
             return type_err_obj(&$type5, &$data.args[4].get_type(), 5, $data.heap);
         };
-        let $param6 = &$data.args[3] else {
+        let $param6 = &$data.args[5] else {
             return type_err_obj(&$type6, &$data.args[5].get_type(), 6, $data.heap);
         };
     };

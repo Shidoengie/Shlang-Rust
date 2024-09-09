@@ -45,7 +45,12 @@ impl Value {
             Value::Str(_) => Type::Str,
             Value::Num(_) => Type::Num,
             Value::List(_) => Type::List,
-            Value::Struct(obj) => Type::Struct(obj.id.clone()),
+            Value::Struct(obj) => {
+                if obj.id.as_ref().is_some_and(|id| id == "Closure") {
+                    return Type::Closure;
+                }
+                Type::Struct(obj.id.clone())
+            }
             Value::Ref(_) => Type::Ref,
         }
     }
@@ -54,7 +59,7 @@ impl Value {
         self == &Self::Void
     }
     pub fn matches_typeof(&self, val: &Self) -> bool {
-        mem::discriminant(self) == mem::discriminant(val)
+        self.get_type() == val.get_type()
     }
 }
 impl ValueRepr for Value {
@@ -202,6 +207,7 @@ pub enum Type {
     Null,
     Void,
     Num,
+    Closure,
     Bool,
     Str,
     Function,
@@ -220,6 +226,7 @@ impl Display for Type {
             Self::Num => "num",
             Self::Str => "str",
             Self::List => "list",
+            Self::Closure => "closure",
             Self::Struct(Some(id)) => id,
             Self::Struct(None) => "struct",
             Self::Ref => "ref",

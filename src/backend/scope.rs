@@ -1,7 +1,7 @@
 use super::interpreter::{EvalRes, IError};
 
 use crate::{
-    frontend::nodes::*,
+    frontend::nodes::{self, *},
     spans::{IntoSpanned, Span},
 };
 use std::collections::HashMap;
@@ -21,6 +21,14 @@ impl Scope {
             return parent.get_var(var_name);
         }
         None
+    }
+    pub fn get_vars<const U: usize>(&self, vars: [impl AsRef<str>; U]) -> [Option<Value>; U] {
+        const ARRAY_REPEAT_VALUE: Option<nodes::Value> = None;
+        let mut out: [Option<Value>; U] = [ARRAY_REPEAT_VALUE; U];
+        for (i, v) in vars.iter().enumerate() {
+            out[i] = self.get_var(&v);
+        }
+        out
     }
     pub fn assign_valid(&mut self, name: String, value: Value, span: Span) -> EvalRes<Value> {
         if value.is_void() {
@@ -88,8 +96,8 @@ impl Default for Scope {
     fn default() -> Self {
         Scope {
             parent: None,
-            vars: HashMap::from([]),
-            structs: HashMap::from([]),
+            vars: HashMap::new(),
+            structs: HashMap::new(),
         }
     }
 }

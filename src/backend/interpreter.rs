@@ -600,8 +600,37 @@ impl Interpreter {
             Value::Function(called) => {
                 self.call_func(called, arg_values, request.callee.span, parent)
             }
+            Value::Ref(id) => self.call_closure(id, func_val, arg_values, request.callee.span),
             _ => return type_err(Type::Function, func_val.get_type(), request.callee.span),
         }
+    }
+    fn call_closure(
+        &mut self,
+        id: RefKey,
+        func_val: Value,
+        arg_values: Vec<Value>,
+        span: Span,
+    ) -> EvalRes<Control> {
+        let got = &self.heap[id];
+        if got.get_type() != Type::Closure {
+            return type_err(Type::Closure, func_val.get_type(), span);
+        }
+        let Value::Struct(obj) = got else {
+            unreachable!()
+        };
+        let [Some(maybe_fn), Some(maybe_env)] = obj.env.get_vars(["fn", "env"]) else {
+            return unspec_err("Invalid closure object", span);
+        };
+        let Value::Function(func) = maybe_fn else {
+            return type_err(Type::Function, maybe_fn.get_type(), span);
+        };
+        let Value::Ref(env_ref) = maybe_env else {
+            return type_err(Type::Ref, maybe_env.get_type(), span);
+        };
+        let Value::Struct(ref mut env_obj) = self.heap[env_ref].clone() else {
+            return type_err(Type::Struct(None), self.heap[env_ref].get_type(), span);
+        };
+        self.call_func(func, arg_values, span, &mut env_obj.env)
     }
     fn call_func(
         &mut self,

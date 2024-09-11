@@ -99,7 +99,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         Ok(self.text(&token))
     }
     /// Filter DontResult nodes in order to determine if the last expression should or shouldnt result
-    fn filter_block(&mut self, body: NodeStream) -> NodeStream {
+    fn filter_block(body: NodeStream) -> NodeStream {
         let maybe_result = body.last();
         let Some(last) = maybe_result else {
             return body;
@@ -131,7 +131,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 break;
             }
         }
-        body = self.filter_block(body);
+        body = Self::filter_block(body);
         Ok(body)
     }
 }
@@ -215,6 +215,22 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
 ///function parsing
 impl<'input> Parser<'input, Lexer<'input>> {
+    fn parse_closure(&mut self) -> ParseRes<NodeSpan> {
+        let first_span = self.peek_some()?.span;
+        let args = self.parse_func_params()?;
+        if self.peek_some()?.is(&TokenType::LBRACE) {
+            let block = self.parse_block()?;
+            let last_span = self.expect_next()?.span;
+
+            return Ok(ClosureDef { args, block }.to_nodespan(first_span + last_span));
+        }
+        let last_span = self.peek_some()?.span;
+        let expr = self.parse_expr()?;
+        let block = vec![Node::ResultNode(bx!(expr.clone())).to_spanned(expr.span)];
+        return dbg!(Ok(
+            ClosureDef { args, block }.to_nodespan(first_span + last_span)
+        ));
+    }
     /// This function parses the parameters of function definitions aka: func >(one,two)<
     fn parse_func_params(&mut self) -> ParseRes<Vec<String>> {
         self.next();
@@ -806,6 +822,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 self.next();
                 Ok(func)
             }
+            TokenType::DOLLAR => self.parse_closure(),
             TokenType::LBRACK => {
                 let literal = self.parse_expr_list(value, TokenType::RBRACK)?;
                 let span = value.span + self.peek_some()?.span;
@@ -825,7 +842,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             TokenType::NOT | TokenType::BANG => self.unary_operator(UnaryOp::NOT),
             TokenType::MINUS => self.unary_operator(UnaryOp::NEGATIVE),
             TokenType::LPAREN => self.parse_paren(value.clone()),
-
+            TokenType::DOLLAR => self.parse_closure(),
             TokenType::NEW => self.parse_constructor(),
             TokenType::SEMICOLON => Ok(Spanned::new(Node::DontResult, Span(0, 0))),
             _ => unexpected_token(value.clone()),
@@ -848,7 +865,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             };
             functions.insert(var.var_name.clone(), func.clone());
         }
-        Ok((self.filter_block(body), functions))
+        Ok((Self::filter_block(body), functions))
     }
 }
 fn unexpected_token<T>(token: Token) -> ParseRes<T> {

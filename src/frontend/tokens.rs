@@ -2,6 +2,7 @@ use crate::{charvec::CharVec, spans::*};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenType {
     STR(CharVec),
+    DOLLAR,
     DUAL_PIPE,
     DUAL_AMPERSAND,
     NUM,

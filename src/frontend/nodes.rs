@@ -8,6 +8,7 @@ use std::fmt::{Debug, Display};
 use std::mem;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
+    Closure(Closure),
     Null,
     Void,
     Num(f64),
@@ -51,6 +52,7 @@ impl Value {
                 }
                 Type::Struct(obj.id.clone())
             }
+            Value::Closure(_) => Type::Closure,
             Value::Ref(_) => Type::Ref,
         }
     }
@@ -124,6 +126,22 @@ impl ValueRepr for Struct {
         }
         buffer += "}";
         buffer
+    }
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct ClosureDef {
+    pub block: NodeStream,
+    pub args: Vec<String>,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct Closure {
+    pub block: NodeStream,
+    pub args: Vec<String>,
+    pub env: RefKey,
+}
+impl From<Closure> for Value {
+    fn from(x: Closure) -> Self {
+        Value::Closure(x)
     }
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -250,6 +268,7 @@ pub enum Node {
         target: Box<NodeSpan>,
         index: Box<NodeSpan>,
     },
+
     ListLit(Vec<NodeSpan>),
     Call(Call),
 
@@ -259,7 +278,7 @@ pub enum Node {
     ForLoop(ForLoop),
     DoBlock(NodeStream),
     Constructor(Constructor),
-
+    ClosureDef(ClosureDef),
     StructDef(StructDef),
     FieldAccess(FieldAccess),
     DontResult,
@@ -313,7 +332,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { UnaryNode Constructor StructDef  FieldAccess BinaryNode Call Assignment Declaration Branch While ForLoop}
+nodes_from! { ClosureDef UnaryNode Constructor StructDef  FieldAccess BinaryNode Call Assignment Declaration Branch While ForLoop}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {

@@ -150,6 +150,7 @@ impl Interpreter {
 
             Node::Index { target, index } => self.eval_index(*target, *index, parent),
             Node::ListLit(lit) => self.eval_list(lit, parent),
+            Node::ClosureDef(cl) => self.eval_closuredef(cl, parent, span),
             _ => {
                 todo!()
             }
@@ -574,6 +575,17 @@ impl Interpreter {
     }
 }
 
+///Closure handling
+impl Interpreter {
+    fn eval_closuredef(
+        &mut self,
+        cl: ClosureDef,
+        parent: &mut Scope,
+        span: Span,
+    ) -> EvalRes<Control> {
+        todo!()
+    }
+}
 ///Function and function call handling
 impl Interpreter {
     fn eval_call(

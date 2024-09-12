@@ -46,12 +46,7 @@ impl Value {
             Value::Str(_) => Type::Str,
             Value::Num(_) => Type::Num,
             Value::List(_) => Type::List,
-            Value::Struct(obj) => {
-                if obj.id.as_ref().is_some_and(|id| id == "Closure") {
-                    return Type::Closure;
-                }
-                Type::Struct(obj.id.clone())
-            }
+            Value::Struct(obj) => Type::Struct(obj.id.clone()),
             Value::Closure(_) => Type::Closure,
             Value::Ref(_) => Type::Ref,
         }
@@ -144,12 +139,32 @@ impl From<Closure> for Value {
         Value::Closure(x)
     }
 }
+impl ValueRepr for Closure {
+    fn repr(&self) -> String {
+        let mut buffer = String::from("$(");
+        for i in &self.args {
+            buffer += i;
+            if self.args.last().unwrap() != i {
+                buffer += ", "
+            }
+        }
+        buffer += ") ";
+        buffer
+    }
+}
 #[derive(Clone, Debug, PartialEq)]
 pub struct Function {
     pub block: NodeStream,
     pub args: Vec<String>,
 }
-
+impl From<Closure> for Function {
+    fn from(value: Closure) -> Self {
+        return Self {
+            args: value.args,
+            block: value.block,
+        };
+    }
+}
 impl Function {
     pub fn new(block: NodeStream, args: Vec<String>) -> Self {
         Self { block, args }

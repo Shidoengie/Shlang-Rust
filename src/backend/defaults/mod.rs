@@ -8,7 +8,8 @@ use crate::backend::scope::Scope;
 use crate::frontend::nodes::*;
 use crate::vars;
 use crate::vars_internal;
-use closures::closure_obj;
+pub use closures::*;
+
 pub use func_methods::*;
 use functions::*;
 pub use lists::*;
@@ -55,7 +56,7 @@ pub fn default_scope() -> Scope {
     ];
     let structs = vars! {
         Error => error_struct(String::new()),
-        Closure => closure_obj(),
+
     };
 
     Scope {

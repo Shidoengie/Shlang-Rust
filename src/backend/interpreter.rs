@@ -1,6 +1,7 @@
 use super::scope::Scope;
 use crate::backend::defaults;
 use crate::backend::defaults::default_scope;
+use crate::bx;
 use crate::frontend::nodes::*;
 use crate::hashmap;
 use crate::lang_errors::*;
@@ -48,9 +49,9 @@ impl Interpreter {
     pub fn new(program: NodeStream, functions: HashMap<String, Function>) -> Self {
         Self {
             program,
+            functions,
             heap: SlotMap::with_key(),
             envs: SlotMap::with_key(),
-            functions,
         }
     }
     pub fn execute(&mut self) -> EvalRes<Value> {
@@ -118,6 +119,7 @@ impl Interpreter {
         }
         Ok(parent)
     }
+
     fn eval_node(&mut self, node: &NodeSpan, parent: &mut Scope) -> EvalRes<Control> {
         let (span, expr) = (node.span, node.item.clone());
         match expr {
@@ -449,7 +451,12 @@ impl Interpreter {
                 &mut defaults::func_struct().env,
                 target,
             ),
-
+            Value::Closure(_) => self.eval_access_request(
+                requested,
+                base_env,
+                &mut defaults::closure_obj().env,
+                target,
+            ),
             Value::Null => return NULL,
             a => unspec_err(
                 format!("Requested type {} has no properties", a.get_type()),
@@ -582,19 +589,31 @@ impl Interpreter {
 
 ///Closure handling
 impl Interpreter {
-    fn eval_closuredef(
-        &mut self,
-        cl: ClosureDef,
-        parent: &mut Scope,
-        
-    ) -> EvalRes<Control> {
+    fn eval_closuredef(&mut self, cl: ClosureDef, parent: &mut Scope) -> EvalRes<Control> {
         let key = self.envs.insert(parent.clone());
-        return Ok(Control::Value(Closure{
-            args:cl.args,
-            block:cl.block,
-            env:key
-        }.into()));
-        
+
+        return Ok(Control::Value(
+            Closure {
+                args: cl.args,
+                block: cl.block,
+                env: key,
+            }
+            .into(),
+        ));
+    }
+    fn call_closure(
+        &mut self,
+        closure: Closure,
+        arg_values: Vec<Value>,
+        span: Span,
+    ) -> EvalRes<Control> {
+        let id = closure.env;
+        let mut env = self.envs[id].clone();
+        let result = self.call_func(closure.into(), arg_values, span, &mut env)?;
+
+        self.envs[id] = env;
+
+        return Ok(result);
     }
 }
 ///Function and function call handling
@@ -623,38 +642,11 @@ impl Interpreter {
             Value::Function(called) => {
                 self.call_func(called, arg_values, request.callee.span, parent)
             }
-            Value::Ref(id) => self.call_closure(id, func_val, arg_values, request.callee.span),
+            Value::Closure(id) => self.call_closure(id, arg_values, request.callee.span),
             _ => return type_err(Type::Function, func_val.get_type(), request.callee.span),
         }
     }
-    fn call_closure(
-        &mut self,
-        id: RefKey,
-        func_val: Value,
-        arg_values: Vec<Value>,
-        span: Span,
-    ) -> EvalRes<Control> {
-        let got = &self.heap[id];
-        if got.get_type() != Type::Closure {
-            return type_err(Type::Closure, func_val.get_type(), span);
-        }
-        let Value::Struct(obj) = got else {
-            unreachable!()
-        };
-        let [Some(maybe_fn), Some(maybe_env)] = obj.env.get_vars(["fn", "env"]) else {
-            return unspec_err("Invalid closure object", span);
-        };
-        let Value::Function(func) = maybe_fn else {
-            return type_err(Type::Function, maybe_fn.get_type(), span);
-        };
-        let Value::Ref(env_ref) = maybe_env else {
-            return type_err(Type::Ref, maybe_env.get_type(), span);
-        };
-        let Value::Struct(ref mut env_obj) = self.heap[env_ref].clone() else {
-            return type_err(Type::Struct(None), self.heap[env_ref].get_type(), span);
-        };
-        self.call_func(func, arg_values, span, &mut env_obj.env)
-    }
+
     fn call_func(
         &mut self,
         called: Function,

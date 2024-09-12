@@ -1,6 +1,7 @@
 use backend::scope::Scope;
 use colored::Colorize;
 use fmt::Display;
+use frontend::nodes::EnvKey;
 use frontend::nodes::Value;
 use frontend::nodes::ValueRepr;
 use lang_errors::*;
@@ -92,6 +93,7 @@ fn print_repl_res(val: Value, heap: &SlotMap<RefKey, Value>) {
 fn repl() {
     let mut scope = Scope::default();
     let mut heap: SlotMap<RefKey, Value> = SlotMap::with_key();
+    let mut envs: SlotMap<EnvKey, Scope> = SlotMap::with_key();
     loop {
         let source = input(">: ");
         let err_out = ErrorBuilder::new(source.clone());
@@ -102,11 +104,13 @@ fn repl() {
         } in parser.parse());
         let mut inter = Interpreter::new(ast, functions);
         inter.heap = heap;
+        inter.envs = envs;
         match inter.execute_with(&mut scope) {
             Ok(raw) => print_repl_res(raw, &inter.heap),
             Err(err) => err.print_msg(err_out),
         };
         heap = inter.heap;
+        envs = inter.envs;
     }
 }
 

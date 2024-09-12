@@ -39,6 +39,7 @@ pub(super) type EvalRes<T> = Result<T, Spanned<InterpreterError>>;
 pub struct Interpreter {
     program: NodeStream,
     pub heap: SlotMap<RefKey, Value>,
+    pub envs: SlotMap<EnvKey, Scope>,
     pub functions: HashMap<String, Function>,
 }
 
@@ -48,6 +49,7 @@ impl Interpreter {
         Self {
             program,
             heap: SlotMap::with_key(),
+            envs: SlotMap::with_key(),
             functions,
         }
     }
@@ -75,6 +77,7 @@ impl Interpreter {
 
     pub fn execute_node(node: NodeSpan) -> EvalRes<Control> {
         Self {
+            envs: SlotMap::with_key(),
             program: vec![Node::DontResult.to_spanned(Span(0, 0))],
             heap: SlotMap::with_key(),
             functions: HashMap::new(),
@@ -85,6 +88,7 @@ impl Interpreter {
         Self {
             program: vec![Node::DontResult.to_spanned(Span(0, 0))],
             heap: SlotMap::with_key(),
+            envs: SlotMap::with_key(),
             functions: HashMap::new(),
         }
         .eval_node(&node, parent)
@@ -95,6 +99,7 @@ impl Interpreter {
         args: Vec<Value>,
     ) -> EvalRes<Control> {
         Self {
+            envs: SlotMap::with_key(),
             program: vec![Node::DontResult.to_spanned(Span(0, 0))],
             heap: SlotMap::with_key(),
             functions: HashMap::new(),
@@ -150,7 +155,7 @@ impl Interpreter {
 
             Node::Index { target, index } => self.eval_index(*target, *index, parent),
             Node::ListLit(lit) => self.eval_list(lit, parent),
-            Node::ClosureDef(cl) => self.eval_closuredef(cl, parent, span),
+            Node::ClosureDef(cl) => self.eval_closuredef(cl, parent),
             _ => {
                 todo!()
             }
@@ -581,9 +586,15 @@ impl Interpreter {
         &mut self,
         cl: ClosureDef,
         parent: &mut Scope,
-        span: Span,
+        
     ) -> EvalRes<Control> {
-        todo!()
+        let key = self.envs.insert(parent.clone());
+        return Ok(Control::Value(Closure{
+            args:cl.args,
+            block:cl.block,
+            env:key
+        }.into()));
+        
     }
 }
 ///Function and function call handling
@@ -693,6 +704,7 @@ impl Interpreter {
             heap: &mut self.heap,
             global_funcs: &mut self.functions,
             parent,
+            envs: &mut self.envs,
             args: arg_values,
         };
         let result = (called.function)(data);

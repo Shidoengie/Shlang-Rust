@@ -137,7 +137,7 @@ pub struct ClosureDef {
 pub struct Closure {
     pub block: NodeStream,
     pub args: Vec<String>,
-    pub env: RefKey,
+    pub env: EnvKey,
 }
 impl From<Closure> for Value {
     fn from(x: Closure) -> Self {
@@ -174,13 +174,17 @@ impl From<Function> for Value {
     }
 }
 new_key_type! {
+    /// Key type used for the heap
     pub struct RefKey;
+    /// Key type used for storing closure environments
+    pub struct EnvKey;
 }
 
 pub struct FuncData<'a> {
     pub parent: &'a mut Scope,
     pub args: Vec<Value>,
     pub heap: &'a mut SlotMap<RefKey, Value>,
+    pub envs: &'a mut SlotMap<EnvKey, Scope>,
     pub global_funcs: &'a mut HashMap<String, Function>,
 }
 

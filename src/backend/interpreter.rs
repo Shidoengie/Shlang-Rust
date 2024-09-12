@@ -186,6 +186,11 @@ impl Interpreter {
             if let Control::Value(_) = result {
                 continue;
             }
+            let result = match result {
+                Control::Result(inner) => Control::Result(self.capture_fn(inner, &mut base)),
+                Control::Return(inner) => Control::Return(self.capture_fn(inner, &mut base)),
+                _ => result,
+            };
             let Some(mod_parent) = base.parent else {
                 return Err(IError::InvalidControl.to_spanned(node.span));
             };
@@ -618,6 +623,17 @@ impl Interpreter {
 }
 ///Function and function call handling
 impl Interpreter {
+    fn capture_fn(&mut self, val: Value, parent: &mut Scope) -> Value {
+        if let Value::Function(func) = val {
+            return Closure {
+                args: func.args,
+                block: func.block,
+                env: self.envs.insert(parent.clone()),
+            }
+            .into();
+        }
+        return val;
+    }
     fn eval_call(
         &mut self,
         request: Call,
@@ -630,13 +646,14 @@ impl Interpreter {
 
         for arg in call_args.iter() {
             let argument = unwrap_val!(self.eval_node(arg, base_env)?);
-            arg_values.push(argument);
+            arg_values.push(self.capture_fn(argument, parent));
         }
         let arg_span = if !call_args.is_empty() {
             Span(request.callee.span.1 + 1, call_args.last().unwrap().span.1)
         } else {
             Span(request.callee.span.1 + 1, request.callee.span.1 + 2)
         };
+
         match func_val {
             Value::BuiltinFunc(func) => self.call_builtin(func, arg_values, arg_span, parent),
             Value::Function(called) => {
@@ -718,7 +735,8 @@ impl Interpreter {
         let mut arg_values: Vec<Value> = vec![obj];
         for arg in call_args.iter() {
             let argument = unwrap_val!(self.eval_node(arg, base_env)?);
-            arg_values.push(argument);
+
+            arg_values.push(self.capture_fn(argument, base_env));
         }
         let arg_span = if !call_args.is_empty() {
             Span(request.callee.span.1 + 1, call_args.last().unwrap().span.1)
@@ -825,15 +843,17 @@ impl Interpreter {
                 };
                 Ok(Control::Value(out.clone()))
             }
-            _ => {
-                todo!()
-            }
+            v => unspec_err(
+                format!("Cant index type {}", v.0.get_type()),
+                index_node.span,
+            ),
         }
     }
     fn eval_list(&mut self, lit: Vec<NodeSpan>, parent: &mut Scope) -> EvalRes<Control> {
         let mut list: Vec<Value> = vec![];
         for node in lit {
-            list.push(unwrap_val!(self.eval_node(&node, parent)?));
+            let val = unwrap_val!(self.eval_node(&node, parent)?);
+            list.push(self.capture_fn(val, parent));
         }
         let val = self.heap.insert(Value::List(list));
         Ok(Control::Value(Value::Ref(val)))

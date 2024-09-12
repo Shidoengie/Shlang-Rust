@@ -230,6 +230,7 @@ pub fn import_var(data: FuncData) -> Value {
         } in parser.parse()
     );
     let mut inter = Interpreter::new(ast, functions);
+    inter.envs = data.envs.clone();
     let base = Scope::from_vars(vars!(
         __name__ => Value::Str("lib".to_string())
     ));
@@ -238,6 +239,7 @@ pub fn import_var(data: FuncData) -> Value {
             return create_err(err.msg(), data.heap);
         } in inter.parse_vars(base)
     );
+    data.envs.clone_from(&inter.envs);
     let heapstuff = |(name, val): (&String, &Value)| -> (String, Value) {
         let mut new_val = val.to_owned();
         if let Value::Ref(id) = val {
@@ -262,6 +264,7 @@ pub fn import_var(data: FuncData) -> Value {
         .chain(&scope.structs)
         .map(|(k, v)| (k.to_owned(), v.to_owned()))
         .collect();
+
     for (name, func) in inter.functions {
         data.global_funcs.insert(name, func);
     }

@@ -145,3 +145,8 @@ fn list_has(data: FuncData) -> Value {
 
     Value::Bool(list.contains(&data.args[1]))
 }
+fn list_map(data: FuncData) -> Value {
+    get_params!(
+        Value::Ref(key) = Type::Ref
+    ;data);
+}

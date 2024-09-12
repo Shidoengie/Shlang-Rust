@@ -70,6 +70,7 @@ impl ValueRepr for Value {
             Self::List(list) => list_join(list, ","),
             Self::Struct(obj) => obj.repr(),
             Self::Function(func) => func.repr(),
+            Self::Closure(cl) => cl.repr(),
             Self::Ref(id) => format!("ref {:?}", id),
             _ => "unnamed".to_string(),
         }
@@ -86,7 +87,8 @@ impl Display for Value {
             Self::List(list) => list_join(list, ","),
             Self::Struct(obj) => obj.repr(),
             Self::Function(func) => func.repr(),
-            Self::Ref(id) => format!("ref{:?}", id),
+            Self::Closure(cl) => cl.repr(),
+            Self::Ref(id) => format!("ref {:?}", id),
             _ => "unnamed".to_string(),
         };
         write!(f, "{out}")

@@ -52,7 +52,8 @@ pub fn default_scope() -> Scope {
         floor(floor,1),
         round(round,1),
         clone(clone_val,1),
-        capture_env(capture_env)
+        capture_env(capture_env),
+        rand_num(rand_num,1 => 2)
     ];
     let structs = vars! {
         Error => error_struct(String::new()),

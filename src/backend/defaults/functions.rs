@@ -5,6 +5,8 @@ use crate::lang_errors::LangError;
 use crate::Interpreter;
 use crate::Parser;
 use colored::Colorize;
+use rand::distributions::uniform::SampleRange;
+use rand::Rng;
 use std::fs;
 use std::io;
 use std::io::Write;
@@ -355,5 +357,20 @@ pub fn capture_env(data: FuncData) -> Value {
     return Value::Ref(data.heap.insert(Value::Struct(obj)));
 }
 pub fn rand_num(data: FuncData) -> Value {
-    todo!()
+    match data.args.len() {
+        1 => {
+            get_params!(Value::Num(to) = Type::Num;data);
+            let num: f64 = rand::thread_rng().gen_range(0.0..*to);
+            return Value::Num(num);
+        }
+        2 => {
+            get_params!(Value::Num(from) = Type::Num,Value::Num(to) = Type::Num;data);
+            if (*from..*to).is_empty() {
+                return create_err("Invalid Range", data.heap);
+            }
+            let num: f64 = rand::thread_rng().gen_range(*from..*to);
+            return Value::Num(num);
+        }
+        _ => unimplemented!(),
+    }
 }

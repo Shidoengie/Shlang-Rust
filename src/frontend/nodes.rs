@@ -1,5 +1,7 @@
+use crate::backend::interpreter::Control;
 use crate::backend::scope::Scope;
-use crate::spans::*;
+use crate::lang_errors::InterpreterError;
+use crate::{spans::*, Interpreter};
 use rayon::prelude::*;
 use slotmap::{new_key_type, SlotMap};
 
@@ -136,6 +138,15 @@ pub struct Closure {
     pub args: Vec<String>,
     pub env: EnvKey,
 }
+impl Closure {
+    pub fn exec(
+        &mut self,
+        args: Vec<Value>,
+        scopes: &mut SlotMap<EnvKey, Scope>,
+    ) -> Result<Control, Spanned<InterpreterError>> {
+        Interpreter::execute_func_with(self.to_owned().into(), &mut scopes[self.env], args)
+    }
+}
 impl From<Closure> for Value {
     fn from(x: Closure) -> Self {
         Value::Closure(x)
@@ -213,6 +224,7 @@ pub struct BuiltinFunc {
     pub arg_range: Option<(u8, u8)>,
     pub id: String,
 }
+
 impl Debug for BuiltinFunc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BuiltinFunc")

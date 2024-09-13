@@ -354,3 +354,6 @@ pub fn capture_env(data: FuncData) -> Value {
     };
     return Value::Ref(data.heap.insert(Value::Struct(obj)));
 }
+pub fn rand_num(data: FuncData) -> Value {
+    todo!()
+}

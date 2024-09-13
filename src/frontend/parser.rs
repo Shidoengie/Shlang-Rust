@@ -227,9 +227,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let last_span = self.peek_some()?.span;
         let expr = self.parse_expr()?;
         let block = vec![Node::ResultNode(bx!(expr.clone())).to_spanned(expr.span)];
-        return dbg!(Ok(
-            ClosureDef { args, block }.to_nodespan(first_span + last_span)
-        ));
+        return Ok(ClosureDef { args, block }.to_nodespan(first_span + last_span));
     }
     /// This function parses the parameters of function definitions aka: func >(one,two)<
     fn parse_func_params(&mut self) -> ParseRes<Vec<String>> {
@@ -651,7 +649,9 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn anon_struct(&mut self) -> ParseRes<NodeSpan> {
         let token = self.peek_some()?;
         let mut fields: Vec<Spanned<Field>> = vec![];
+
         if token.is(&TokenType::RBRACE) {
+            self.next();
             return Ok(StructDef {
                 fields: vec![],
                 name: None,

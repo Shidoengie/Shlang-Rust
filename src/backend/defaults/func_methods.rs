@@ -6,7 +6,9 @@ use crate::{get_params, spans::Span, Interpreter};
 
 pub fn func_struct() -> Struct {
     let env = vars![
-        call_with(call_func_with,2=>3)
+        call_with(call_func_with,2=>3),
+        arg_len(count_args, 1),
+        args(get_args,1)
     ];
 
     Struct {

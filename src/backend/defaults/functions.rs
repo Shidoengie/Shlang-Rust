@@ -7,6 +7,8 @@ use crate::Parser;
 use colored::Colorize;
 use rand::distributions::uniform::SampleRange;
 use rand::Rng;
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
 use std::fs;
 use std::io;
 use std::io::Write;
@@ -153,6 +155,13 @@ pub fn round(data: FuncData) -> Value {
             Value::Num(val1) = Type::Num
         ;data);
     Value::Num(val1.round())
+}
+pub fn log(data: FuncData) -> Value {
+    get_params!(
+            Value::Num(val1) = Type::Num,
+            Value::Num(val2) = Type::Num
+        ;data);
+    Value::Num(val1.log(*val2))
 }
 pub fn deref_val(val: Value, heap: &SlotMap<RefKey, Value>) -> Value {
     if let Value::Ref(id) = val {
@@ -373,4 +382,23 @@ pub fn rand_num(data: FuncData) -> Value {
         }
         _ => unimplemented!(),
     }
+}
+///ONLY USE IT IN METHODS!
+pub fn count_args(data: FuncData) -> Value {
+    match &data.args[0] {
+        Value::Function(func) => Value::Num(func.args.len() as f64),
+        Value::Closure(cl) => Value::Num(cl.args.len() as f64),
+        _ => unimplemented!(),
+    }
+}
+
+///ONLY USE IT IN METHODS!
+pub fn get_args(data: FuncData) -> Value {
+    let args = match &data.args[0] {
+        Value::Function(func) => &func.args,
+        Value::Closure(cl) => &cl.args,
+        _ => unimplemented!(),
+    };
+    let list: Vec<Value> = args.par_iter().map(|s| Value::Str(s.to_owned())).collect();
+    return Value::Ref(data.heap.insert(Value::List(list)));
 }

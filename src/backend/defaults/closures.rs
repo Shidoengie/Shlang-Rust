@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use crate::{
     backend::interpreter::Control, catch, get_params, lang_errors::LangError, Interpreter,
 };
@@ -7,12 +5,17 @@ use crate::{
 use super::*;
 
 pub fn closure_obj() -> Struct {
-    let props = vars![call(call_closure, 2)];
+    let props = vars![
+        call(call_closure, 2),
+        arg_len(count_args, 1),
+        args(get_args, 1)
+    ];
     Struct {
         id: None,
         env: Scope::from_vars(props),
     }
 }
+
 fn call_closure(data: FuncData) -> Value {
     get_params!(
         Value::Closure(closure) = Type::Closure,

@@ -383,6 +383,10 @@ pub fn rand_num(data: FuncData) -> Value {
         _ => unimplemented!(),
     }
 }
+pub fn err_func(data: FuncData) -> Value {
+    get_params!(Value::Str(msg) = Type::Str;data);
+    return create_err(msg, data.heap);
+}
 ///ONLY USE IT IN METHODS!
 pub fn count_args(data: FuncData) -> Value {
     match &data.args[0] {

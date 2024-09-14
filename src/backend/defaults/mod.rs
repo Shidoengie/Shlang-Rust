@@ -53,7 +53,8 @@ pub fn default_scope() -> Scope {
         round(round,1),
         clone(clone_val,1),
         capture_env(capture_env),
-        rand_num(rand_num,1 => 2)
+        rand_num(rand_num,1 => 2),
+        err(err_func,1)
     ];
     let structs = vars! {
         Error => error_struct(String::new()),
@@ -76,6 +77,7 @@ fn error_struct(msg: String) -> Struct {
         env: Scope::from_vars(props),
     }
 }
+
 fn create_err(msg: impl Display, heap: &mut SlotMap<RefKey, Value>) -> Value {
     let err_obg = error_struct(msg.to_string());
     let id = heap.insert(Value::Struct(err_obg));

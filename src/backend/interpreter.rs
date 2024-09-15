@@ -181,11 +181,17 @@ impl Interpreter {
             return NULL;
         }
         for node in block {
-            let result = self.eval_node(&node, &mut base)?;
+            let result = match (self.eval_node(&node, &mut base)?, node.item) {
+                (c @ Control::Result(_), Node::ResultNode(_)) => c,
+                (Control::Value(_), _) => {
+                    continue;
+                }
+                (Control::Result(_), _) => {
+                    continue;
+                }
+                (c, _) => c,
+            };
 
-            if let Control::Value(_) = result {
-                continue;
-            }
             let result = match result {
                 Control::Result(inner) => Control::Result(self.capture_fn(inner, &mut base)),
                 Control::Return(inner) => Control::Return(self.capture_fn(inner, &mut base)),

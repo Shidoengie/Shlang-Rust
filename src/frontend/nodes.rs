@@ -106,6 +106,17 @@ pub struct Struct {
     pub id: Option<String>,
     pub env: Scope,
 }
+impl Struct {
+    pub fn get_prop(&self, prop: impl AsRef<str>) -> Option<Value> {
+        return self.env.get_var(prop);
+    }
+    pub fn get_method(&self, prop: impl AsRef<str>) -> Option<Function> {
+        match self.env.get_var(prop)? {
+            Value::Function(func) => Some(func),
+            _ => None,
+        }
+    }
+}
 impl ValueRepr for Struct {
     fn repr(&self) -> String {
         let mut buffer = if let Some(name) = &self.id {
@@ -181,6 +192,13 @@ impl From<Closure> for Function {
 impl Function {
     pub fn new(block: NodeStream, args: Vec<String>) -> Self {
         Self { block, args }
+    }
+    pub fn exec(
+        &mut self,
+        args: Vec<Value>,
+        parent: &mut Scope,
+    ) -> Result<Control, Spanned<InterpreterError>> {
+        Interpreter::execute_func_with(self.to_owned(), parent, args)
     }
 }
 impl ValueRepr for Function {

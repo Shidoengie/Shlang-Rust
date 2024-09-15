@@ -459,8 +459,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 /// Since this is a recursive descent parser instead of a pratt parser each function denotes a level of precedence
 /// Why well it was easier
 impl<'input> Parser<'input, Lexer<'input>> {
-    /// Lowest level of operator precedence used for assignment
-    /// Converts tokens into AST nodes
+    /// Excludes void expressions / statements
     fn parse_only_expr(&mut self) -> ParseRes<NodeSpan> {
         let left = self.or_prec()?;
         expect_expr(&left)?;

@@ -5,7 +5,6 @@ use crate::lang_errors::LangError;
 use crate::Interpreter;
 use crate::Parser;
 use colored::Colorize;
-use rand::distributions::uniform::SampleRange;
 use rand::Rng;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
@@ -17,6 +16,7 @@ use std::thread;
 use std::time;
 use std::time::Duration;
 use std::time::SystemTime;
+
 pub fn delete_var(data: FuncData) -> Value {
     get_params!(Value::Str(val) = Type::Str;data);
     if !data.parent.vars.contains_key(val) {
@@ -243,7 +243,7 @@ pub fn import_var(data: FuncData) -> Value {
     let mut inter = Interpreter::new(ast, functions);
     inter.envs = data.envs.clone();
     let base = Scope::from_vars(vars!(
-        __name__ => Value::Str("lib".to_string())
+        __name => Value::Str("lib".to_string())
     ));
     let scope = catch!(
         err {

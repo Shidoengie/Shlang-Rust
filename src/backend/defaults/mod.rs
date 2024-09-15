@@ -34,27 +34,29 @@ pub fn default_scope() -> Scope {
         input(input_builtin,Inf),
         println(println_builtin,Inf),
         print(print_builtin,Inf),
-        parse_num(parse_num,1),
-        to_str(to_str,1),
+        parse_num(1),
+        to_str(1),
         stringify(stringify_vals,Inf),
         typeof(typeof_node,1),
-        eval(eval,1),
-        max(max,2),
-        min(min,2),
-        sqrt(sqrt,1),
-        sin(sin,1),
-        cos(cos,1),
-        tan(tan,1),
-        pow(pow,2),
+        eval(1),
+        max(2),
+        min(2),
+        sqrt(1),
+        sin(1),
+        cos(1),
+        tan(1),
+        pow(2),
+        log(2),
         import(import_var,1),
         del(delete_var,1),
-        range(range,1 => 3),
-        floor(floor,1),
-        round(round,1),
+        range(1 => 3),
+        floor(1),
+        round(1),
         clone(clone_val,1),
-        capture_env(capture_env),
-        rand_num(rand_num,1 => 2),
-        err(err_func,1)
+        capture_env(),
+        rand_num(1 => 2),
+        err(err_func,1),
+
     ];
     let structs = vars! {
         Error => error_struct(String::new()),
@@ -210,6 +212,35 @@ macro_rules! vars_internal {
             Value::BuiltinFunc(BuiltinFunc::new(
                 stringify!($name).to_string(),
                 $func,Some(($start,$stop))
+            ))
+        ),] $($($left)*)? )
+    };
+
+    ([$($acc:tt)*] $name:ident() $(, $($left:tt)*)? ) => {
+        vars_internal!([$($acc)* (
+            stringify!($name).to_string(),
+            Value::BuiltinFunc(BuiltinFunc::new(
+                stringify!($name).to_string(),
+                $name,Some((0,0))
+            ))
+        ),] $($($left)*)? )
+    };
+
+    ([$($acc:tt)*] $name:ident($size:expr) $(, $($left:tt)*)? ) => {
+        vars_internal!([$($acc)* (
+            stringify!($name).to_string(),
+            Value::BuiltinFunc(BuiltinFunc::new(
+                stringify!($name).to_string(),
+                $name,Some(($size,$size))
+            ))
+        ),] $($($left)*)? )
+    };
+    ([$($acc:tt)*] $name:ident($start:expr => $stop:expr) $(, $($left:tt)*)? ) => {
+        vars_internal!([$($acc)* (
+            stringify!($name).to_string(),
+            Value::BuiltinFunc(BuiltinFunc::new(
+                stringify!($name).to_string(),
+                $name,Some(($start,$stop))
             ))
         ),] $($($left)*)? )
     };

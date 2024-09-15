@@ -56,7 +56,7 @@ impl Interpreter {
     }
     pub fn execute(&mut self) -> EvalRes<Value> {
         let mut scope = Scope::from_vars(hashmap! {
-            __name__ => Value::Str("main".to_string())
+            __name => Value::Str("main".to_string())
         });
         self.execute_with(&mut scope)
     }

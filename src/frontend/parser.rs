@@ -161,9 +161,13 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn parse_vardef(&mut self, first: &Token) -> ParseRes<NodeSpan> {
         let ident = self.expect(TokenType::IDENTIFIER)?;
         let var_name = self.text(&ident);
-        let last = self.next();
-        match last {
-            Some(tk) if tk.kind == TokenType::EQUAL => return self.var_decl(var_name, first),
+        self.next();
+        let last = match self.peek() {
+            Some(tk) => tk,
+            None => return Ok(self.empty_var_decl(first, ident)),
+        };
+        match last.kind {
+            TokenType::EQUAL => return self.var_decl(var_name, first),
             _ => return Ok(self.empty_var_decl(first, ident)),
         }
     }

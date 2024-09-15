@@ -273,19 +273,32 @@ impl Interpreter {
         };
         Ok(Control::Value(res))
     }
-    fn bool_calc(&self, node: BinaryNode, left: bool, right: bool) -> EvalRes<Control> {
-        let res = match node.kind {
-            BinaryOp::AND => Value::Bool(left && right),
-            BinaryOp::OR => Value::Bool(left || right),
+    fn bool_calc(&mut self, node: BinaryNode, left: bool, parent: &mut Scope) -> EvalRes<Control> {
+        match node.kind {
+            BinaryOp::AND => {
+                if !left {
+                    return Ok(Control::Value(Value::Bool(false)));
+                }
+                return self.eval_node(&node.right, parent);
+            }
+            BinaryOp::OR => {
+                if left {
+                    return Ok(Control::Value(Value::Bool(true)));
+                }
+                return self.eval_node(&node.right, parent);
+            }
             op => {
                 return Err(IError::InvalidOp(op, Type::Bool)
                     .to_spanned(Span(node.left.span.1, node.right.span.0)))
             }
         };
-        Ok(Control::Value(res))
     }
     fn eval_binary_node(&mut self, bin_op: BinaryNode, parent: &mut Scope) -> EvalRes<Control> {
         let left = unwrap_val!(self.eval_node(&bin_op.left, parent)?);
+
+        if let Value::Bool(val) = left {
+            return self.bool_calc(bin_op, val, parent);
+        }
         let right = unwrap_val!(self.eval_node(&bin_op.right, parent)?);
         let left_type = left.get_type();
         let right_type = right.get_type();
@@ -306,9 +319,7 @@ impl Interpreter {
             (Value::Str(left), Value::Str(right)) => {
                 return self.str_calc(bin_op, left, right);
             }
-            (Value::Bool(left), Value::Bool(right)) => {
-                return self.bool_calc(bin_op, left, right);
-            }
+
             _ => {}
         }
         Err(IError::InvalidBinary(left_type).to_spanned(bin_op.left.span))

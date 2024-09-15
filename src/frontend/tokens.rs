@@ -56,6 +56,9 @@ pub enum TokenType {
     NEW,
     FOR,
     IN,
+    QUESTION,
+    DOUBLE_QUESTION,
+    QUESTION_EQUALS,
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Token {

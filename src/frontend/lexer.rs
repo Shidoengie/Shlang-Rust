@@ -223,6 +223,23 @@ impl<'a> Iterator for Lexer<'a> {
 
             '"' => self.str('"'),
             '\'' => self.str('\''),
+            '?' => {
+                let advanced = self.advance();
+                let Some(advanced) = advanced else {
+                    return Some(Token::new(TokenType::QUESTION, range));
+                };
+                if advanced != '?' {
+                    return Some(Token::new(TokenType::QUESTION, range));
+                }
+                let advanced = self.advance();
+                let Some(advanced) = advanced else {
+                    return Some(Token::new(TokenType::DOUBLE_QUESTION, range + 1));
+                };
+                if advanced != '=' {
+                    return Some(Token::new(TokenType::DOUBLE_QUESTION, range + 1));
+                }
+                return Some(Token::new(TokenType::QUESTION_EQUALS, range + 2));
+            }
             '+' => self.multi_char_token('=', TokenType::PLUS, TokenType::PLUS_EQUAL, start),
             '*' => self.multi_char_token('=', TokenType::STAR, TokenType::STAR_EQUAL, start),
             '/' => self.multi_char_token('=', TokenType::SLASH, TokenType::SLASH_EQUAL, start),

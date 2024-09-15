@@ -239,17 +239,17 @@ impl Interpreter {
     }
     fn num_calc(&self, node: BinaryNode, left: f64, right: f64) -> EvalRes<Control> {
         let res = match node.kind {
-            BinaryOp::ADD => Value::Num(left + right),
-            BinaryOp::SUBTRACT => Value::Num(left - right),
-            BinaryOp::MULTIPLY => Value::Num(left * right),
-            BinaryOp::DIVIDE => Value::Num(left / right),
-            BinaryOp::MODULO => Value::Num(left % right),
-            BinaryOp::GREATER => Value::Bool(left > right),
-            BinaryOp::GREATER_EQUAL => Value::Bool(left >= right),
-            BinaryOp::LESSER => Value::Bool(left < right),
-            BinaryOp::LESSER_EQUAL => Value::Bool(left <= right),
-            BinaryOp::ISEQUAL => Value::Bool(left == right),
-            BinaryOp::ISDIFERENT => Value::Bool(left != right),
+            BinaryOp::Add => Value::Num(left + right),
+            BinaryOp::Subtract => Value::Num(left - right),
+            BinaryOp::Multiply => Value::Num(left * right),
+            BinaryOp::Divide => Value::Num(left / right),
+            BinaryOp::Modulo => Value::Num(left % right),
+            BinaryOp::Greater => Value::Bool(left > right),
+            BinaryOp::GreaterOrEqual => Value::Bool(left >= right),
+            BinaryOp::Lesser => Value::Bool(left < right),
+            BinaryOp::LesserOrEqual => Value::Bool(left <= right),
+            BinaryOp::IsEqual => Value::Bool(left == right),
+            BinaryOp::IsDifferent => Value::Bool(left != right),
             op => {
                 return Err(IError::InvalidOp(op, Type::Num)
                     .to_spanned(Span(node.left.span.1, node.right.span.0)))
@@ -259,13 +259,13 @@ impl Interpreter {
     }
     fn str_calc(&self, node: BinaryNode, left: String, right: String) -> EvalRes<Control> {
         let res = match node.kind {
-            BinaryOp::ADD => Value::Str(left + &right),
-            BinaryOp::GREATER => Value::Bool(left > right),
-            BinaryOp::GREATER_EQUAL => Value::Bool(left >= right),
-            BinaryOp::LESSER => Value::Bool(left < right),
-            BinaryOp::LESSER_EQUAL => Value::Bool(left <= right),
-            BinaryOp::ISEQUAL => Value::Bool(left == right),
-            BinaryOp::ISDIFERENT => Value::Bool(left != right),
+            BinaryOp::Add => Value::Str(left + &right),
+            BinaryOp::Greater => Value::Bool(left > right),
+            BinaryOp::GreaterOrEqual => Value::Bool(left >= right),
+            BinaryOp::Lesser => Value::Bool(left < right),
+            BinaryOp::LesserOrEqual => Value::Bool(left <= right),
+            BinaryOp::IsEqual => Value::Bool(left == right),
+            BinaryOp::IsDifferent => Value::Bool(left != right),
             op => {
                 return Err(IError::InvalidOp(op, Type::Str)
                     .to_spanned(Span(node.left.span.1, node.right.span.0)))
@@ -275,7 +275,7 @@ impl Interpreter {
     }
     fn bool_calc(&mut self, node: BinaryNode, left: bool, parent: &mut Scope) -> EvalRes<Control> {
         match node.kind {
-            BinaryOp::AND => {
+            BinaryOp::And => {
                 if !left {
                     return Ok(Control::Value(Value::Bool(false)));
                 }
@@ -293,9 +293,22 @@ impl Interpreter {
             }
         };
     }
+    fn null_coalescing(
+        &mut self,
+        left: Value,
+        node: BinaryNode,
+        parent: &mut Scope,
+    ) -> EvalRes<Control> {
+        if left != Value::Null {
+            return Ok(Control::Value(left));
+        }
+        return self.eval_node(&node.right, parent);
+    }
     fn eval_binary_node(&mut self, bin_op: BinaryNode, parent: &mut Scope) -> EvalRes<Control> {
         let left = unwrap_val!(self.eval_node(&bin_op.left, parent)?);
-
+        if bin_op.kind == BinaryOp::NullCoalescing {
+            return self.null_coalescing(left, bin_op, parent);
+        }
         if let Value::Bool(val) = left {
             return self.bool_calc(bin_op, val, parent);
         }
@@ -303,8 +316,8 @@ impl Interpreter {
         let left_type = left.get_type();
         let right_type = right.get_type();
         match bin_op.kind {
-            BinaryOp::ISDIFERENT => return Ok(Control::Value(Value::Bool(left != right))),
-            BinaryOp::ISEQUAL => return Ok(Control::Value(Value::Bool(left == right))),
+            BinaryOp::IsDifferent => return Ok(Control::Value(Value::Bool(left != right))),
+            BinaryOp::IsEqual => return Ok(Control::Value(Value::Bool(left == right))),
             _ => {}
         }
 

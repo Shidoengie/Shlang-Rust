@@ -390,19 +390,20 @@ nodes_from! { ClosureDef UnaryNode Constructor StructDef  FieldAccess BinaryNode
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
-    ADD,
-    SUBTRACT,
-    DIVIDE,
-    MULTIPLY,
-    MODULO,
-    AND,
+    Add,
+    Subtract,
+    Divide,
+    Multiply,
+    Modulo,
+    And,
     OR,
-    ISEQUAL,
-    ISDIFERENT,
-    GREATER,
-    LESSER,
-    GREATER_EQUAL,
-    LESSER_EQUAL,
+    IsEqual,
+    IsDifferent,
+    Greater,
+    Lesser,
+    GreaterOrEqual,
+    LesserOrEqual,
+    NullCoalescing,
 }
 
 #[derive(Clone, Debug, PartialEq)]

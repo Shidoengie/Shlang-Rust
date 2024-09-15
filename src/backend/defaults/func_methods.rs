@@ -2,7 +2,7 @@ use super::*;
 use crate::backend::interpreter::Control;
 use crate::catch;
 use crate::lang_errors::LangError;
-use crate::{get_params, spans::Span, Interpreter};
+use crate::{get_params, Interpreter};
 
 pub fn func_struct() -> Struct {
     let env = vars![

@@ -336,6 +336,9 @@ pub enum Node {
 }
 impl Node {
     pub fn can_result(&self) -> bool {
+        if let Self::StructDef(def) = self {
+            return def.name.is_none();
+        }
         !matches!(
             self.clone(),
             Self::Declaration(_)

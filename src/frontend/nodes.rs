@@ -336,13 +336,13 @@ pub enum Node {
 }
 impl Node {
     pub fn can_result(&self) -> bool {
-        matches!(
+        !matches!(
             self.clone(),
-            Self::Value(_)
-                | Self::BinaryNode(_)
-                | Self::UnaryNode(_)
-                | Self::Variable(_)
-                | Self::Call(_)
+            Self::Declaration(_)
+                | Self::Assignment(_)
+                | Self::ReturnNode(_)
+                | Self::BreakNode
+                | Self::ContinueNode
         )
     }
 }

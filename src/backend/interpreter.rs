@@ -180,9 +180,15 @@ impl Interpreter {
         if block.is_empty() {
             return NULL;
         }
-        for node in block {
-            let result = match (self.eval_node(&node, &mut base)?, node.item) {
-                (c @ Control::Result(_), Node::ResultNode(_)) => c,
+
+        for (i, node) in block.iter().enumerate() {
+            let result = match (self.eval_node(&node, &mut base)?, &node.item) {
+                (c @ Control::Result(_), Node::ResultNode(_)) => {
+                    if i != block.len() - 1 {
+                        continue;
+                    }
+                    c
+                }
                 (Control::Value(_), _) => {
                     continue;
                 }

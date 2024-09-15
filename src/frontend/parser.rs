@@ -139,16 +139,16 @@ impl<'input> Parser<'input, Lexer<'input>> {
 ///variable and assignment parsing
 impl<'input> Parser<'input, Lexer<'input>> {
     /// These Parse variable definitions/declarations
-    fn empty_var_decl(&mut self, first: Token, var_name: String) -> NodeSpan {
-        let Some(last) = self.peek() else { todo!() };
-        let span = first.span + last.span;
+    fn empty_var_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
+        let var_name = self.text(&var_ident);
+        let span = first.span + var_ident.span;
         Declaration {
             var_name,
             value: bx!(Value::Null.to_nodespan(first.span)),
         }
         .to_nodespan(span)
     }
-    fn var_decl(&mut self, var_name: String, name_ident: Token) -> ParseRes<NodeSpan> {
+    fn var_decl(&mut self, var_name: String, name_ident: &Token) -> ParseRes<NodeSpan> {
         let last = self.expect_next()?;
         let val = self.parse_only_expr()?;
         let span = name_ident.span + last.span;
@@ -158,16 +158,14 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         .to_nodespan(span))
     }
-    fn parse_vardef(&mut self) -> ParseRes<NodeSpan> {
+    fn parse_vardef(&mut self, first: &Token) -> ParseRes<NodeSpan> {
         let ident = self.expect(TokenType::IDENTIFIER)?;
         let var_name = self.text(&ident);
         let last = self.skip_some()?;
         match last.kind {
-            TokenType::SEMICOLON => return Ok(self.empty_var_decl(ident, var_name)),
-            TokenType::EQUAL => return self.var_decl(var_name, ident),
-            _ => {}
+            TokenType::EQUAL => return self.var_decl(var_name, first),
+            _ => return Ok(self.empty_var_decl(first, ident)),
         }
-        Err(ParseError::UnexpectedToken(last.kind).to_spanned(last.span))
     }
     /// Parses tokens into an assignment node
     fn parse_assignment(&mut self, target: NodeSpan, token: Token) -> ParseRes<NodeSpan> {
@@ -472,7 +470,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             | TokenType::MINUS_EQUAL
             | TokenType::STAR_EQUAL
             | TokenType::SLASH_EQUAL => {
-                return Err(ParseError::UnexpectedStatement.to_spanned(left.span + op.span))
+                return Err(ParseError::UnexpectedVoidExpression.to_spanned(left.span + op.span))
             }
             _ => Ok(left),
         }
@@ -795,7 +793,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         };
 
         if value.kind == TokenType::VAR {
-            return Err(ParseError::UnexpectedStatement.to_spanned(value.span));
+            return Err(ParseError::UnexpectedVoidExpression.to_spanned(value.span));
         }
         let expr = self.atom_parser(peeked)?;
         expect_expr(&expr)?;
@@ -811,7 +809,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         match &value.kind {
             TokenType::STR(lit) => Ok(Value::Str(lit.to_string()).to_nodespan(value.span)),
             TokenType::STRUCT => self.parse_struct(),
-            TokenType::VAR => self.parse_vardef(),
+            TokenType::VAR => self.parse_vardef(value),
             TokenType::NUM => Ok(self.parse_num(value).to_nodespan(value.span)),
             TokenType::FALSE => Ok(Value::Bool(false).to_nodespan(value.span)),
             TokenType::TRUE => Ok(Value::Bool(true).to_nodespan(value.span)),
@@ -872,7 +870,7 @@ fn unexpected_token<T>(token: Token) -> ParseRes<T> {
 }
 fn expect_expr(expr: &NodeSpan) -> ParseRes<&NodeSpan> {
     if matches!(expr.item, Node::Assignment(_)) || matches!(expr.item, Node::Declaration(_)) {
-        return Err(ParseError::UnexpectedStatement.to_spanned(expr.span));
+        return Err(ParseError::UnexpectedVoidExpression.to_spanned(expr.span));
     }
     return Ok(expr);
 }

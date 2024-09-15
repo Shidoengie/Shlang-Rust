@@ -60,7 +60,7 @@ pub enum ParseError {
     UnterminatedParetheses(TokenType),
     UnexpectedStreamEnd,
     UnexpectedFieldNode(Node),
-    UnexpectedStatement,
+    UnexpectedVoidExpression,
 }
 impl LangError for Spanned<ParseError> {
     fn msg(&self) -> String {
@@ -74,7 +74,7 @@ impl LangError for Spanned<ParseError> {
             UnexpectedStreamEnd => "Expected To find another token but none was found".to_string(),
             UnterminatedParetheses(_) => "Unterminated parentheses".to_string(),
             UnexpectedFieldNode(_) => "Invalid Node in struct feilds".to_string(),
-            UnexpectedStatement => "Unexpected statement expression".to_string(),
+            UnexpectedVoidExpression => "Unexpected void expression".to_string(),
         }
     }
 }

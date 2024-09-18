@@ -151,10 +151,10 @@ impl<'a> Lexer<'a> {
     }
     fn matches_comment(&mut self, mut nest: i32, advanced: char, next: char) -> i32 {
         match (advanced, next) {
-            ('*', '#') => {
+            ('*', '/') => {
                 nest -= 1;
             }
-            ('#', '*') => {
+            ('/', '*') => {
                 nest += 1;
             }
             _ => {
@@ -170,7 +170,7 @@ impl<'a> Lexer<'a> {
         while nest >= 1 {
             let advanced = self.peek_advance()?;
             match advanced {
-                '*' | '#' => {}
+                '*' | '/' => {}
                 _ => continue,
             }
             let next = self.peek_advance()?;
@@ -242,18 +242,23 @@ impl<'a> Iterator for Lexer<'a> {
             }
             '+' => self.multi_char_token('=', TokenType::PLUS, TokenType::PLUS_EQUAL, start),
             '*' => self.multi_char_token('=', TokenType::STAR, TokenType::STAR_EQUAL, start),
-            '/' => self.multi_char_token('=', TokenType::SLASH, TokenType::SLASH_EQUAL, start),
+            '/' => {
+                let Some(peeked) = self.advance() else {
+                    return Some(Token::new(TokenType::SLASH, range));
+                };
+                match peeked {
+                    '/' => self.single_comment(),
+                    '=' => Some(Token::new(TokenType::SLASH_EQUAL, range)),
+                    '*' => self.multi_comment(),
+                    _ => Some(Token::new(TokenType::SLASH, range)),
+                }
+            }
             '-' => self.multi_char_token('=', TokenType::MINUS, TokenType::MINUS_EQUAL, start),
             '!' => self.multi_char_token('=', TokenType::BANG, TokenType::BANG_EQUAL, start),
             '<' => self.multi_char_token('=', TokenType::LESSER, TokenType::LESSER_EQUAL, start),
             '>' => self.multi_char_token('=', TokenType::GREATER, TokenType::GREATER_EQUAL, start),
             '=' => self.multi_char_token('=', TokenType::EQUAL, TokenType::DOUBLE_EQUAL, start),
-            '#' => {
-                if self.current_is('*') {
-                    return self.multi_comment();
-                }
-                self.single_comment()
-            }
+            '#' => self.single_comment(),
 
             ' ' | '\t' | '\r' | '\n' => self.next(),
             last => Some(

@@ -31,9 +31,12 @@ pub fn println_builtin(data: FuncData) -> Value {
         println!();
     }
     let mut out = "".to_string();
-    for val in data.args {
-        let derefed = deref_val(val, data.heap);
-        out += format!(" {derefed}").as_str();
+    for (i, val) in data.args.iter().enumerate() {
+        if i == 0 {
+            out += &deref_val(val.clone(), data.heap).to_string();
+            continue;
+        }
+        out += &format!(" {}", deref_val(val.clone(), data.heap));
     }
     out = out.trim().to_string();
     println!("{out}");
@@ -68,10 +71,14 @@ pub fn print_builtin(data: FuncData) -> Value {
         return Value::Null;
     }
     let mut out = "".to_string();
-    for val in data.args {
-        out += format!(" {}", deref_val(val, data.heap)).as_str();
+    for (i, val) in data.args.iter().enumerate() {
+        if i == 0 {
+            out += &deref_val(val.clone(), data.heap).to_string();
+            continue;
+        }
+        out += &format!(" {}", deref_val(val.clone(), data.heap));
     }
-    out = out.trim().to_string();
+
     print!("{out}");
     io::stdout().flush().unwrap();
     NULL

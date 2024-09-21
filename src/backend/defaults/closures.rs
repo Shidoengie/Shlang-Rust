@@ -8,14 +8,43 @@ pub fn closure_obj() -> Struct {
     let props = vars![
         call(call_closure, 2),
         arg_len(count_args, 1),
-        args(get_args, 1)
+        args(get_args, 1),
+        get_env(get_env, 1),
+        set_env(set_env, 1)
     ];
     Struct {
         id: None,
         env: Scope::from_vars(props),
     }
 }
+fn get_env(data: FuncData) -> FuncResult {
+    get_params!(
+        Value::Closure(closure) = Type::Closure
+    ;data);
+    let env_obj = Struct {
+        env: data.envs[closure.env].clone(),
+        id: None,
+    };
+    Ok(Value::Ref(data.heap.insert(Value::Struct(env_obj))))
+}
+fn set_env(data: FuncData) -> FuncResult {
+    get_params!(
+        Value::Closure(closure) = Type::Closure,
+        Value::Ref(key) = Type::Ref
+    ;data);
 
+    let Value::Struct(obj) = data.heap.get(*key).unwrap() else {
+        return Ok(type_err_obj(
+            &Type::AnonStruct,
+            &data.heap.get(*key).unwrap().get_type(),
+            1,
+            data.heap,
+        ));
+    };
+    let scope = obj.env.clone();
+    data.envs[closure.env] = scope;
+    NULL
+}
 fn call_closure(data: FuncData) -> FuncResult {
     get_params!(
         Value::Closure(closure) = Type::Closure,

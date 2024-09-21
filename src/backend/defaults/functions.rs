@@ -40,6 +40,22 @@ pub fn assert(data: FuncData) -> FuncResult {
         "Assert failed; First value was {val1} and second value was {val2}"
     )));
 }
+pub fn try_eval(data: FuncData) -> FuncResult {
+    let val = deref_val(data.args[0].clone(), data.heap);
+    match &val {
+        Value::Struct(obj) => {
+            let Some(ref id) = obj.id else {
+                return Ok(val);
+            };
+            if id != "Error" {
+                return Ok(val);
+            }
+            let msg = obj.env.get_var("msg").unwrap();
+            return Err(msg);
+        }
+        _ => return Ok(val),
+    }
+}
 pub fn assert_type(data: FuncData) -> FuncResult {
     let [val1, val2] = [
         deref_val(data.args[0].clone(), &data.heap),

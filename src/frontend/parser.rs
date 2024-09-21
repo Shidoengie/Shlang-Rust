@@ -787,19 +787,28 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let token = self.peek_some()?;
         let method_params = self.parse_expr_list(&token, TokenType::RPAREN)?;
         self.next();
+
+        let arg_span = if method_params.is_empty() {
+            Span(ident.span.1 + 1, ident.span.1 + 2)
+        } else {
+            method_params.first().unwrap().span + method_params.last().unwrap().span
+        };
+
         return Ok(FieldAccess {
             target: bx!(target),
             requested: bx!(Call {
-                callee: bx!(Node::Variable(requested).to_spanned(span)),
+                callee: bx!(Node::Variable(requested).to_spanned(ident.span)),
                 args: method_params,
             }
-            .to_nodespan(ident.span)),
+            .to_nodespan(arg_span)),
         }
-        .to_nodespan(span));
+        .to_nodespan(ident.span + arg_span));
     }
     fn parse_field_access(&mut self, target: NodeSpan, span: Span) -> ParseRes<NodeSpan> {
-        let ident = self.expect_next()?;
-        let requested = self.consume_ident()?;
+        self.expect_next()?;
+        let ident = self.expect(TokenType::IDENTIFIER)?;
+        self.next();
+        let requested = self.text(&ident);
 
         let val = if self.is_expected(TokenType::LPAREN).is_none() {
             FieldAccess {

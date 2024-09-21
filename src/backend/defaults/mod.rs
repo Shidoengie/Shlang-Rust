@@ -58,7 +58,8 @@ pub fn default_scope() -> Scope {
         error(err_func,1),
         panic(emit_panic,1),
         assert(assert,2),
-        assert_type(assert_type,2)
+        assert_type(assert_type,2),
+        try(try_eval,1)
     ];
     let structs = vars! {
         Error => error_struct(String::new()),
@@ -74,7 +75,8 @@ pub fn default_scope() -> Scope {
 
 fn error_struct(msg: String) -> Struct {
     let props = vars![
-        msg => Value::Str(msg)
+        msg => Value::Str(msg),
+        panic(emit_panic,1)
     ];
     Struct {
         id: Some("Error".to_string()),

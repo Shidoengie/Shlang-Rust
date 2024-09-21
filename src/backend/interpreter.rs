@@ -427,11 +427,18 @@ impl Interpreter {
 ///Variable declaration and execution
 impl Interpreter {
     fn declare(&mut self, request: Declaration, parent: &mut Scope) -> EvalRes<Control> {
-        let value = unwrap_val!(self.eval_node(&request.value, parent)?);
-        if value.is_void() {
-            return Err(IError::VoidAssignment.to_spanned(request.value.span));
-        }
+        let value = match unwrap_val!(self.eval_node(&request.value, parent)?) {
+            Value::Closure(cl) => {
+                let scope = &mut self.envs[cl.env];
+                scope.define(request.var_name.clone(), Value::Closure(cl.clone()));
+                Value::Closure(cl)
+            }
+            Value::Void => return Err(IError::VoidAssignment.to_spanned(request.value.span)),
+            value => value,
+        };
+
         parent.define(request.var_name, value);
+
         VOID
     }
     fn eval_var(&self, name: String, span: Span, env: &Scope) -> EvalRes<Control> {
@@ -790,8 +797,27 @@ impl Interpreter {
         obj: Value,
     ) -> EvalRes<Control> {
         let func_val = unwrap_val!(self.eval_node(&request.callee, obj_env)?);
+
         let call_args = request.args;
         let mut arg_values: Vec<Value> = vec![obj];
+        match func_val {
+            Value::BuiltinFunc(ref func) => {
+                if func.arg_range.is_some_and(|range| range == (0, 0)) {
+                    arg_values = vec![];
+                }
+            }
+            Value::Function(ref called) => {
+                if called.args.is_empty() {
+                    arg_values = vec![];
+                }
+            }
+            Value::Closure(ref called) => {
+                if called.args.is_empty() {
+                    arg_values = vec![];
+                }
+            }
+            _ => return type_err(Type::Function, func_val.get_type(), request.callee.span),
+        };
         for arg in call_args.iter() {
             let argument = unwrap_val!(self.eval_node(arg, base_env)?);
 
@@ -807,6 +833,7 @@ impl Interpreter {
             Value::Function(called) => {
                 self.call_func(called, arg_values, request.callee.span, obj_env)
             }
+            Value::Closure(called) => self.call_closure(called, arg_values, request.callee.span),
             _ => type_err(Type::Function, func_val.get_type(), request.callee.span),
         }
     }

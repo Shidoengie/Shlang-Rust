@@ -8,4 +8,4 @@ func main() {
 main()
 ```
 For more information about the language itself read the wiki!
-Note: As of this commit the wiki is unfinished but most of the additions are """documented""" in the release notes of v2.
+Note: As of this commit the [wiki](https://github.com/Shidoengie/Shlang-Rust/wiki) is unfinished but most of the additions are """documented""" in the release notes of v2.

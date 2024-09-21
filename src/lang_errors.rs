@@ -13,13 +13,12 @@ impl ErrorBuilder {
         Self { input }
     }
     pub fn emit(&self, msg: &str, span: Span) {
-        eprintln!("{}", self.build(msg, span));
+        eprintln!("{}", self.build(msg, span, false));
     }
-    pub fn panic_emit(&self, msg: &str, span: Span) {
-        self.emit(msg, span);
-        panic!()
+    pub fn emit_panic(&self, msg: &str, span: Span) {
+        eprintln!("{}", self.build(msg, span, true));
     }
-    pub fn build(&self, msg: &str, span: Span) -> String {
+    pub fn build(&self, msg: &str, span: Span, panicked: bool) -> String {
         let position = self.line_pos(span);
         let (start, stop) = (
             self.input[..span.0].to_string(),
@@ -31,7 +30,15 @@ impl ErrorBuilder {
         );
         let lines: Vec<&str> = marked.lines().collect();
         let line = lines[position - 1];
-        format!("{} {msg}\n{position} {} {line}", "ERROR!".red(), "|".blue(),)
+        format!(
+            "{} {msg}\n{position} {} {line}",
+            if panicked {
+                "PANICKED!".blue()
+            } else {
+                "ERROR!".red()
+            },
+            "|".blue(),
+        )
     }
     pub fn line_pos(&self, span: Span) -> usize {
         return self.input[..span.0]
@@ -91,6 +98,7 @@ pub enum InterpreterError {
     InvalidOp(BinaryOp, Type),
     InvalidArgSize(u32, u32),
     InvalidBinary(Type),
+    Panic(String),
     Unspecified(String),
 }
 
@@ -134,6 +142,13 @@ impl LangError for Spanned<InterpreterError> {
             }
             InvalidBinary(got) => format!("Invalid type in binary operation: {:?}", got),
             Unspecified(msg) => msg.to_string(),
+            Panic(msg) => msg.to_string(),
+        }
+    }
+    fn print_msg(&self, err_out: ErrorBuilder) {
+        match self.item {
+            InterpreterError::Panic(_) => err_out.emit_panic(self.msg().as_str(), self.get_span()),
+            _ => err_out.emit(self.msg().as_str(), self.get_span()),
         }
     }
 }

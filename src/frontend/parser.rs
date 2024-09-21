@@ -337,11 +337,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
         Ok(params)
     }
     fn parse_call(&mut self, callee: NodeSpan) -> ParseRes<NodeSpan> {
-        let first = self.expect_next()?;
+        let mut first = self.expect_next()?.span;
         let token = self.peek_some()?;
         let params = self.parse_expr_list(&token, TokenType::RPAREN)?;
-        let last = self.expect_next()?;
-        let span = first.span + last.span;
+        let last = self.expect_next()?.span;
+
+        let span = first + last;
         let call = Call {
             args: params,
             callee: bx!(callee),

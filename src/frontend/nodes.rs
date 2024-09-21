@@ -48,7 +48,10 @@ impl Value {
             Value::Str(_) => Type::Str,
             Value::Num(_) => Type::Num,
             Value::List(_) => Type::List,
-            Value::Struct(obj) => Type::Struct(obj.id.clone()),
+            Value::Struct(obj) => match &obj.id {
+                Some(id) => Type::Struct(id.clone()),
+                None => Type::AnonStruct,
+            },
             Value::Closure(_) => Type::Closure,
             Value::Ref(_) => Type::Ref,
         }
@@ -232,9 +235,15 @@ pub struct FuncData<'a> {
     pub heap: &'a mut SlotMap<RefKey, Value>,
     pub envs: &'a mut SlotMap<EnvKey, Scope>,
     pub global_funcs: &'a mut HashMap<String, Function>,
+    pub span: Span,
 }
+/// The result of the function
+///
+/// - Ok(Value) Normal value wont affect control flow
+/// - Err(Value) Will stop control flow
+pub type FuncResult = Result<Value, Value>;
 
-type FuncPtr = fn(FuncData) -> Value;
+type FuncPtr = fn(FuncData) -> FuncResult;
 
 #[derive(Clone)]
 pub struct BuiltinFunc {
@@ -271,7 +280,7 @@ impl From<BuiltinFunc> for Value {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
     Null,
     Void,
@@ -281,7 +290,8 @@ pub enum Type {
     Str,
     Function,
     List,
-    Struct(Option<String>),
+    AnonStruct,
+    Struct(String),
     Ref,
 }
 
@@ -296,8 +306,8 @@ impl Display for Type {
             Self::Str => "str",
             Self::List => "list",
             Self::Closure => "closure",
-            Self::Struct(Some(id)) => id,
-            Self::Struct(None) => "struct",
+            Self::Struct(id) => id,
+            Self::AnonStruct => "struct",
             Self::Ref => "ref",
         };
         write!(f, "{txt}")

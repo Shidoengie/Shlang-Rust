@@ -16,23 +16,28 @@ pub fn closure_obj() -> Struct {
     }
 }
 
-fn call_closure(data: FuncData) -> Value {
+fn call_closure(data: FuncData) -> FuncResult {
     get_params!(
         Value::Closure(closure) = Type::Closure,
         Value::Ref(list_ref) = Type::Ref
     ;data);
 
     let Value::List(ref list) = data.heap[*list_ref] else {
-        return type_err_obj(&Type::List, &data.heap[*list_ref].get_type(), 1, data.heap);
+        return Ok(type_err_obj(
+            &Type::List,
+            &data.heap[*list_ref].get_type(),
+            1,
+            data.heap,
+        ));
     };
     let env_key = closure.env;
     let env = &mut data.envs[env_key];
 
     let res = catch!( err {
-        return create_err(err.msg(), data.heap);
+        return Ok(create_err(err.msg(), data.heap));
     } in Interpreter::execute_func_with(closure.to_owned().into(), env, list.to_vec()));
     match res {
-        Control::Return(v) | Control::Result(v) | Control::Value(v) => v,
+        Control::Return(v) | Control::Result(v) | Control::Value(v) => Ok(v),
         _ => NULL,
     }
 }

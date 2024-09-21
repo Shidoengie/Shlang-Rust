@@ -2,6 +2,7 @@ use super::scope::Scope;
 use crate::backend::defaults;
 use crate::backend::defaults::default_scope;
 use crate::bx;
+use crate::catch;
 use crate::frontend::nodes::*;
 use crate::hashmap;
 use crate::lang_errors::*;
@@ -657,6 +658,7 @@ impl Interpreter {
         return Ok(result);
     }
 }
+
 ///Function and function call handling
 impl Interpreter {
     fn capture_fn(&mut self, val: Value, parent: &mut Scope) -> Value {
@@ -679,7 +681,6 @@ impl Interpreter {
         let func_val = unwrap_val!(self.eval_node(&request.callee, parent)?);
         let call_args = request.args;
         let mut arg_values: Vec<Value> = vec![];
-
         for arg in call_args.iter() {
             let argument = unwrap_val!(self.eval_node(arg, base_env)?);
             arg_values.push(self.capture_fn(argument, parent));
@@ -751,8 +752,30 @@ impl Interpreter {
             parent,
             envs: &mut self.envs,
             args: arg_values,
+            span,
         };
-        let result = (called.function)(data);
+        let result = catch! {err {
+            let val = if let Value::Ref(key) = err {
+                self.heap[key].clone()
+            } else {
+                err
+            };
+            match &val {
+                Value::Struct(obj) => {
+                    let Some(ref id) = obj.id else {
+                        return Err(IError::Panic(val.to_string()).to_spanned(span));
+                    };
+                    if id != "Error" {
+                        return Err(IError::Panic(val.to_string()).to_spanned(span));
+                    }
+                    let msg = obj.env.get_var("msg").unwrap();
+                    return Err(IError::Panic(msg.to_string()).to_spanned(span));
+                }
+                _ => return Err(IError::Panic(val.to_string()).to_spanned(span)),
+            }
+            } in (called.function)(data)
+        };
+
         Ok(Control::Value(result))
     }
 }
@@ -901,10 +924,13 @@ fn unspec_err<T>(msg: impl Display, span: Span) -> EvalRes<T> {
 fn type_err<T>(expected: Type, got: Type, span: Span) -> EvalRes<T> {
     return Err(IError::InvalidType(vec![expected], got).to_spanned(span));
 }
-fn check_args(arg_range: Option<(u8, u8)>, given_size: usize, span: Span) -> EvalRes<()> {
+fn check_args(arg_range: Option<(u8, u8)>, given_size: usize, mut span: Span) -> EvalRes<()> {
     let Some(range) = arg_range else {
         return Ok(());
     };
+    if given_size == 0 {
+        span.0 -= 1;
+    }
     if range.1 == 0 && given_size != 0 {
         return unspec_err(format!("Expected no arguments but got {given_size}"), span);
     }

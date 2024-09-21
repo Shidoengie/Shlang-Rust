@@ -20,7 +20,7 @@ use std::f64::consts::{E, PI, TAU};
 use std::fmt::Display;
 pub use strings::*;
 
-const NULL: Value = Value::Null;
+const NULL: FuncResult = Ok(Value::Null);
 
 pub fn default_scope() -> Scope {
     let vars = vars![
@@ -55,8 +55,10 @@ pub fn default_scope() -> Scope {
         clone(clone_val,1),
         capture_env(),
         rand_num(1 => 2),
-        err(err_func,1),
-
+        error(err_func,1),
+        panic(emit_panic,1),
+        assert(assert,2),
+        assert_type(assert_type,2)
     ];
     let structs = vars! {
         Error => error_struct(String::new()),
@@ -95,81 +97,368 @@ fn type_err_obj(expected: &Type, got: &Type, at: i32, heap: &mut SlotMap<RefKey,
 macro_rules! get_params {
     ($param1:pat = $type1:expr ; $data:expr) => {
         let $param1 = &$data.args[0] else {
-            return type_err_obj(&$type1, &$data.args[0].get_type(), 1, $data.heap);
+            return Ok(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
         };
     };
     ($param1:pat = $type1:expr,$param2:pat = $type2:expr ; $data:expr) => {
         let $param1 = &$data.args[0] else {
-            return type_err_obj(&$type1, &$data.args[0].get_type(), 1, $data.heap);
+            return Ok(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
         };
         let $param2 = &$data.args[1] else {
-            return type_err_obj(&$type2, &$data.args[1].get_type(), 2, $data.heap);
+            return Ok(type_err_obj(
+                &$type2,
+                &$data.args[1].get_type(),
+                2,
+                $data.heap,
+            ));
         };
     };
     ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr  ; $data:expr) => {
         let $param1 = &$data.args[0] else {
-            return type_err_obj(&$type1, &$data.args[0].get_type(), 1, $data.heap);
+            return Ok(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
         };
         let $param2 = &$data.args[1] else {
-            return type_err_obj(&$type2, &$data.args[1].get_type(), 2, $data.heap);
+            return Ok(type_err_obj(
+                &$type2,
+                &$data.args[1].get_type(),
+                2,
+                $data.heap,
+            ));
         };
         let $param3 = &$data.args[2] else {
-            return type_err_obj(&$type3, &$data.args[2].get_type(), 3, $data.heap);
+            return Ok(type_err_obj(
+                &$type3,
+                &$data.args[2].get_type(),
+                3,
+                $data.heap,
+            ));
         };
     };
     ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr  ; $data:expr) => {
         let $param1 = &$data.args[0] else {
-            return type_err_obj(&$type1, &$data.args[0].get_type(), 1, $data.heap);
+            return Ok(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
         };
         let $param2 = &$data.args[1] else {
-            return type_err_obj(&$type2, &$data.args[1].get_type(), 2, $data.heap);
+            return Ok(type_err_obj(
+                &$type2,
+                &$data.args[1].get_type(),
+                2,
+                $data.heap,
+            ));
         };
         let $param3 = &$data.args[2] else {
-            return type_err_obj(&$type3, &$data.args[2].get_type(), 3, $data.heap);
+            return Ok(type_err_obj(
+                &$type3,
+                &$data.args[2].get_type(),
+                3,
+                $data.heap,
+            ));
         };
         let $param4 = &$data.args[3] else {
-            return type_err_obj(&$type4, &$data.args[3].get_type(), 4, $data.heap);
+            return Ok(type_err_obj(
+                &$type4,
+                &$data.args[3].get_type(),
+                4,
+                $data.heap,
+            ));
         };
     };
     ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr ; $data:expr) => {
         let $param1 = &$data.args[0] else {
-            return type_err_obj(&$type1, &$data.args[0].get_type(), 1, $data.heap);
+            return Ok(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
         };
         let $param2 = &$data.args[1] else {
-            return type_err_obj(&$type2, &$data.args[1].get_type(), 2, $data.heap);
+            return Ok(type_err_obj(
+                &$type2,
+                &$data.args[1].get_type(),
+                2,
+                $data.heap,
+            ));
         };
         let $param3 = &$data.args[2] else {
-            return type_err_obj(&$type3, &$data.args[2].get_type(), 3, $data.heap);
+            return Ok(type_err_obj(
+                &$type3,
+                &$data.args[2].get_type(),
+                3,
+                $data.heap,
+            ));
         };
         let $param4 = &$data.args[3] else {
-            return type_err_obj(&$type4, &$data.args[3].get_type(), 4, $data.heap);
+            return Ok(type_err_obj(
+                &$type4,
+                &$data.args[3].get_type(),
+                4,
+                $data.heap,
+            ));
         };
         let $param5 = &$data.args[4] else {
-            return type_err_obj(&$type5, &$data.args[4].get_type(), 5, $data.heap);
+            return Ok(type_err_obj(
+                &$type5,
+                &$data.args[4].get_type(),
+                5,
+                $data.heap,
+            ));
         };
     };
     ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr, $param6:pat = $type6:expr; $data:expr) => {
         let $param1 = &$data.args[0] else {
-            return type_err_obj(&$type1, &$data.args[0].get_type(), 1, $data.heap);
+            return Ok(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
         };
         let $param2 = &$data.args[1] else {
-            return type_err_obj(&$type2, &$data.args[1].get_type(), 2, $data.heap);
+            return Ok(type_err_obj(
+                &$type2,
+                &$data.args[1].get_type(),
+                2,
+                $data.heap,
+            ));
         };
         let $param3 = &$data.args[2] else {
-            return type_err_obj(&$type3, &$data.args[2].get_type(), 3, $data.heap);
+            return Ok(type_err_obj(
+                &$type3,
+                &$data.args[2].get_type(),
+                3,
+                $data.heap,
+            ));
         };
         let $param4 = &$data.args[3] else {
-            return type_err_obj(&$type4, &$data.args[3].get_type(), 4, $data.heap);
+            return Ok(type_err_obj(
+                &$type4,
+                &$data.args[3].get_type(),
+                4,
+                $data.heap,
+            ));
         };
         let $param5 = &$data.args[4] else {
-            return type_err_obj(&$type5, &$data.args[4].get_type(), 5, $data.heap);
+            return Ok(type_err_obj(
+                &$type5,
+                &$data.args[4].get_type(),
+                5,
+                $data.heap,
+            ));
         };
         let $param6 = &$data.args[5] else {
-            return type_err_obj(&$type6, &$data.args[5].get_type(), 6, $data.heap);
+            return Ok(type_err_obj(
+                &$type6,
+                &$data.args[5].get_type(),
+                6,
+                $data.heap,
+            ));
         };
     };
 }
-
+#[macro_export]
+macro_rules! assert_params {
+    ($param1:pat = $type1:expr ; $data:expr) => {
+        let $param1 = &$data.args[0] else {
+            return Err(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
+        };
+    };
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr ; $data:expr) => {
+        let $param1 = &$data.args[0] else {
+            return Err(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
+        };
+        let $param2 = &$data.args[1] else {
+            return Err(type_err_obj(
+                &$type2,
+                &$data.args[1].get_type(),
+                2,
+                $data.heap,
+            ));
+        };
+    };
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr  ; $data:expr) => {
+        let $param1 = &$data.args[0] else {
+            return Err(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
+        };
+        let $param2 = &$data.args[1] else {
+            return Err(type_err_obj(
+                &$type2,
+                &$data.args[1].get_type(),
+                2,
+                $data.heap,
+            ));
+        };
+        let $param3 = &$data.args[2] else {
+            return Err(type_err_obj(
+                &$type3,
+                &$data.args[2].get_type(),
+                3,
+                $data.heap,
+            ));
+        };
+    };
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr  ; $data:expr) => {
+        let $param1 = &$data.args[0] else {
+            return Err(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
+        };
+        let $param2 = &$data.args[1] else {
+            return Err(type_err_obj(
+                &$type2,
+                &$data.args[1].get_type(),
+                2,
+                $data.heap,
+            ));
+        };
+        let $param3 = &$data.args[2] else {
+            return Err(type_err_obj(
+                &$type3,
+                &$data.args[2].get_type(),
+                3,
+                $data.heap,
+            ));
+        };
+        let $param4 = &$data.args[3] else {
+            return Err(type_err_obj(
+                &$type4,
+                &$data.args[3].get_type(),
+                4,
+                $data.heap,
+            ));
+        };
+    };
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr ; $data:expr) => {
+        let $param1 = &$data.args[0] else {
+            return Err(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
+        };
+        let $param2 = &$data.args[1] else {
+            return Err(type_err_obj(
+                &$type2,
+                &$data.args[1].get_type(),
+                2,
+                $data.heap,
+            ));
+        };
+        let $param3 = &$data.args[2] else {
+            return Err(type_err_obj(
+                &$type3,
+                &$data.args[2].get_type(),
+                3,
+                $data.heap,
+            ));
+        };
+        let $param4 = &$data.args[3] else {
+            return Err(type_err_obj(
+                &$type4,
+                &$data.args[3].get_type(),
+                4,
+                $data.heap,
+            ));
+        };
+        let $param5 = &$data.args[4] else {
+            return Err(type_err_obj(
+                &$type5,
+                &$data.args[4].get_type(),
+                5,
+                $data.heap,
+            ));
+        };
+    };
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr, $param6:pat = $type6:expr; $data:expr) => {
+        let $param1 = &$data.args[0] else {
+            return Err(type_err_obj(
+                &$type1,
+                &$data.args[0].get_type(),
+                1,
+                $data.heap,
+            ));
+        };
+        let $param2 = &$data.args[1] else {
+            return Err(type_err_obj(
+                &$type2,
+                &$data.args[1].get_type(),
+                2,
+                $data.heap,
+            ));
+        };
+        let $param3 = &$data.args[2] else {
+            return Err(type_err_obj(
+                &$type3,
+                &$data.args[2].get_type(),
+                3,
+                $data.heap,
+            ));
+        };
+        let $param4 = &$data.args[3] else {
+            return Err(type_err_obj(
+                &$type4,
+                &$data.args[3].get_type(),
+                4,
+                $data.heap,
+            ));
+        };
+        let $param5 = &$data.args[4] else {
+            return Err(type_err_obj(
+                &$type5,
+                &$data.args[4].get_type(),
+                5,
+                $data.heap,
+            ));
+        };
+        let $param6 = &$data.args[5] else {
+            return Err(type_err_obj(
+                &$type6,
+                &$data.args[5].get_type(),
+                6,
+                $data.heap,
+            ));
+        };
+    };
+}
 #[macro_export]
 macro_rules! vars_internal {
     ([$($acc:tt)*]) => {

@@ -1,12 +1,10 @@
 use backend::scope::Scope;
 use colored::Colorize;
-use fmt::Display;
 use frontend::nodes::EnvKey;
 use frontend::nodes::Value;
 use frontend::nodes::ValueRepr;
 use lang_errors::*;
 use slotmap::SlotMap;
-use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io;
@@ -40,7 +38,7 @@ fn main() {
     }
 }
 
-fn AST_from_file(file_path: String) {
+fn ast_from_file(file_path: String) {
     let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
     let mut parser = Parser::new(source.as_str());
     let ast = parser.parse();
@@ -56,7 +54,7 @@ fn len2(args: Vec<String>) {
 }
 fn len3(args: Vec<String>) {
     match args[1].to_lowercase().as_str() {
-        "ast" | "a" => AST_from_file(args[2].clone()),
+        "ast" | "a" => ast_from_file(args[2].clone()),
         "lex" | "lexer" | "l" => lex_file(args[2].clone()),
         _ => panic!("Invalid"),
     }
@@ -68,10 +66,16 @@ fn execute_file(args: Vec<String>) {
     let mut parser = Parser::new(source.as_str());
     let (ast, functions) = catch!(err {
         err.print_msg(err_out);
+        eprintln!("At file: {file_path}",);
         return;
     } in parser.parse());
     let mut interpreter = Interpreter::new(ast, functions);
-    let _ = interpreter.execute().map_err(|e| e.print_msg(err_out));
+    catch!(err {
+        err.print_msg(err_out);
+        let path = format!("At file: {file_path}").bright_black().italic();
+        eprintln!("{path}");
+        return;
+    } in interpreter.execute());
 }
 fn print_repl_res(val: Value, heap: &SlotMap<RefKey, Value>) {
     let output = deref_val(val, heap);
@@ -88,12 +92,23 @@ fn print_repl_res(val: Value, heap: &SlotMap<RefKey, Value>) {
         println!("{} {msg}", "ERROR!".red());
         return;
     }
-    println!("{}", output.repr().bright_black());
+    println!("{}", output.repr().bright_black().italic());
 }
 fn repl() {
     let mut scope = Scope::default();
     let mut heap: SlotMap<RefKey, Value> = SlotMap::with_key();
     let mut envs: SlotMap<EnvKey, Scope> = SlotMap::with_key();
+    const HR: &str = "----------------------------------";
+    println!(
+        "{l1}\n Welcome to shlang version {ver}!\n{l2} ",
+        l1 = HR.blue(),
+        l2 = HR.blue(),
+        ver = env!("CARGO_PKG_VERSION")
+    );
+    println!(
+        "{}\n",
+        "Run 'help' for more information".bright_black().italic()
+    );
     loop {
         let source = input(">: ");
         let err_out = ErrorBuilder::new(source.clone());

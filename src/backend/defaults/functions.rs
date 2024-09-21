@@ -9,6 +9,7 @@ use colored::Colorize;
 use rand::Rng;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
+
 use std::fs;
 use std::io;
 use std::io::Write;
@@ -19,12 +20,32 @@ use std::time::Duration;
 use std::time::SystemTime;
 
 pub fn delete_var(data: FuncData) -> FuncResult {
-    assert_params!(Value::Str(val) = Type::Str;data);
-    if !data.parent.vars.contains_key(val) {
+    let (var, will_panic) = match data.args.len() {
+        0 => {
+            assert_params!(
+            Value::Str(var) = Type::Str
+        ;data);
+            (var, true)
+        }
+        1 => {
+            assert_params!(
+            Value::Str(var) = Type::Str,
+            Value::Bool(will_panic) = Type::Bool
+        ;data);
+            (var, will_panic.clone())
+        }
+        _ => unimplemented!(),
+    };
+    if data.parent.vars.contains_key(var) {
+        data.parent.vars.remove(var);
         return NULL;
     }
-    data.parent.vars.remove(val);
-    NULL
+    let err = create_err("Undefined Variable", data.heap);
+    if will_panic {
+        return Err(err);
+    } else {
+        return Ok(err);
+    }
 }
 pub fn emit_panic(data: FuncData) -> FuncResult {
     return Err(data.args[0].clone());
@@ -127,13 +148,7 @@ pub fn print_builtin(data: FuncData) -> FuncResult {
     io::stdout().flush().unwrap();
     NULL
 }
-pub fn open_textfile(data: FuncData) -> FuncResult {
-    get_params!(Value::Str(path) = Type::Str;data);
-    let Ok(contents) = fs::read_to_string(path) else {
-        return Ok(create_err("Failed to open file", data.heap));
-    };
-    return Ok(Value::Str(contents));
-}
+
 pub fn typeof_node(data: FuncData) -> FuncResult {
     let val = if let Value::Ref(id) = data.args[0].clone() {
         &data.heap[id]
@@ -282,9 +297,23 @@ pub fn eval(data: FuncData) -> FuncResult {
     Ok(result)
 }
 pub fn import_var(data: FuncData) -> FuncResult {
-    get_params!(
+    let (path, will_panic) = match data.args.len() {
+        0 => {
+            assert_params!(
             Value::Str(path) = Type::Str
+            ;data);
+            (path, true)
+        }
+        1 => {
+            assert_params!(
+            Value::Str(path) = Type::Str,
+            Value::Bool(will_panic) = Type::Bool
         ;data);
+            (path, will_panic.clone())
+        }
+        _ => unimplemented!(),
+    };
+
     let Ok(source) = fs::read_to_string(path) else {
         return Ok(create_err("Failed to read file", data.heap));
     };
@@ -292,7 +321,9 @@ pub fn import_var(data: FuncData) -> FuncResult {
 
     let (ast, functions) = catch!(
         err {
-            return Ok(create_err(err.msg(), data.heap));
+            let err = create_err(err.msg(), data.heap);
+            if will_panic{return Err(err)} else {return Ok(err);}
+
         } in parser.parse()
     );
     let mut inter = Interpreter::new(ast, functions);
@@ -302,7 +333,8 @@ pub fn import_var(data: FuncData) -> FuncResult {
     ));
     let scope = catch!(
         err {
-            return Ok(create_err(err.msg(), data.heap));
+            let err = create_err(err.msg(), data.heap);
+            if will_panic{return Err(err)} else {return Ok(err);}
         } in inter.parse_vars(base)
     );
     data.envs.clone_from(&inter.envs);
@@ -460,4 +492,96 @@ pub fn get_args(data: FuncData) -> FuncResult {
     };
     let list: Vec<Value> = args.par_iter().map(|s| Value::Str(s.to_owned())).collect();
     return Ok(Value::Ref(data.heap.insert(Value::List(list))));
+}
+pub fn open_textfile(data: FuncData) -> FuncResult {
+    get_params!(Value::Str(path) = Type::Str;data);
+    let Ok(contents) = fs::read_to_string(path) else {
+        return Ok(create_err("Failed to open file", data.heap));
+    };
+    return Ok(Value::Str(contents));
+}
+pub fn open_dir(data: FuncData) -> FuncResult {
+    get_params!(Value::Str(path) = Type::Str;data);
+    let contents = catch!(err {
+        return Ok(create_err(err, data.heap));
+    } in fs::read_dir(path));
+    let mut files: Vec<Value> = vec![];
+    for query in contents {
+        match query {
+            Ok(entry) => {
+                let Ok(file) = fs::read_to_string(entry.path()) else {
+                    unimplemented!()
+                };
+                files.push(Value::Str(file));
+            }
+            Err(err) => {
+                return Ok(create_err(err.to_string(), data.heap));
+            }
+        }
+    }
+    return Ok(Value::Ref(data.heap.insert(Value::List(files))));
+}
+pub fn paths_in_dir(data: FuncData) -> FuncResult {
+    get_params!(Value::Str(path) = Type::Str;data);
+    let contents = catch!(err {
+        return Ok(create_err(err, data.heap));
+    } in fs::read_dir(path));
+    let mut paths: Vec<Value> = vec![];
+    for query in contents {
+        match query {
+            Ok(entry) => {
+                paths.push(Value::Str(entry.path().to_str().unwrap().to_owned()));
+            }
+            Err(err) => {
+                return Ok(create_err(err.to_string(), data.heap));
+            }
+        }
+    }
+    return Ok(Value::Ref(data.heap.insert(Value::List(paths))));
+}
+pub fn create_file(data: FuncData) -> FuncResult {
+    get_params!(
+        Value::Str(path) = Type::Str
+    ;data);
+    let Ok(_) = fs::File::create(path) else {
+        return Ok(create_err("Failed to create file", data.heap));
+    };
+    return NULL;
+}
+pub fn create_dir(data: FuncData) -> FuncResult {
+    get_params!(
+        Value::Str(path) = Type::Str
+    ;data);
+    let Ok(_) = fs::create_dir(path) else {
+        return Ok(create_err("Failed to create directory", data.heap));
+    };
+    return NULL;
+}
+pub fn delete_dir(data: FuncData) -> FuncResult {
+    get_params!(
+        Value::Str(path) = Type::Str
+    ;data);
+    if let Err(err) = fs::remove_dir_all(path) {
+        return Ok(create_err(err.to_string(), data.heap));
+    }
+    return NULL;
+}
+pub fn delete_file(data: FuncData) -> FuncResult {
+    get_params!(
+        Value::Str(path) = Type::Str
+    ;data);
+    if let Err(err) = fs::remove_file(path) {
+        return Ok(create_err(err.to_string(), data.heap));
+    }
+    return NULL;
+}
+pub fn write_file(data: FuncData) -> FuncResult {
+    get_params!(
+        Value::Str(path) = Type::Str,
+        Value::Str(contents) = Type::Str
+    ;data);
+    let Ok(_) = fs::write(path, contents) else {
+        return Ok(create_err("Failed to write file", data.heap));
+    };
+    return NULL;
 }

@@ -26,11 +26,12 @@ pub fn default_scope() -> Scope {
     let vars = vars![
         noice => Value::Num(69.0),
         PI => Value::Num(PI),
+        E => Value::Num(E),
         TAU => Value::Num(TAU),
-        print_err(print_err,Inf),
+        print_err(print_err,1),
         wait(wait_builtin,1),
         time(unix_time),
-        open_file(open_textfile,1),
+
         input(input_builtin,Inf),
         println(println_builtin,Inf),
         print(print_builtin,Inf),
@@ -47,8 +48,8 @@ pub fn default_scope() -> Scope {
         tan(1),
         pow(2),
         log(2),
-        import(import_var,1),
-        del(delete_var,1),
+        import(import_var,1 => 2),
+        del(delete_var,1 => 2),
         range(1 => 3),
         floor(1),
         round(1),
@@ -57,9 +58,17 @@ pub fn default_scope() -> Scope {
         rand_num(1 => 2),
         error(err_func,1),
         panic(emit_panic,1),
-        assert(assert,2),
-        assert_type(assert_type,2),
-        try(try_eval,1)
+        assert(2),
+        assert_type(2),
+        try(try_eval,1),
+        open_dir(1),
+        delete_dir(1),
+        delete_file(1),
+        paths_in_dir(1),
+        open_file(open_textfile,1),
+        create_file(1),
+        create_dir(1),
+        write_file(2)
     ];
     let structs = vars! {
         Error => error_struct(String::new()),

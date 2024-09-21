@@ -10,7 +10,7 @@ pub fn closure_obj() -> Struct {
         arg_len(count_args, 1),
         args(get_args, 1),
         get_env(get_env, 1),
-        set_env(set_env, 1)
+        set_env(set_env, 2)
     ];
     Struct {
         id: None,

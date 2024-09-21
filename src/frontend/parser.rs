@@ -856,7 +856,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 self.next();
                 Ok(func)
             }
-            TokenType::DOLLAR => self.parse_closure(),
+            TokenType::AT => self.parse_closure(),
             TokenType::LBRACK => {
                 let literal = self.parse_expr_list(value, TokenType::RBRACK)?;
                 let span = value.span + self.peek_some()?.span;
@@ -876,7 +876,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             TokenType::NOT | TokenType::BANG => self.unary_operator(UnaryOp::NOT),
             TokenType::MINUS => self.unary_operator(UnaryOp::NEGATIVE),
             TokenType::LPAREN => self.parse_paren(value.clone()),
-            TokenType::DOLLAR => self.parse_closure(),
+
             TokenType::NEW => self.parse_constructor(),
             TokenType::SEMICOLON => Ok(Spanned::new(Node::DontResult, Span(0, 0))),
             _ => unexpected_token(value.clone()),

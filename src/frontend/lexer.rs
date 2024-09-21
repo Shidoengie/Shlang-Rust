@@ -216,6 +216,7 @@ impl<'a> Iterator for Lexer<'a> {
             ':' => Some(Token::new(TokenType::COLON, range)),
             ';' => Some(Token::new(TokenType::SEMICOLON, range)),
             '$' => Some(Token::new(TokenType::DOLLAR, range)),
+            '@' => Some(Token::new(TokenType::AT, range)),
             '|' => self.multi_char_token('|', TokenType::PIPE, TokenType::DUAL_PIPE, start),
             '&' => {
                 self.multi_char_token('&', TokenType::AMPERSAND, TokenType::DUAL_AMPERSAND, start)

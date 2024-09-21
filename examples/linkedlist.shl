@@ -1,0 +1,42 @@
+struct Node {
+    var next
+    var data
+
+    func push(self,new_data){
+        if self.data == null && self.next == null{
+            self.data = new_data
+            return;
+        }
+        if self.next == null{
+            var new_node = new Self {
+                next:null,
+                data:new_data,
+                
+            }
+            self.next = new_node
+            return;
+        }
+        return self.next.push(new_data);        
+    }
+    func get(self,pos){
+        return self._get(pos,0)
+    }
+    func _get(self,pos,depth){
+        if depth == pos {
+            return data;
+        }
+        if self.next == null{
+            return null;
+        }
+        depth += 1;
+        return self.next._get(pos,depth);
+    }
+}
+
+func main(){
+    var linked = new Node{};
+    linked.push(1);
+    linked.push(10);
+    println(linked.get(0));
+}
+main()

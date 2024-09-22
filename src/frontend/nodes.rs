@@ -1,5 +1,5 @@
 use crate::backend::interpreter::Control;
-use crate::backend::scope::Scope;
+use crate::backend::scope::{self, Scope};
 use crate::lang_errors::InterpreterError;
 use crate::{spans::*, Interpreter};
 use rayon::prelude::*;
@@ -152,15 +152,7 @@ pub struct Closure {
     pub args: Vec<String>,
     pub env: EnvKey,
 }
-impl Closure {
-    pub fn exec(
-        &mut self,
-        args: Vec<Value>,
-        scopes: &mut SlotMap<EnvKey, Scope>,
-    ) -> Result<Control, Spanned<InterpreterError>> {
-        Interpreter::execute_func_with(self.to_owned().into(), &mut scopes[self.env], args)
-    }
-}
+
 impl From<Closure> for Value {
     fn from(x: Closure) -> Self {
         Value::Closure(x)
@@ -196,13 +188,6 @@ impl Function {
     pub fn new(block: NodeStream, args: Vec<String>) -> Self {
         Self { block, args }
     }
-    pub fn exec(
-        &mut self,
-        args: Vec<Value>,
-        parent: &mut Scope,
-    ) -> Result<Control, Spanned<InterpreterError>> {
-        Interpreter::execute_func_with(self.to_owned(), parent, args)
-    }
 }
 impl ValueRepr for Function {
     fn repr(&self) -> String {
@@ -230,20 +215,18 @@ new_key_type! {
 }
 
 pub struct FuncData<'a> {
-    pub parent: &'a mut Scope,
     pub args: Vec<Value>,
-    pub heap: &'a mut SlotMap<RefKey, Value>,
-    pub envs: &'a mut SlotMap<EnvKey, Scope>,
-    pub global_funcs: &'a mut HashMap<String, Function>,
     pub span: Span,
+    pub parent: &'a mut Scope,
 }
+
 /// The result of the function
 ///
 /// - Ok(Value) Normal value wont affect control flow
 /// - Err(Value) Will stop control flow
 pub type FuncResult = Result<Value, Value>;
 
-type FuncPtr = fn(FuncData) -> FuncResult;
+type FuncPtr = fn(FuncData, &mut Interpreter) -> FuncResult;
 
 #[derive(Clone)]
 pub struct BuiltinFunc {

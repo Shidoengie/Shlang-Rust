@@ -16,28 +16,28 @@ pub fn func_struct() -> Struct {
         env: Scope::from_vars(env),
     }
 }
-fn call_func_with(data: FuncData) -> FuncResult {
+fn call_func_with(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Function(func) = Type::Function,
         Value::Ref(env_id) = Type::Ref;
-        data
+        data,state
     );
 
-    let Value::Struct(ref mut env_obj) = data.heap[*env_id].clone() else {
+    let Value::Struct(ref mut env_obj) = state.heap[*env_id].clone() else {
         return Ok(type_err_obj(
             &Type::AnonStruct,
-            &data.heap[*env_id].get_type(),
+            &state.heap[*env_id].get_type(),
             1,
-            data.heap,
+            &mut state.heap,
         ));
     };
     let args = if let Some(Value::Ref(id)) = data.args.get(2) {
-        let Value::List(ls) = data.heap[*id].clone() else {
+        let Value::List(ls) = state.heap[*id].clone() else {
             return Ok(type_err_obj(
                 &Type::AnonStruct,
-                &data.heap[*env_id].get_type(),
+                &state.heap[*env_id].get_type(),
                 1,
-                data.heap,
+                &mut state.heap,
             ));
         };
         ls
@@ -45,10 +45,7 @@ fn call_func_with(data: FuncData) -> FuncResult {
         vec![]
     };
     let res = catch!( err {
-        return Ok(create_err(err.msg(), data.heap));
+        return Ok(create_err(err.msg(), &mut state.heap));
     } in Interpreter::execute_func_with(func.clone(), &mut env_obj.env, args));
-    match res {
-        Control::Return(v) | Control::Result(v) | Control::Value(v) => Ok(v),
-        _ => NULL,
-    }
+    return Ok(res);
 }

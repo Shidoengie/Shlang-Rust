@@ -1,9 +1,11 @@
 mod closures;
 mod func_methods;
 mod functions;
+mod global_methods;
 mod lists;
 mod numbers;
 mod strings;
+
 use crate::backend::scope::Scope;
 use crate::frontend::nodes::*;
 use crate::vars;
@@ -12,6 +14,7 @@ pub use closures::*;
 
 pub use func_methods::*;
 use functions::*;
+pub use global_methods::*;
 pub use lists::*;
 pub use numbers::*;
 use slotmap::SlotMap;
@@ -106,23 +109,23 @@ fn type_err_obj(expected: &Type, got: &Type, at: i32, heap: &mut SlotMap<RefKey,
 }
 #[macro_export]
 macro_rules! get_params {
-    ($param1:pat = $type1:expr ; $data:expr) => {
+    ($param1:pat = $type1:expr ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Ok(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut &mut $state.heap,
             ));
         };
     };
-    ($param1:pat = $type1:expr,$param2:pat = $type2:expr ; $data:expr) => {
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Ok(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param2 = &$data.args[1] else {
@@ -130,17 +133,17 @@ macro_rules! get_params {
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
     };
-    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr  ; $data:expr) => {
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr  ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Ok(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param2 = &$data.args[1] else {
@@ -148,7 +151,7 @@ macro_rules! get_params {
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param3 = &$data.args[2] else {
@@ -156,17 +159,17 @@ macro_rules! get_params {
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
     };
-    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr  ; $data:expr) => {
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr  ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Ok(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param2 = &$data.args[1] else {
@@ -174,7 +177,7 @@ macro_rules! get_params {
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param3 = &$data.args[2] else {
@@ -182,7 +185,7 @@ macro_rules! get_params {
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param4 = &$data.args[3] else {
@@ -190,17 +193,17 @@ macro_rules! get_params {
                 &$type4,
                 &$data.args[3].get_type(),
                 4,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
     };
-    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr ; $data:expr) => {
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Ok(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param2 = &$data.args[1] else {
@@ -208,7 +211,7 @@ macro_rules! get_params {
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param3 = &$data.args[2] else {
@@ -216,7 +219,7 @@ macro_rules! get_params {
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param4 = &$data.args[3] else {
@@ -224,7 +227,7 @@ macro_rules! get_params {
                 &$type4,
                 &$data.args[3].get_type(),
                 4,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param5 = &$data.args[4] else {
@@ -232,17 +235,17 @@ macro_rules! get_params {
                 &$type5,
                 &$data.args[4].get_type(),
                 5,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
     };
-    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr, $param6:pat = $type6:expr; $data:expr) => {
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr, $param6:pat = $type6:expr; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Ok(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param2 = &$data.args[1] else {
@@ -250,7 +253,7 @@ macro_rules! get_params {
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param3 = &$data.args[2] else {
@@ -258,7 +261,7 @@ macro_rules! get_params {
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param4 = &$data.args[3] else {
@@ -266,7 +269,7 @@ macro_rules! get_params {
                 &$type4,
                 &$data.args[3].get_type(),
                 4,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param5 = &$data.args[4] else {
@@ -274,7 +277,7 @@ macro_rules! get_params {
                 &$type5,
                 &$data.args[4].get_type(),
                 5,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param6 = &$data.args[5] else {
@@ -282,30 +285,30 @@ macro_rules! get_params {
                 &$type6,
                 &$data.args[5].get_type(),
                 6,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
     };
 }
 #[macro_export]
 macro_rules! assert_params {
-    ($param1:pat = $type1:expr ; $data:expr) => {
+    ($param1:pat = $type1:expr ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Err(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
     };
-    ($param1:pat = $type1:expr,$param2:pat = $type2:expr ; $data:expr) => {
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Err(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param2 = &$data.args[1] else {
@@ -313,17 +316,17 @@ macro_rules! assert_params {
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
     };
-    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr  ; $data:expr) => {
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr  ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Err(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param2 = &$data.args[1] else {
@@ -331,7 +334,7 @@ macro_rules! assert_params {
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param3 = &$data.args[2] else {
@@ -339,17 +342,17 @@ macro_rules! assert_params {
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
     };
-    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr  ; $data:expr) => {
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr  ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Err(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param2 = &$data.args[1] else {
@@ -357,7 +360,7 @@ macro_rules! assert_params {
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param3 = &$data.args[2] else {
@@ -365,7 +368,7 @@ macro_rules! assert_params {
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param4 = &$data.args[3] else {
@@ -373,17 +376,17 @@ macro_rules! assert_params {
                 &$type4,
                 &$data.args[3].get_type(),
                 4,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
     };
-    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr ; $data:expr) => {
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Err(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param2 = &$data.args[1] else {
@@ -391,7 +394,7 @@ macro_rules! assert_params {
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param3 = &$data.args[2] else {
@@ -399,7 +402,7 @@ macro_rules! assert_params {
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param4 = &$data.args[3] else {
@@ -407,7 +410,7 @@ macro_rules! assert_params {
                 &$type4,
                 &$data.args[3].get_type(),
                 4,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param5 = &$data.args[4] else {
@@ -415,17 +418,17 @@ macro_rules! assert_params {
                 &$type5,
                 &$data.args[4].get_type(),
                 5,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
     };
-    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr, $param6:pat = $type6:expr; $data:expr) => {
+    ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr, $param6:pat = $type6:expr; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
             return Err(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param2 = &$data.args[1] else {
@@ -433,7 +436,7 @@ macro_rules! assert_params {
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param3 = &$data.args[2] else {
@@ -441,7 +444,7 @@ macro_rules! assert_params {
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param4 = &$data.args[3] else {
@@ -449,7 +452,7 @@ macro_rules! assert_params {
                 &$type4,
                 &$data.args[3].get_type(),
                 4,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param5 = &$data.args[4] else {
@@ -457,7 +460,7 @@ macro_rules! assert_params {
                 &$type5,
                 &$data.args[4].get_type(),
                 5,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         let $param6 = &$data.args[5] else {
@@ -465,7 +468,7 @@ macro_rules! assert_params {
                 &$type6,
                 &$data.args[5].get_type(),
                 6,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
     };
@@ -554,4 +557,16 @@ macro_rules! vars {
     ($($t:tt)*) => {
         vars_internal!([] $($t)*)
     };
+}
+fn get_error_obj<'a>(val: &Value, heap: &'a mut SlotMap<RefKey, Value>) -> Option<&'a Struct> {
+    let Value::Ref(id) = val else {
+        return None;
+    };
+    let Value::Struct(obj) = &heap[*id] else {
+        return None;
+    };
+    if obj.id.as_ref().is_some_and(|id| id != "Error") {
+        return None;
+    }
+    return Some(obj);
 }

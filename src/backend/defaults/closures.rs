@@ -17,56 +17,53 @@ pub fn closure_obj() -> Struct {
         env: Scope::from_vars(props),
     }
 }
-fn get_env(data: FuncData) -> FuncResult {
+fn get_env(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Closure(closure) = Type::Closure
-    ;data);
+    ;data,state);
     let env_obj = Struct {
-        env: data.envs[closure.env].clone(),
+        env: state.envs[closure.env].clone(),
         id: None,
     };
-    Ok(Value::Ref(data.heap.insert(Value::Struct(env_obj))))
+    Ok(Value::Ref(state.heap.insert(Value::Struct(env_obj))))
 }
-fn set_env(data: FuncData) -> FuncResult {
+fn set_env(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Closure(closure) = Type::Closure,
         Value::Ref(key) = Type::Ref
-    ;data);
+    ;data,state);
 
-    let Value::Struct(obj) = data.heap.get(*key).unwrap() else {
+    let Value::Struct(obj) = state.heap.get(*key).unwrap() else {
         return Ok(type_err_obj(
             &Type::AnonStruct,
-            &data.heap.get(*key).unwrap().get_type(),
+            &state.heap.get(*key).unwrap().get_type(),
             1,
-            data.heap,
+            &mut state.heap,
         ));
     };
     let scope = obj.env.clone();
-    data.envs[closure.env] = scope;
+    state.envs[closure.env] = scope;
     NULL
 }
-fn call_closure(data: FuncData) -> FuncResult {
+fn call_closure(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Closure(closure) = Type::Closure,
         Value::Ref(list_ref) = Type::Ref
-    ;data);
+    ;data,state);
 
-    let Value::List(ref list) = data.heap[*list_ref] else {
+    let Value::List(ref list) = state.heap[*list_ref] else {
         return Ok(type_err_obj(
             &Type::List,
-            &data.heap[*list_ref].get_type(),
+            &state.heap[*list_ref].get_type(),
             1,
-            data.heap,
+            &mut state.heap,
         ));
     };
     let env_key = closure.env;
-    let env = &mut data.envs[env_key];
+    let env = &mut state.envs[env_key];
 
     let res = catch!( err {
-        return Ok(create_err(err.msg(), data.heap));
+        return Ok(create_err(err.msg(), &mut state.heap));
     } in Interpreter::execute_func_with(closure.to_owned().into(), env, list.to_vec()));
-    match res {
-        Control::Return(v) | Control::Result(v) | Control::Value(v) => Ok(v),
-        _ => NULL,
-    }
+    return Ok(res);
 }

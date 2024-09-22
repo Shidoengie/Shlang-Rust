@@ -1,3 +1,4 @@
+use super::defaults::global_methods;
 use super::scope::Scope;
 use crate::backend::defaults;
 use crate::backend::defaults::default_scope;
@@ -55,6 +56,19 @@ impl Interpreter {
             envs: SlotMap::with_key(),
         }
     }
+    pub fn create(
+        program: NodeStream,
+        functions: HashMap<String, Function>,
+        heap: SlotMap<RefKey, Value>,
+        envs: SlotMap<EnvKey, Scope>,
+    ) -> Self {
+        Self {
+            program,
+            functions,
+            heap,
+            envs,
+        }
+    }
     pub fn execute(&mut self) -> EvalRes<Value> {
         let mut scope = Scope::from_vars(hashmap! {
             __name => Value::Str("main".to_string())
@@ -95,18 +109,23 @@ impl Interpreter {
         }
         .eval_node(&node, parent)
     }
+
     pub fn execute_func_with(
         func: Function,
         parent: &mut Scope,
         args: Vec<Value>,
-    ) -> EvalRes<Control> {
-        Self {
+    ) -> EvalRes<Value> {
+        let res = Self {
             envs: SlotMap::with_key(),
             program: vec![Node::DontResult.to_spanned(Span(0, 0))],
             heap: SlotMap::with_key(),
             functions: HashMap::new(),
         }
-        .call_func(func, args, Span::EMPTY, parent)
+        .call_func(func, args, Span::EMPTY, parent)?;
+        let Control::Value(val) = res else {
+            unimplemented!();
+        };
+        return Ok(val);
     }
     pub fn parse_vars(&mut self, mut parent: Scope) -> EvalRes<Scope> {
         if self.program.is_empty() {
@@ -480,7 +499,7 @@ impl Interpreter {
         parent: &mut Scope,
     ) -> EvalRes<Control> {
         match target {
-            Value::Ref(id) => self.access_ref(id, requested.clone(), base_env, parent, requested),
+            Value::Ref(id) => self.access_ref(id, requested, base_env, parent),
 
             Value::Str(_) => self.eval_access_request(
                 requested,
@@ -519,7 +538,6 @@ impl Interpreter {
         requested: NodeSpan,
         base_env: &mut Scope,
         parent: &mut Scope,
-        request: NodeSpan,
     ) -> EvalRes<Control> {
         match &self.heap[id] {
             Value::Struct(obj) => self.access_struct(id, requested, base_env, obj.clone()),
@@ -529,7 +547,7 @@ impl Interpreter {
                 &mut defaults::list_struct().env,
                 Value::Ref(id),
             ),
-            val => self.eval_access(val.clone(), request, base_env, parent),
+            val => self.eval_access(val.clone(), requested, base_env, parent),
         }
     }
     fn access_struct(
@@ -650,7 +668,7 @@ impl Interpreter {
             .into(),
         ));
     }
-    fn call_closure(
+    pub fn call_closure(
         &mut self,
         closure: Closure,
         arg_values: Vec<Value>,
@@ -754,12 +772,9 @@ impl Interpreter {
     ) -> EvalRes<Control> {
         check_args(called.arg_range, arg_values.len(), span)?;
         let data = FuncData {
-            heap: &mut self.heap,
-            global_funcs: &mut self.functions,
-            parent,
-            envs: &mut self.envs,
             args: arg_values,
             span,
+            parent,
         };
         let result = catch! {err {
             let val = if let Value::Ref(key) = err {
@@ -780,7 +795,7 @@ impl Interpreter {
                 }
                 _ => return Err(IError::Panic(val.to_string()).to_spanned(span)),
             }
-            } in (called.function)(data)
+            } in (called.function)(data,self)
         };
 
         Ok(Control::Value(result))
@@ -796,7 +811,18 @@ impl Interpreter {
         obj_env: &mut Scope,
         obj: Value,
     ) -> EvalRes<Control> {
-        let func_val = unwrap_val!(self.eval_node(&request.callee, obj_env)?);
+        let Node::Variable(method) = &request.callee.item else {
+            unimplemented!()
+        };
+        let func_val = match obj_env.get_var(method) {
+            None => {
+                let Some(global) = global_methods().get_var(method) else {
+                    return unspec_err("Undefined method", request.callee.span);
+                };
+                global
+            }
+            Some(v) => v,
+        };
 
         let call_args = request.args;
         let mut arg_values: Vec<Value> = vec![obj];

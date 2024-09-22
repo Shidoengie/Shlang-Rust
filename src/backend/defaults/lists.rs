@@ -1,24 +1,24 @@
 use super::*;
-use crate::{backend::interpreter::Control, get_params, lang_errors::LangError};
+use crate::{backend::interpreter::Control, get_params, lang_errors::LangError, Interpreter};
 macro_rules! get_list {
-    ($key:expr, $data:expr) => {{
-        let Value::List(list) = $data.heap.get(*$key).unwrap().clone() else {
+    ($key:expr, $state:expr) => {{
+        let Value::List(list) = $state.heap.get(*$key).unwrap().clone() else {
             return Ok(type_err_obj(
                 &Type::List,
-                &$data.heap.get(*$key).unwrap().get_type(),
+                &$state.heap.get(*$key).unwrap().get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         list
     }};
-    (ref $key:expr, $data:expr) => {{
-        let Value::List(list) = $data.heap.get(*$key).unwrap() else {
+    (ref $key:expr, $state:expr) => {{
+        let Value::List(list) = $state.heap.get(*$key).unwrap() else {
             return Ok(type_err_obj(
                 &Type::List,
-                &$data.heap.get(*$key).unwrap().get_type(),
+                &$state.heap.get(*$key).unwrap().get_type(),
                 1,
-                $data.heap,
+                &mut $state.heap,
             ));
         };
         list
@@ -42,101 +42,107 @@ pub fn list_struct() -> Struct {
         env: Scope::from_vars(env),
     }
 }
-fn list_pop(data: FuncData) -> FuncResult {
+fn list_pop(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Ref(key) = Type::Ref
-    ;data);
+    ;data,state);
 
-    let mut list = get_list!(key, data);
+    let mut list = get_list!(key, state);
     let Some(value) = list.pop() else {
         return NULL;
     };
-    data.heap[*key] = Value::List(list);
+    state.heap[*key] = Value::List(list);
     return Ok(value);
 }
-fn list_remove(data: FuncData) -> FuncResult {
+fn list_remove(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Ref(key) = Type::Ref
-    ;data);
-    let list = get_list!(key, data);
+    ;data,state);
+    let list = get_list!(key, state);
     let old_len = list.len();
     let new_list: Vec<Value> = list.into_iter().filter(|v| v != &data.args[1]).collect();
     let new_len = new_list.len();
-    data.heap[*key] = Value::List(new_list);
+    state.heap[*key] = Value::List(new_list);
     Ok(Value::Num((old_len - new_len) as f64))
 }
-fn list_len(data: FuncData) -> FuncResult {
+fn list_len(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Ref(key) = Type::Ref
-    ;data);
-    let list = get_list!(ref key, data);
+    ;data,state);
+    let list = get_list!(ref key, state);
     Ok(Value::Num(list.len() as f64))
 }
-fn list_pop_at(data: FuncData) -> FuncResult {
+fn list_pop_at(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Ref(key) = Type::Ref,
         Value::Num(og_index) = Type::Num
-    ;data);
+    ;data,state);
     let index = og_index.floor() as usize;
-    let mut list = get_list!(key, data);
+    let mut list = get_list!(key, state);
     list.remove(index);
-    data.heap[*key] = Value::List(list);
+    state.heap[*key] = Value::List(list);
     Ok(Value::Ref(*key))
 }
-fn list_append(data: FuncData) -> FuncResult {
+fn list_append(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Ref(list_id) = Type::Ref,
         Value::Ref(pushed_id) = Type::Ref
-    ;data);
-    let mut list = get_list!(list_id, data);
-    let mut pushed = get_list!(pushed_id, data);
+    ;data,state);
+    let mut list = get_list!(list_id, state);
+    let mut pushed = get_list!(pushed_id, state);
     list.append(&mut pushed);
-    data.heap[*list_id] = Value::List(list);
+    state.heap[*list_id] = Value::List(list);
     Ok(Value::Ref(*list_id))
 }
-fn list_push(data: FuncData) -> FuncResult {
+fn list_push(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Ref(key) = Type::Ref
-    ;data);
-    let mut list = get_list!(key, data);
+    ;data,state);
+    let mut list = get_list!(key, state);
     list.push(data.args[1].clone());
-    data.heap[*key] = Value::List(list);
+    state.heap[*key] = Value::List(list);
     Ok(Value::Ref(*key))
 }
 
-fn join(data: FuncData) -> FuncResult {
+fn join(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Ref(key) = Type::Ref,
         Value::Str(seperator) = Type::Str
-    ;data);
-    let list = get_list!(ref key, data);
+    ;data,state);
+    let list = get_list!(ref key, state);
     Ok(Value::Str(list_join(&list, &seperator)))
 }
-fn list_has(data: FuncData) -> FuncResult {
+fn list_has(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Ref(key) = Type::Ref
-    ;data);
-    let list = get_list!(ref key, data);
+    ;data,state);
+    let list = get_list!(ref key, state);
 
     Ok(Value::Bool(list.contains(&data.args[1])))
 }
-fn list_map(data: FuncData) -> FuncResult {
+fn list_map(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
         Value::Ref(key) = Type::Ref,
         Value::Closure(cl) = Type::Closure
-    ;data);
+    ;data,state);
     let mut cl = cl.clone();
-    let list = get_list!(ref key, data);
+    let list = get_list!(ref key, state);
     let mut buffer: Vec<Value> = vec![];
-    for v in list {
-        let mapped = match cl.exec(vec![v.to_owned()], data.envs) {
-            Err(e) => {
-                return Ok(create_err(e.msg(), data.heap));
-            }
-            Ok(Control::Value(val)) | Ok(Control::Return(val)) | Ok(Control::Result(val)) => val,
-            _ => unimplemented!(),
-        };
-        buffer.push(mapped);
-    }
-    return Ok(Value::Ref(data.heap.insert(Value::List(buffer))));
+    // for v in list {
+    //     let mapped = match cl.exec(FuncData {
+    //         args: vec![v.to_owned()],
+    //         parent: &mut data.parent.clone(),
+    //         envs: &mut state.envs.clone(),
+    //         global_funcs: &mut data.global_funcs.clone(),
+    //         heap: &mut state.heap.clone(),
+    //         span: data.span,
+    //     }) {
+    //         Err(e) => {
+    //             return Ok(create_err(e.msg(), &mut state.heap));
+    //         }
+    //         Ok(val) => val,
+    //     };
+    //     buffer.push(mapped);
+    // }
+    return Ok(Value::Ref(state.heap.insert(Value::List(buffer))));
 }

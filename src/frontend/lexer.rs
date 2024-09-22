@@ -244,7 +244,7 @@ impl<'a> Iterator for Lexer<'a> {
             '+' => self.multi_char_token('=', TokenType::PLUS, TokenType::PLUS_EQUAL, start),
             '*' => self.multi_char_token('=', TokenType::STAR, TokenType::STAR_EQUAL, start),
             '/' => {
-                let Some(peeked) = self.advance() else {
+                let Some(peeked) = self.peek() else {
                     return Some(Token::new(TokenType::SLASH, range));
                 };
                 match peeked {

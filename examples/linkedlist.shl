@@ -11,12 +11,25 @@ struct Node {
             var new_node = new Self {
                 next:null,
                 data:new_data,
-                
             }
             self.next = new_node
             return;
         }
         return self.next.push(new_data);        
+    }
+    func to_list(self){
+        
+        var buffer = [];
+        var i = 0;
+        loop {
+            var next = self.get(i);
+            if next == null{
+                break;
+            }
+            buffer.push(next);
+            i += 1;
+        }
+        return buffer;
     }
     func get(self,pos){
         return self._get(pos,0)
@@ -37,6 +50,7 @@ func main(){
     var linked = new Node{};
     linked.push(1);
     linked.push(10);
-    println(linked.get(0));
+     
+    println(linked.to_list());
 }
 main()

@@ -1,0 +1,41 @@
+/**
+ * @param prompt {str}
+ * @returns {any}
+ */
+func get_num(prompt){
+    var num1 = input(prompt).parse_num();
+    if typeof(num1) != "Error"{
+        return num1
+    }
+    while typeof(num1) == "Error"{
+        println("Invalid operator try again");
+        num1 = input(prompt).parse_num();
+    }
+    return num1;
+}
+var a = get_num("num1: ");
+var b = get_num("num2: ");
+
+
+loop{
+    var op = input("operator: ");
+    if op == "+"{
+        println(a+b);
+        break;
+    } 
+    if op == "-"{
+        println(a-b);
+        break;
+    } 
+    if op == "/"{
+        
+        println(a/b);
+        break;
+    }
+    if op == "*"{
+        println(a*b);
+        break;
+    }
+    println("Invalid operator try again.");
+}
+

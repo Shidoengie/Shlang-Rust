@@ -94,7 +94,7 @@ impl Interpreter {
     pub fn execute_node(node: NodeSpan) -> EvalRes<Control> {
         Self {
             envs: SlotMap::with_key(),
-            program: vec![Node::DontResult.to_spanned(Span(0, 0))],
+            program: vec![],
             heap: SlotMap::with_key(),
             functions: HashMap::new(),
         }
@@ -102,7 +102,7 @@ impl Interpreter {
     }
     pub fn execute_node_with(node: NodeSpan, parent: &mut Scope) -> EvalRes<Control> {
         Self {
-            program: vec![Node::DontResult.to_spanned(Span(0, 0))],
+            program: vec![],
             heap: SlotMap::with_key(),
             envs: SlotMap::with_key(),
             functions: HashMap::new(),
@@ -117,7 +117,7 @@ impl Interpreter {
     ) -> EvalRes<Value> {
         let res = Self {
             envs: SlotMap::with_key(),
-            program: vec![Node::DontResult.to_spanned(Span(0, 0))],
+            program: vec![],
             heap: SlotMap::with_key(),
             functions: HashMap::new(),
         }
@@ -648,7 +648,7 @@ impl Interpreter {
             Node::FieldAccess(field) => {
                 self.assign_to_access(field, init_val, parent)?;
             }
-            _ => return unspec_err("", span),
+            _ => return unspec_err("Unassignable item", span),
         };
         VOID
     }
@@ -668,7 +668,7 @@ impl Interpreter {
             .into(),
         ));
     }
-    pub fn call_closure(
+    pub(crate) fn call_closure(
         &mut self,
         closure: Closure,
         arg_values: Vec<Value>,
@@ -730,7 +730,6 @@ impl Interpreter {
         &mut self,
         called: Function,
         args: Vec<Value>,
-
         span: Span,
         parent: &mut Scope,
     ) -> EvalRes<Control> {

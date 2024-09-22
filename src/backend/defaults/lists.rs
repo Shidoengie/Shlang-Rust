@@ -1,8 +1,21 @@
 use super::*;
-use crate::{backend::interpreter::Control, get_params, lang_errors::LangError, Interpreter};
+use crate::{
+    backend::interpreter::Control, catch, get_params, lang_errors::LangError, Interpreter,
+};
 macro_rules! get_list {
     ($key:expr, $state:expr) => {{
         let Value::List(list) = $state.heap.get(*$key).unwrap().clone() else {
+            return Ok(type_err_obj(
+                &Type::List,
+                &$state.heap.get(*$key).unwrap().get_type(),
+                1,
+                &mut $state.heap,
+            ));
+        };
+        list
+    }};
+    ($key:expr, ref $state:expr) => {{
+        let Value::List(list) = $state.heap.get(*$key).unwrap() else {
             return Ok(type_err_obj(
                 &Type::List,
                 &$state.heap.get(*$key).unwrap().get_type(),
@@ -125,24 +138,16 @@ fn list_map(data: FuncData, state: &mut Interpreter) -> FuncResult {
         Value::Ref(key) = Type::Ref,
         Value::Closure(cl) = Type::Closure
     ;data,state);
-    let mut cl = cl.clone();
-    let list = get_list!(ref key, state);
+    let list = get_list!(key, state);
     let mut buffer: Vec<Value> = vec![];
-    // for v in list {
-    //     let mapped = match cl.exec(FuncData {
-    //         args: vec![v.to_owned()],
-    //         parent: &mut data.parent.clone(),
-    //         envs: &mut state.envs.clone(),
-    //         global_funcs: &mut data.global_funcs.clone(),
-    //         heap: &mut state.heap.clone(),
-    //         span: data.span,
-    //     }) {
-    //         Err(e) => {
-    //             return Ok(create_err(e.msg(), &mut state.heap));
-    //         }
-    //         Ok(val) => val,
-    //     };
-    //     buffer.push(mapped);
-    // }
+    for v in list {
+        let mapped = catch!(err {
+            return Ok(create_err(err.msg(), &mut state.heap));
+        } in state.call_closure(cl.clone(), vec![v.clone()], data.span));
+        let Control::Value(val) = mapped else {
+            unimplemented!()
+        };
+        buffer.push(val);
+    }
     return Ok(Value::Ref(state.heap.insert(Value::List(buffer))));
 }

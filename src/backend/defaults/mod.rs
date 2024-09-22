@@ -115,7 +115,7 @@ macro_rules! get_params {
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
-                &mut &mut $state.heap,
+                &mut $state.heap,
             ));
         };
     };

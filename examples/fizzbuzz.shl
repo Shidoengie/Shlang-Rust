@@ -1,21 +1,19 @@
 func main(){
-    for i in range(0,100){
+    for i in range(1,100){
     var buffer = "";
     var met_handle = false;
-    if i % 5 == 0{
-        buffer += "Buzz";
-        met_handle = true;
-    }
+    
     if i % 3 == 0{
         buffer += "Fizz";
-        met_handle = true;
     }
-    println(met_handle);
-    if !met_handle {
+    if i % 5 == 0{
+        buffer += "Buzz";
+    }
+    if buffer.len() == 0 {
         println(i);
     } else {
         println(buffer);
-    };
+    }
     }
 }
 main()

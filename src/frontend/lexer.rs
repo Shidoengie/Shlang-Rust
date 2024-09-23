@@ -59,9 +59,9 @@ impl<'a> Lexer<'a> {
         }
         let is_float = dot_count != 0;
         if is_float {
-            return Token::new(TokenType::NUM, Span(start - 1, self.index));
+            return Token::new(TokenType::Number, Span(start - 1, self.index));
         }
-        Token::new(TokenType::NUM, Span(start - 1, self.index))
+        Token::new(TokenType::Number, Span(start - 1, self.index))
     }
     fn ident(&mut self) -> Token {
         let start = self.index - 1;
@@ -79,7 +79,7 @@ impl<'a> Lexer<'a> {
             panic!("Identifiers can only be ASCII");
         };
         let Some(keyword) = tokens::map_keyword(span.to_string()) else {
-            return Token::new(TokenType::IDENTIFIER, Span(start, stop));
+            return Token::new(TokenType::Identifier, Span(start, stop));
         };
         Token::new(keyword, Span(start, stop))
     }
@@ -119,7 +119,7 @@ impl<'a> Lexer<'a> {
         }
 
         Some(Token::new(
-            TokenType::STR(CharVec(buffer)),
+            TokenType::Str(CharVec(buffer)),
             Span(start, self.index),
         ))
     }
@@ -204,22 +204,22 @@ impl<'a> Iterator for Lexer<'a> {
         let last = self.advance()?;
         let range = Span(start, start + 1);
         match last {
-            '.' => Some(Token::new(TokenType::DOT, range)),
-            ',' => Some(Token::new(TokenType::COMMA, range)),
-            '{' => Some(Token::new(TokenType::LBRACE, range)),
-            '}' => Some(Token::new(TokenType::RBRACE, range)),
-            '(' => Some(Token::new(TokenType::LPAREN, range)),
-            ')' => Some(Token::new(TokenType::RPAREN, range)),
-            '[' => Some(Token::new(TokenType::LBRACK, range)),
-            ']' => Some(Token::new(TokenType::RBRACK, range)),
-            '%' => Some(Token::new(TokenType::PERCENT, range)),
-            ':' => Some(Token::new(TokenType::COLON, range)),
-            ';' => Some(Token::new(TokenType::SEMICOLON, range)),
-            '$' => Some(Token::new(TokenType::DOLLAR, range)),
-            '@' => Some(Token::new(TokenType::AT, range)),
-            '|' => self.multi_char_token('|', TokenType::PIPE, TokenType::DUAL_PIPE, start),
+            '.' => Some(Token::new(TokenType::Dot, range)),
+            ',' => Some(Token::new(TokenType::Comma, range)),
+            '{' => Some(Token::new(TokenType::LBrace, range)),
+            '}' => Some(Token::new(TokenType::RBrace, range)),
+            '(' => Some(Token::new(TokenType::LParen, range)),
+            ')' => Some(Token::new(TokenType::RParen, range)),
+            '[' => Some(Token::new(TokenType::LBracket, range)),
+            ']' => Some(Token::new(TokenType::RBracket, range)),
+            '%' => Some(Token::new(TokenType::Percent, range)),
+            ':' => Some(Token::new(TokenType::Colon, range)),
+            ';' => Some(Token::new(TokenType::Semicolon, range)),
+            '$' => Some(Token::new(TokenType::Dollar, range)),
+            '@' => Some(Token::new(TokenType::At, range)),
+            '|' => self.multi_char_token('|', TokenType::Pipe, TokenType::DualPipe, start),
             '&' => {
-                self.multi_char_token('&', TokenType::AMPERSAND, TokenType::DUAL_AMPERSAND, start)
+                self.multi_char_token('&', TokenType::Ampersand, TokenType::DualAmpersand, start)
             }
 
             '"' => self.str('"'),
@@ -227,38 +227,38 @@ impl<'a> Iterator for Lexer<'a> {
             '?' => {
                 let advanced = self.advance();
                 let Some(advanced) = advanced else {
-                    return Some(Token::new(TokenType::QUESTION, range));
+                    return Some(Token::new(TokenType::Question, range));
                 };
                 if advanced != '?' {
-                    return Some(Token::new(TokenType::QUESTION, range));
+                    return Some(Token::new(TokenType::Question, range));
                 }
                 let advanced = self.advance();
                 let Some(advanced) = advanced else {
-                    return Some(Token::new(TokenType::DOUBLE_QUESTION, range + 1));
+                    return Some(Token::new(TokenType::DualQuestion, range + 1));
                 };
                 if advanced != '=' {
-                    return Some(Token::new(TokenType::DOUBLE_QUESTION, range + 1));
+                    return Some(Token::new(TokenType::DualQuestion, range + 1));
                 }
-                return Some(Token::new(TokenType::QUESTION_EQUALS, range + 2));
+                return Some(Token::new(TokenType::QuestionEqual, range + 2));
             }
-            '+' => self.multi_char_token('=', TokenType::PLUS, TokenType::PLUS_EQUAL, start),
-            '*' => self.multi_char_token('=', TokenType::STAR, TokenType::STAR_EQUAL, start),
+            '+' => self.multi_char_token('=', TokenType::Plus, TokenType::PlusEqual, start),
+            '*' => self.multi_char_token('=', TokenType::Start, TokenType::StarEqual, start),
             '/' => {
                 let Some(peeked) = self.peek() else {
-                    return Some(Token::new(TokenType::SLASH, range));
+                    return Some(Token::new(TokenType::Slash, range));
                 };
                 match peeked {
                     '/' => self.single_comment(),
-                    '=' => Some(Token::new(TokenType::SLASH_EQUAL, range)),
+                    '=' => Some(Token::new(TokenType::SlashEqual, range)),
                     '*' => self.multi_comment(),
-                    _ => Some(Token::new(TokenType::SLASH, range)),
+                    _ => Some(Token::new(TokenType::Slash, range)),
                 }
             }
-            '-' => self.multi_char_token('=', TokenType::MINUS, TokenType::MINUS_EQUAL, start),
-            '!' => self.multi_char_token('=', TokenType::BANG, TokenType::BANG_EQUAL, start),
-            '<' => self.multi_char_token('=', TokenType::LESSER, TokenType::LESSER_EQUAL, start),
-            '>' => self.multi_char_token('=', TokenType::GREATER, TokenType::GREATER_EQUAL, start),
-            '=' => self.multi_char_token('=', TokenType::EQUAL, TokenType::DOUBLE_EQUAL, start),
+            '-' => self.multi_char_token('=', TokenType::Minus, TokenType::MinusEqual, start),
+            '!' => self.multi_char_token('=', TokenType::Bang, TokenType::BangEqual, start),
+            '<' => self.multi_char_token('=', TokenType::Lesser, TokenType::LesserEqual, start),
+            '>' => self.multi_char_token('=', TokenType::Greater, TokenType::GreaterEqual, start),
+            '=' => self.multi_char_token('=', TokenType::Equal, TokenType::DoubleEqual, start),
             '#' => self.single_comment(),
 
             ' ' | '\t' | '\r' | '\n' => self.next(),

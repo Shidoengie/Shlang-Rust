@@ -4,14 +4,14 @@ use frontend::nodes::EnvKey;
 use frontend::nodes::Value;
 use frontend::nodes::ValueRepr;
 use lang_errors::*;
+use shlang::frontend::nodes::RefKey;
+use shlang::*;
 use slotmap::SlotMap;
 use std::env;
 use std::fs;
 use std::io;
 use std::io::Write;
 use std::*;
-use Shlang::frontend::nodes::RefKey;
-use Shlang::*;
 fn deref_val(val: Value, heap: &SlotMap<RefKey, Value>) -> Value {
     if let Value::Ref(id) = val {
         return heap[id].clone();

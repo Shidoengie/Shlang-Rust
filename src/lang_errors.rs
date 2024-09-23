@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use crate::frontend::{nodes::*, tokens::*};
 use crate::spans::*;
 use colored::*;

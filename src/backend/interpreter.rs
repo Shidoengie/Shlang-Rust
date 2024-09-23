@@ -2,7 +2,7 @@ use super::defaults::global_methods;
 use super::scope::Scope;
 use crate::backend::defaults;
 use crate::backend::defaults::default_scope;
-use crate::bx;
+
 use crate::catch;
 use crate::frontend::nodes::*;
 use crate::hashmap;
@@ -22,7 +22,14 @@ pub enum Control {
     Break,
     Continue,
 }
-
+impl Control {
+    pub fn into_val(self) -> Value {
+        match self {
+            Control::Result(v) | Control::Return(v) | Control::Value(v) => v,
+            _ => panic!("Control node doesnt have a value"),
+        }
+    }
+}
 macro_rules! unwrap_val {
     ($val:expr) => {
         match $val {
@@ -100,33 +107,7 @@ impl Interpreter {
         }
         .eval_node(&node, &mut Scope::default())
     }
-    pub fn execute_node_with(node: NodeSpan, parent: &mut Scope) -> EvalRes<Control> {
-        Self {
-            program: vec![],
-            heap: SlotMap::with_key(),
-            envs: SlotMap::with_key(),
-            functions: HashMap::new(),
-        }
-        .eval_node(&node, parent)
-    }
 
-    pub fn execute_func_with(
-        func: Function,
-        parent: &mut Scope,
-        args: Vec<Value>,
-    ) -> EvalRes<Value> {
-        let res = Self {
-            envs: SlotMap::with_key(),
-            program: vec![],
-            heap: SlotMap::with_key(),
-            functions: HashMap::new(),
-        }
-        .call_func(func, args, Span::EMPTY, parent)?;
-        let Control::Value(val) = res else {
-            unimplemented!();
-        };
-        return Ok(val);
-    }
     pub fn parse_vars(&mut self, mut parent: Scope) -> EvalRes<Scope> {
         if self.program.is_empty() {
             return Ok(Scope::default());
@@ -202,7 +183,7 @@ impl Interpreter {
         }
 
         for (i, node) in block.iter().enumerate() {
-            let result = match (self.eval_node(&node, &mut base)?, &node.item) {
+            let result = match (self.eval_node(node, &mut base)?, &node.item) {
                 (c @ Control::Result(_), Node::ResultNode(_)) => {
                     if i != block.len() - 1 {
                         continue;
@@ -726,7 +707,7 @@ impl Interpreter {
         }
     }
 
-    fn call_func(
+    pub(crate) fn call_func(
         &mut self,
         called: Function,
         args: Vec<Value>,
@@ -863,7 +844,7 @@ impl Interpreter {
         }
     }
     fn get_struct(&self, name: &String, span: Span, parent: &mut Scope) -> EvalRes<Struct> {
-        if let Some(obj) = parent.get_struct(&name) {
+        if let Some(obj) = parent.get_struct(name) {
             return Ok(obj);
         }
         let maybe_result = default_scope().get_struct(name);

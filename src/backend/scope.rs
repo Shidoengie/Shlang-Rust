@@ -26,7 +26,7 @@ impl Scope {
         const ARRAY_REPEAT_VALUE: Option<nodes::Value> = None;
         let mut out: [Option<Value>; U] = [ARRAY_REPEAT_VALUE; U];
         for (i, v) in vars.iter().enumerate() {
-            out[i] = self.get_var(&v);
+            out[i] = self.get_var(v);
         }
         out
     }

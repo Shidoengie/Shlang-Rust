@@ -1,13 +1,12 @@
-use crate::backend::interpreter::Control;
-use crate::backend::scope::{self, Scope};
-use crate::lang_errors::InterpreterError;
+use crate::backend::scope::Scope;
+
 use crate::{spans::*, Interpreter};
 use rayon::prelude::*;
-use slotmap::{new_key_type, SlotMap};
+use slotmap::new_key_type;
 
 use std::collections::*;
 use std::fmt::{Debug, Display};
-use std::mem;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Closure(Closure),

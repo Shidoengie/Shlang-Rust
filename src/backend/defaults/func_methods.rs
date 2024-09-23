@@ -1,5 +1,5 @@
 use super::*;
-use crate::backend::interpreter::Control;
+
 use crate::catch;
 use crate::lang_errors::LangError;
 use crate::{get_params, Interpreter};
@@ -46,6 +46,6 @@ fn call_func_with(data: FuncData, state: &mut Interpreter) -> FuncResult {
     };
     let res = catch!( err {
         return Ok(create_err(err.msg(), &mut state.heap));
-    } in Interpreter::execute_func_with(func.clone(), &mut env_obj.env, args));
-    return Ok(res);
+    } in state.call_func(func.clone(),args,data.span ,&mut env_obj.env));
+    return Ok(res.into_val());
 }

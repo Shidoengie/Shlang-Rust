@@ -1,6 +1,4 @@
-use crate::{
-    backend::interpreter::Control, catch, get_params, lang_errors::LangError, Interpreter,
-};
+use crate::{catch, get_params, lang_errors::LangError, Interpreter};
 
 use super::*;
 
@@ -59,11 +57,8 @@ fn call_closure(data: FuncData, state: &mut Interpreter) -> FuncResult {
             &mut state.heap,
         ));
     };
-    let env_key = closure.env;
-    let env = &mut state.envs[env_key];
-
     let res = catch!( err {
         return Ok(create_err(err.msg(), &mut state.heap));
-    } in Interpreter::execute_func_with(closure.to_owned().into(), env, list.to_vec()));
-    return Ok(res);
+    } in state.call_closure(closure.to_owned().into(), list.to_vec(),data.span));
+    return Ok(res.into_val());
 }

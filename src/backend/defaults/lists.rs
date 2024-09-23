@@ -123,7 +123,7 @@ fn join(data: FuncData, state: &mut Interpreter) -> FuncResult {
         Value::Str(seperator) = Type::Str
     ;data,state);
     let list = get_list!(ref key, state);
-    Ok(Value::Str(list_join(&list, &seperator)))
+    Ok(Value::Str(list_join(list, seperator)))
 }
 fn list_has(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(

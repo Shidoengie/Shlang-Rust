@@ -103,7 +103,7 @@ fn print_err_msg(msg: impl Display) {
     println!("{} {msg}", "ERROR!".red());
 }
 pub fn print_err(data: FuncData, state: &mut Interpreter) -> FuncResult {
-    let val = deref_val(data.args[0].clone(), &mut state.heap);
+    let val = deref_val(data.args[0].clone(), &state.heap);
     match &val {
         Value::Struct(obj) => {
             let Some(ref id) = obj.id else {
@@ -130,10 +130,10 @@ pub fn print_builtin(data: FuncData, state: &mut Interpreter) -> FuncResult {
     let mut out = "".to_string();
     for (i, val) in data.args.iter().enumerate() {
         if i == 0 {
-            out += &deref_val(val.clone(), &mut state.heap).to_string();
+            out += &deref_val(val.clone(), &state.heap).to_string();
             continue;
         }
-        out += &format!(" {}", deref_val(val.clone(), &mut state.heap));
+        out += &format!(" {}", deref_val(val.clone(), &state.heap));
     }
 
     print!("{out}");
@@ -301,7 +301,7 @@ pub fn import_var(data: FuncData, state: &mut Interpreter) -> FuncResult {
             Value::Str(path) = Type::Str,
             Value::Bool(will_panic) = Type::Bool
         ;data,state);
-            (path, will_panic.clone())
+            (path, *will_panic)
         }
         _ => unimplemented!(),
     };
@@ -319,7 +319,7 @@ pub fn import_var(data: FuncData, state: &mut Interpreter) -> FuncResult {
         } in parser.parse()
     );
     let mut inter = Interpreter::new(ast, functions);
-    inter.envs = state.envs.clone();
+    inter.envs.clone_from(&state.envs);
     let base = Scope::from_vars(vars!(
         __name => Value::Str("lib".to_string())
     ));

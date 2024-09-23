@@ -23,7 +23,7 @@ fn catch_err(data: FuncData, state: &mut Interpreter) -> FuncResult {
         }
     };
     if let Value::Ref(id) = val {
-        let Value::Struct(obj) = &state.heap[id.clone()] else {
+        let Value::Struct(obj) = &state.heap[*id] else {
             return Ok(val.clone());
         };
         if obj.id.as_ref().is_some_and(|id| id != "Error") {

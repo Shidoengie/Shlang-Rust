@@ -360,7 +360,7 @@ impl Interpreter {
             let result = self.eval_block(loop_block.clone(), parent)?;
             match result {
                 Control::Break => return NULL,
-                Control::Continue | Control::Value(_) => continue,
+                Control::Continue | Control::Value(_) | Control::Result(_) => continue,
                 _ => return Ok(result),
             }
         }
@@ -378,7 +378,7 @@ impl Interpreter {
             let result = self.eval_block(loop_node.proc.clone(), parent)?;
             match result {
                 Control::Break => return NULL,
-                Control::Continue | Control::Value(_) => continue,
+                Control::Continue | Control::Value(_) | Control::Result(_) => continue,
                 _ => return Ok(result),
             }
         }
@@ -411,11 +411,10 @@ impl Interpreter {
             cursor += 1;
             match result {
                 Control::Break => return NULL,
-                Control::Continue | Control::Value(_) => {
+                Control::Continue | Control::Value(_) | Control::Result(_) => {
                     if cursor == len {
                         return Ok(result);
                     }
-
                     continue;
                 }
                 _ => return Ok(result),

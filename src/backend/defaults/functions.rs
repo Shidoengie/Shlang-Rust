@@ -62,9 +62,9 @@ pub fn assert(data: FuncData, state: &mut Interpreter) -> FuncResult {
     )));
 }
 pub fn try_eval(data: FuncData, state: &mut Interpreter) -> FuncResult {
-    let val = deref_val(data.args[0].clone(), &state.heap);
-    let Some(obj) = get_error_obj(&val, &mut state.heap) else {
-        return Ok(val);
+    let val = &data.args[0];
+    let Some(obj) = get_error_obj(val, &mut state.heap) else {
+        return Ok(val.clone());
     };
     let msg = obj.env.get_var("msg").unwrap();
     return Err(msg);

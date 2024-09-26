@@ -8,21 +8,30 @@ use std::collections::HashMap;
 pub fn str_struct() -> Struct {
     let env = vars![
         parse_num(parse_num, 1),
-        substr(substr, 3),
-        len(len, 1),
-        remove(remove, 2),
-        replace(replace, 2),
-        char_at(char_at, 2),
+        substr(3),
+        len(1),
+        remove(2),
+        replace(3),
+        char_at(2),
         split(split, 1 => 2),
-        to_upper(to_upper, 1),
-        to_lower(to_lower, 1),
+        to_upper(1),
+        to_lower(1),
         has(has_val, 2),
-        as_error(into_err,1)
+        as_error(into_err,1),
+        repeat(2)
     ];
     Struct {
         id: None,
         env: Scope::new(None, env, HashMap::from([])),
     }
+}
+fn repeat(data: FuncData, state: &mut Interpreter) -> FuncResult {
+    get_params!(
+        Value::Str(value) = Type::Str,
+        Value::Num(times) = Type::Num
+    ;data,state);
+    let n = times.floor() as usize;
+    return Ok(Value::Str(value.repeat(n)));
 }
 
 fn has_val(data: FuncData, state: &mut Interpreter) -> FuncResult {

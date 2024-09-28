@@ -9,12 +9,6 @@ macro_rules! catch {
 }
 
 #[macro_export]
-macro_rules! bx {
-    ($e:expr) => {
-        Box::new($e)
-    };
-}
-#[macro_export]
 macro_rules! hashmap {
     [] => {
         HashMap::new()

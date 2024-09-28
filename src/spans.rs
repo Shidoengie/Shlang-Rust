@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Deref};
 pub trait SpanUtil {
     fn get_span(&self) -> Span;
 }
@@ -11,6 +11,21 @@ pub struct Spanned<T> {
 impl<T> Spanned<T> {
     pub fn new(item: T, span: Span) -> Self {
         Self { item, span }
+    }
+    pub fn box_item(self) -> Spanned<Box<T>> {
+        return Spanned::new(Box::new(self.item), self.span);
+    }
+
+    pub fn swap_item<U>(&self, item: U) -> Spanned<U> {
+        return Spanned {
+            item,
+            span: self.span,
+        };
+    }
+}
+impl<T: Clone> Spanned<Box<T>> {
+    pub fn deref_item<'a>(self) -> Spanned<T> {
+        return Spanned::new(*self.item, self.span);
     }
 }
 impl<T> SpanUtil for Spanned<T> {

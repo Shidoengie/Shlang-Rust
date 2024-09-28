@@ -34,13 +34,18 @@ impl<'input> Parser<'input, Lexer<'input>> {
     pub fn filtered_text(&mut self, token: &Token, filter: char) -> String {
         String::from_iter(self.text(token).chars().filter(|c| c != &filter))
     }
-    pub fn parse_num(&mut self, token: &Token) -> Literal {
+    pub fn parse_float(&mut self, token: &Token) -> NodeSpan {
         let mut text = self.input[token.span.0..token.span.1].to_string();
         let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
         text = String::from_iter(idk);
-        Literal::Num(text.parse().unwrap())
+        Node::Float(text.parse().unwrap()).as_spanned(token.span)
     }
-
+    pub fn parse_int(&mut self, token: &Token) -> NodeSpan {
+        let mut text = self.input[token.span.0..token.span.1].to_string();
+        let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
+        text = String::from_iter(idk);
+        Node::Float(text.parse().unwrap()).as_spanned(token.span)
+    }
     /// peeks the current token
     fn peek(&mut self) -> Option<Token> {
         self.tokens.peek().cloned()
@@ -49,7 +54,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     /// this is used for expressions that require the existence of a current token
     fn peek_some(&mut self) -> ParseRes<Token> {
         let Some(peeked) = self.tokens.peek().cloned() else {
-            return Err(ParseError::UnexpectedStreamEnd.to_spanned(Span::EMPTY));
+            return Err(ParseError::UnexpectedStreamEnd.as_spanned(Span::EMPTY));
         };
         Ok(peeked)
     }
@@ -72,7 +77,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         if token.is(&expected) {
             return Ok(());
         }
-        Err(ParseError::InvalidToken(expected, token.kind).to_spanned(token.span))
+        Err(ParseError::InvalidToken(expected, token.kind).as_spanned(token.span))
     }
     /// peeks the current token and checks if it is the same as the expected token returning an error if it isnt
     /// this is also used for validating expressions
@@ -142,14 +147,14 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn empty_var_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
         let var_name = self.text(&var_ident);
         let span = first.span + var_ident.span;
-        Node::Declaration(var_name, Literal::Null.to_nodespan(first.span).box_item())
-            .to_spanned(span)
+        Node::Declaration(var_name, Node::NullNode.as_spanned(first.span).box_item())
+            .as_spanned(span)
     }
     fn var_decl(&mut self, var_name: String, name_ident: &Token) -> ParseRes<NodeSpan> {
         let last = self.expect_next()?;
         let val = self.parse_only_expr()?;
         let span = name_ident.span + last.span;
-        Ok(Node::Declaration(var_name, val.box_item()).to_spanned(span))
+        Ok(Node::Declaration(var_name, val.box_item()).as_spanned(span))
     }
     fn parse_vardef(&mut self, first: &Token) -> ParseRes<NodeSpan> {
         let ident = self.expect(TokenType::Identifier)?;
@@ -229,7 +234,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         let last_span = self.peek_some()?.span;
         let expr = self.parse_expr()?;
-        let block = vec![Node::ResultNode(expr.clone().box_item()).to_spanned(expr.span)];
+        let block = vec![Node::ResultNode(expr.clone().box_item()).as_spanned(expr.span)];
         return Ok(FuncDef {
             args,
             block,
@@ -281,7 +286,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let func_span = name_ident.span + last.span;
         Ok(
             Node::Declaration(func_name, func.to_nodespan(name_ident.span).box_item())
-                .to_spanned(func_span),
+                .as_spanned(func_span),
         )
     }
 
@@ -388,14 +393,14 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let block = self.parse_block()?;
         let last = self.next().unwrap();
         let span = first.span + last.span;
-        Ok(Node::DoBlock(block).to_spanned(span))
+        Ok(Node::DoBlock(block).as_spanned(span))
     }
     fn parse_loop(&mut self) -> ParseRes<NodeSpan> {
         let first = self.expect(TokenType::LBrace)?;
         let block = self.parse_block()?;
         let last = self.next().unwrap();
         let span = first.span + last.span;
-        Ok(Node::Loop(block).to_spanned(span))
+        Ok(Node::Loop(block).as_spanned(span))
     }
 }
 
@@ -418,11 +423,11 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let expr = self.parse_only_expr()?;
         if expr.item == Node::DontResult {
             return Ok(
-                Node::ReturnNode(Literal::Null.to_nodespan(expr.span).box_item())
-                    .to_spanned(value.span),
+                Node::ReturnNode(Node::NullNode.as_spanned(expr.span).box_item())
+                    .as_spanned(value.span),
             );
         }
-        Ok(Node::ReturnNode(expr.box_item()).to_spanned(value.span))
+        Ok(Node::ReturnNode(expr.box_item()).as_spanned(value.span))
     }
     fn parse_branch(&mut self) -> ParseRes<NodeSpan> {
         let first = self.peek_some()?;
@@ -465,7 +470,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             target: target.box_item(),
             index: index.box_item(),
         }
-        .to_spanned(span);
+        .as_spanned(span);
         self.primary_ops(index)
     }
 }
@@ -623,7 +628,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             | TokenType::MinusEqual
             | TokenType::StarEqual
             | TokenType::SlashEqual => {
-                return Err(ParseError::UnexpectedVoidExpression.to_spanned(left.span + op.span))
+                return Err(ParseError::UnexpectedVoidExpression.as_spanned(left.span + op.span))
             }
             _ => Ok(left),
         }
@@ -658,7 +663,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn parse_paren(&mut self, paren: Token) -> ParseRes<NodeSpan> {
         let expr = self.parse_expr()?;
         let Some(end) = self.peek() else {
-            return Err(ParseError::UnterminatedParetheses(paren.kind).to_spanned(paren.span));
+            return Err(ParseError::UnterminatedParetheses(paren.kind).as_spanned(paren.span));
         };
         self.check_valid(TokenType::RParen, end)?;
         self.next();
@@ -672,10 +677,10 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let span = node.span;
         match node.item {
             Node::Declaration(decl, target) => {
-                Ok(Field::Declaration(decl, target).to_spanned(span))
+                Ok(Field::Declaration(decl, target).as_spanned(span))
             }
-            Node::StructDef(def) => Ok(Field::StructDef(def).to_spanned(span)),
-            _ => Err(ParseError::UnexpectedFieldNode(node.item).to_spanned(span)),
+            Node::StructDef(def) => Ok(Field::StructDef(def).as_spanned(span)),
+            _ => Err(ParseError::UnexpectedFieldNode(node.item).as_spanned(span)),
         }
     }
     fn anon_struct(&mut self) -> ParseRes<NodeSpan> {
@@ -696,7 +701,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             let expr = self.parse_only_expr()?;
             let span = expr.span;
             let field_name = self.text(&target);
-            fields.push(Field::Declaration(field_name, expr.box_item()).to_spanned(span));
+            fields.push(Field::Declaration(field_name, expr.box_item()).as_spanned(span));
             if self.peek().is(&TokenType::Comma) {
                 self.next();
             }
@@ -797,7 +802,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
         return Ok(FieldAccess {
             target: target.box_item(),
-            requested: AccessType::Method(requested, method_params).to_spanned(arg_span),
+            requested: AccessType::Method(requested, method_params).as_spanned(arg_span),
         }
         .to_nodespan(ident.span + arg_span));
     }
@@ -810,7 +815,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let val = if self.is_expected(TokenType::LParen).is_none() {
             FieldAccess {
                 target: target.box_item(),
-                requested: AccessType::Property(requested).to_spanned(ident.span),
+                requested: AccessType::Property(requested).as_spanned(ident.span),
             }
             .to_nodespan(span)
         } else {
@@ -823,11 +828,11 @@ impl<'input> Parser<'input, Lexer<'input>> {
 impl<'input> Parser<'input, Lexer<'input>> {
     fn atom_expr(&mut self, peeked: Option<&Token>) -> ParseRes<NodeSpan> {
         let Some(value) = peeked else {
-            return Err(ParseError::UnexpectedStreamEnd.to_spanned(Span::EMPTY));
+            return Err(ParseError::UnexpectedStreamEnd.as_spanned(Span::EMPTY));
         };
 
         if value.kind == TokenType::Var {
-            return Err(ParseError::UnexpectedVoidExpression.to_spanned(value.span));
+            return Err(ParseError::UnexpectedVoidExpression.as_spanned(value.span));
         }
         let expr = self.atom_parser(peeked)?;
 
@@ -837,17 +842,17 @@ impl<'input> Parser<'input, Lexer<'input>> {
     /// these are expressions whose type can be readily known
     fn atom_parser(&mut self, peeked: Option<&Token>) -> ParseRes<NodeSpan> {
         let Some(value) = peeked else {
-            return Err(ParseError::UnexpectedStreamEnd.to_spanned(Span::EMPTY));
+            return Err(ParseError::UnexpectedStreamEnd.as_spanned(Span::EMPTY));
         };
 
         match &value.kind {
-            TokenType::Str(lit) => Ok(Literal::Str(lit.to_string()).to_nodespan(value.span)),
+            TokenType::Str(lit) => Ok(Node::Str(lit.to_string()).as_spanned(value.span)),
             TokenType::Struct => self.parse_struct(),
             TokenType::Var => self.parse_vardef(value),
-            TokenType::Number => Ok(self.parse_num(value).to_nodespan(value.span)),
-            TokenType::False => Ok(Literal::Bool(false).to_nodespan(value.span)),
-            TokenType::True => Ok(Literal::Bool(true).to_nodespan(value.span)),
-            TokenType::Null => Ok(Literal::Null.to_nodespan(value.span)),
+            TokenType::Float => Ok(self.parse_float(value)),
+            TokenType::False => Ok(Node::Bool(false).as_spanned(value.span)),
+            TokenType::True => Ok(Node::Bool(false).as_spanned(value.span)),
+            TokenType::Null => Ok(Node::NullNode.as_spanned(value.span)),
             TokenType::Func => {
                 let func = self.parse_funcdef()?;
                 self.next();
@@ -858,18 +863,18 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 let literal = self.parse_expr_list(value, TokenType::RBracket)?;
                 let span = value.span + self.peek_some()?.span;
                 self.next();
-                Ok(Node::ListLit(literal).to_spanned(span))
+                Ok(Node::ListLit(literal).as_spanned(span))
             }
             TokenType::LBrace => self.anon_struct(),
-            TokenType::Identifier => Ok(Node::Variable(self.text(value)).to_spanned(value.span)),
+            TokenType::Identifier => Ok(Node::Variable(self.text(value)).as_spanned(value.span)),
             TokenType::While => self.parse_while_loop(),
             TokenType::If => self.parse_branch(),
             TokenType::Do => self.parse_do(),
             TokenType::Loop => self.parse_loop(),
             TokenType::For => self.parse_for(),
             TokenType::Return => self.parse_return(value),
-            TokenType::Break => Ok(Node::BreakNode.to_spanned(value.span)),
-            TokenType::Continue => Ok(Node::ContinueNode.to_spanned(value.span)),
+            TokenType::Break => Ok(Node::BreakNode.as_spanned(value.span)),
+            TokenType::Continue => Ok(Node::ContinueNode.as_spanned(value.span)),
             TokenType::Not | TokenType::Bang => self.unary_operator(UnaryOp::Not),
             TokenType::Minus => self.unary_operator(UnaryOp::Negate),
             TokenType::LParen => self.parse_paren(value.clone()),
@@ -900,17 +905,17 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
 }
 fn unexpected_token<T>(token: Token) -> ParseRes<T> {
-    Err(ParseError::UnexpectedToken(token.kind).to_spanned(token.span))
+    Err(ParseError::UnexpectedToken(token.kind).as_spanned(token.span))
 }
 fn validate_expr(expr: &NodeSpan) -> ParseRes<()> {
     if matches!(expr.item, Node::Assignment(..)) || matches!(expr.item, Node::Declaration(..)) {
-        return Err(ParseError::UnexpectedVoidExpression.to_spanned(expr.span));
+        return Err(ParseError::UnexpectedVoidExpression.as_spanned(expr.span));
     }
     return Ok(());
 }
 fn expect_expr(expr: NodeSpan) -> ParseRes<NodeSpan> {
     if matches!(expr.item, Node::Assignment(..)) || matches!(expr.item, Node::Declaration(..)) {
-        return Err(ParseError::UnexpectedVoidExpression.to_spanned(expr.span));
+        return Err(ParseError::UnexpectedVoidExpression.as_spanned(expr.span));
     }
     return Ok(expr);
 }

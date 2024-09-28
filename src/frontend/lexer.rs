@@ -59,9 +59,9 @@ impl<'a> Lexer<'a> {
         }
         let is_float = dot_count != 0;
         if is_float {
-            return Token::new(TokenType::Number, Span(start - 1, self.index));
+            return Token::new(TokenType::Float, Span(start - 1, self.index));
         }
-        Token::new(TokenType::Number, Span(start - 1, self.index))
+        Token::new(TokenType::Int, Span(start - 1, self.index))
     }
     fn ident(&mut self) -> Token {
         let start = self.index - 1;

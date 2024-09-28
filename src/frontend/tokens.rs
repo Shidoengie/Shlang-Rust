@@ -2,11 +2,13 @@ use crate::{charvec::CharVec, spans::*};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenType {
     Str(CharVec),
+    Float,
+    Int,
     At,
     Dollar,
     DualPipe,
     DualAmpersand,
-    Number,
+
     Identifier,
     Semicolon,
     Plus,

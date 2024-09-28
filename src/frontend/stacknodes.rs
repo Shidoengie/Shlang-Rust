@@ -1,30 +1,20 @@
+use super::nodes::{BinaryOp, UnaryOp};
+
 #[derive(Debug, Clone)]
-
-pub enum MathOp {
-    Add,
-    Subtract,
-    Divide,
-    Multiply,
-    Modulo,
-    And,
-    Or,
-    IsEqual,
-    IsDifferent,
-    Greater,
-    Lesser,
-    GreaterOrEqual,
-    LesserOrEqual,
-    NullCoalescing,
-    Not,
+pub enum Value {
+    Null,
+    Float(f64),
+    Int(i64),
+    Bool(bool),
+    Str(String),
 }
-
-pub enum Value {}
-
+#[derive(Debug, Clone)]
 pub enum StackOp {
-    Push(f32),
+    Push(Value),
     Load(usize),
     Store(usize),
-    MathOp(MathOp),
+    BinaryOp(BinaryOp),
+    UnaryOp(UnaryOp),
+    Pop,
     Goto(usize, bool),
 }
-pub type Stack = Vec<StackOp>;

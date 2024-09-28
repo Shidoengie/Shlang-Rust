@@ -2,8 +2,10 @@ use crate::frontend::nodes::*;
 use crate::frontend::parser::*;
 use crate::frontend::stacknodes::StackOp as Op;
 use crate::frontend::stacknodes::*;
+use crate::spans::Spanned;
+use crate::spans::*;
 pub struct IRgen {
-    stack: Stack,
+    pub stack: Vec<Spanned<Op>>,
     idents: Vec<String>,
 }
 impl IRgen {
@@ -11,30 +13,6 @@ impl IRgen {
         Self {
             stack: vec![],
             idents: vec![],
-        }
-    }
-    pub fn binary_to_op(&self, kind: BinaryOp) -> MathOp {
-        match kind {
-            BinaryOp::Add => MathOp::Add,
-            BinaryOp::Subtract => MathOp::Subtract,
-            BinaryOp::Divide => MathOp::Divide,
-            BinaryOp::Multiply => MathOp::Multiply,
-            BinaryOp::Modulo => MathOp::Modulo,
-            BinaryOp::And => MathOp::And,
-            BinaryOp::OR => MathOp::Or,
-            BinaryOp::IsEqual => MathOp::IsEqual,
-            BinaryOp::IsDifferent => MathOp::IsDifferent,
-            BinaryOp::Greater => MathOp::Greater,
-            BinaryOp::Lesser => MathOp::Lesser,
-            BinaryOp::GreaterOrEqual => MathOp::GreaterOrEqual,
-            BinaryOp::LesserOrEqual => MathOp::LesserOrEqual,
-            BinaryOp::NullCoalescing => MathOp::NullCoalescing,
-        }
-    }
-    pub fn unary_to_op(&self, kind: UnaryOp) -> MathOp {
-        match kind {
-            UnaryOp::Negate => MathOp::Subtract,
-            UnaryOp::Not => MathOp::Not,
         }
     }
     pub fn generate(&mut self, input: &str) {
@@ -47,39 +25,53 @@ impl IRgen {
             self.node_gen(node);
         }
     }
+    fn push_val(&mut self, val: Value, span: impl SpanUtil) {
+        self.stack
+            .push(StackOp::Push(val).to_spanned(span.take_span()));
+    }
     fn node_gen(&mut self, node: NodeSpan) {
+        let span = node.span;
         match node.item {
-            Node::Literal(val) => self.stack.push(Op::Push(val)),
-            Node::BinaryNode(node) => {
-                self.node_gen(node.left.deref_item());
-                self.node_gen(node.right.deref_item());
-                self.stack
-                    .push(StackOp::MathOp(self.binary_to_op(node.kind)));
+            Node::Float(num) => self.push_val(Value::Float(num), span),
+            Node::Int(num) => self.push_val(Value::Int(num), span),
+            Node::Bool(cond) => self.push_val(Value::Bool(cond), span),
+            Node::Str(txt) => self.push_val(Value::Str(txt), span),
+            Node::BinaryNode(expr) => {
+                self.node_gen(expr.left.deref_item());
+                self.node_gen(expr.right.deref_item());
+                let op = StackOp::BinaryOp(expr.kind).to_spanned(span);
+                self.stack.push(op);
             }
-            Node::UnaryNode(node) => {
-                self.node_gen(node.target.deref_item());
+            Node::UnaryNode(expr) => {
+                self.node_gen(expr.target.deref_item());
 
                 self.stack
-                    .push(StackOp::MathOp(self.unary_to_op(node.kind)));
+                    .push(StackOp::UnaryOp(expr.kind).to_spanned(span));
             }
             Node::Declaration(name, expr) => {
                 self.node_gen(expr.deref_item());
                 self.idents.push(name);
             }
-            Node::Assignment(name, expr) => {
-                let index = self
-                    .idents
-                    .binary_search(&name)
-                    .expect("Non Existent variable dumbasss");
-                self.node_gen(*expr);
-                self.stack.push(StackOp::Store(index));
+            Node::Assignment(request) => {
+                let expr = request.value.deref_item();
+                match request.target.deref_item().item {
+                    Node::Variable(name) => {
+                        let index = self
+                            .idents
+                            .binary_search(&name)
+                            .expect("Non Existent variable dumbasss");
+                        self.node_gen(expr);
+                        self.stack.push(StackOp::Store(index).to_spanned(span));
+                    }
+                    _ => todo!(),
+                };
             }
             Node::Variable(name) => {
                 let index = self
                     .idents
                     .binary_search(&name)
                     .expect("Non Existent variable dumbasss");
-                self.stack.push(Op::Load(index))
+                self.stack.push(Op::Load(index).to_spanned(span))
             }
             _ => {
                 todo!()

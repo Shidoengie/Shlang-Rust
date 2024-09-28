@@ -1,8 +1,12 @@
+use backend::stackvm;
 use codegen::IRgen;
-use frontend::lexer::Lexer;
 use frontend::parser::Parser;
+use frontend::stacknodes::*;
+use frontend::*;
+use frontend::{codegen, stacknodes};
 
 use shlang::*;
+use spans::{IntoSpanned, Span};
 use stacknodes::StackOp;
 use stackvm::StackVM;
 use std::io;
@@ -18,7 +22,10 @@ fn input(message: &str) -> String {
     return String::from(result.trim());
 }
 fn main() {
-    let mut vm = StackVM::new(vec![StackOp::Push(1.0), StackOp::Goto(0, true)]);
+    let mut vm = StackVM::new(vec![
+        StackOp::Push(Value::Int(1)).to_spanned(Span::EMPTY),
+        StackOp::Goto(0, true).to_spanned(Span::EMPTY),
+    ]);
     vm.exec();
     loop {
         ast();

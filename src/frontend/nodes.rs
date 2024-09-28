@@ -5,51 +5,6 @@ use std::collections::*;
 use std::fmt::{Debug, Display};
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Literal {
-    Null,
-    Void,
-    Num(f64),
-    Bool(bool),
-    Str(String),
-}
-
-pub fn list_join(list: &[Literal], seperator: &str) -> String {
-    if list.is_empty() {
-        return "[]".to_owned();
-    }
-    let out = String::from_par_iter(list.par_iter().enumerate().map(|(i, v)| {
-        if i == list.len() - 1 {
-            return v.to_string();
-        }
-        v.to_string() + seperator
-    }));
-    return format!("[{out}]");
-}
-impl Literal {
-    pub fn is_void(&self) -> bool {
-        self == &Self::Void
-    }
-}
-
-impl Display for Literal {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let out = match self {
-            Self::Num(num) => num.to_string(),
-            Self::Bool(cond) => cond.to_string(),
-            Self::Str(txt) => txt.to_string(),
-            Self::Null => "null".to_string(),
-            Self::Void => "void".to_string(),
-        };
-        write!(f, "{out}")
-    }
-}
-impl IntoNodespan for Literal {
-    fn to_nodespan(self, span: Span) -> NodeSpan {
-        Spanned::new(Node::Literal(self), span)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct FuncDef {
     pub block: NodeStream,
     pub args: Vec<String>,
@@ -90,7 +45,6 @@ impl Display for Type {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub enum Node {
-    Literal(Literal),
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
     ResultNode(Spanned<Box<Node>>),
@@ -100,8 +54,7 @@ pub enum Node {
     Declaration(String, Spanned<Box<Self>>),
     Assignment(Assignment),
     Variable(String),
-    Index { target: NodeRef, index: NodeRef },
-    ListLit(Vec<NodeSpan>),
+
     Call(Call),
 
     Branch(Branch),
@@ -113,6 +66,13 @@ pub enum Node {
     FuncDef(FuncDef),
     StructDef(StructDef),
     FieldAccess(FieldAccess),
+    Index { target: NodeRef, index: NodeRef },
+    ListLit(Vec<NodeSpan>),
+    NullNode,
+    Float(f64),
+    Int(i64),
+    Bool(bool),
+    Str(String),
     DontResult,
 }
 impl Node {
@@ -136,7 +96,7 @@ type NodeRef = Spanned<Box<Node>>;
 impl NodeSpan {
     pub fn wrap_in_result(&self) -> Self {
         let value = self.clone();
-        Node::ResultNode(value.clone().box_item()).to_spanned(value.span)
+        Node::ResultNode(value.clone().box_item()).as_spanned(value.span)
     }
 }
 pub trait IntoNodespan {
@@ -145,11 +105,6 @@ pub trait IntoNodespan {
 
 pub type NodeStream = Vec<Spanned<Node>>;
 
-impl From<Literal> for Node {
-    fn from(x: Literal) -> Self {
-        Node::Literal(x)
-    }
-}
 macro_rules! nodes_from {
     ($($name:ident)*) => {
         $(
@@ -285,4 +240,3 @@ pub struct ForLoop {
     pub list: NodeRef,
     pub proc: NodeStream,
 }
-pub type VarMap = HashMap<String, Literal>;

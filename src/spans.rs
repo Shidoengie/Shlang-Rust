@@ -1,6 +1,7 @@
 use std::ops::{Add, Deref};
 pub trait SpanUtil {
     fn get_span(&self) -> Span;
+    fn take_span(self) -> Span;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -32,16 +33,25 @@ impl<T> SpanUtil for Spanned<T> {
     fn get_span(&self) -> Span {
         self.span
     }
+    fn take_span(self) -> Span {
+        self.span
+    }
 }
 pub trait IntoSpanned {
-    fn to_spanned_ref(&self, span: Span) -> Spanned<&Self> {
-        Spanned::new(self, span)
+    fn to_spanned_ref(&self, span: impl SpanUtil) -> Spanned<&Self> {
+        Spanned::new(self, span.take_span())
     }
-    fn to_spanned(&self, span: Span) -> Spanned<Self>
+    fn to_spanned(self, span: impl SpanUtil) -> Spanned<Self>
+    where
+        Self: Sized,
+    {
+        Spanned::new(self, span.take_span())
+    }
+    fn as_spanned(&self, span: impl SpanUtil) -> Spanned<Self>
     where
         Self: Clone,
     {
-        Spanned::new(self.clone(), span)
+        Spanned::new(self.clone(), span.take_span())
     }
 }
 impl<T> IntoSpanned for T {}
@@ -60,5 +70,13 @@ impl Add<usize> for Span {
     type Output = Span;
     fn add(self, rhs: usize) -> Self::Output {
         Span(self.0, self.1 + rhs)
+    }
+}
+impl SpanUtil for Span {
+    fn get_span(&self) -> Span {
+        return *self;
+    }
+    fn take_span(self) -> Span {
+        return self;
     }
 }

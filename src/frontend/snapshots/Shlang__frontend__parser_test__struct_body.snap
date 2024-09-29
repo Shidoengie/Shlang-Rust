@@ -3,18 +3,5 @@ source: src/frontend/parser_test.rs
 expression: "parse_expr(\"struct abc{};\")"
 ---
 Ok(
-    Spanned {
-        item: StructDef(
-            StructDef {
-                name: Some(
-                    "abc",
-                ),
-                fields: [],
-            },
-        ),
-        span: Span(
-            7,
-            12,
-        ),
-    },
+    Struct abc{} at 7:12,
 )

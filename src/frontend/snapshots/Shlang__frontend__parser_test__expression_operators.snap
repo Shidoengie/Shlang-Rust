@@ -3,301 +3,44 @@ source: src/frontend/parser_test.rs
 expression: "parse_expr(\"1*2+2-2/2%5 and 10 or 10!=1==2<4<=3>0>=3;\")"
 ---
 Ok(
-    Spanned {
-        item: BinaryNode(
-            BinaryNode {
-                kind: OR,
-                left: Spanned {
-                    item: BinaryNode(
-                        BinaryNode {
-                            kind: AND,
-                            left: Spanned {
-                                item: BinaryNode(
-                                    BinaryNode {
-                                        kind: ADD,
-                                        left: Spanned {
-                                            item: BinaryNode(
-                                                BinaryNode {
-                                                    kind: MULTIPLY,
-                                                    left: Spanned {
-                                                        item: Value(
-                                                            Num(
-                                                                1.0,
-                                                            ),
-                                                        ),
-                                                        span: Span(
-                                                            0,
-                                                            1,
-                                                        ),
-                                                    },
-                                                    right: Spanned {
-                                                        item: Value(
-                                                            Num(
-                                                                2.0,
-                                                            ),
-                                                        ),
-                                                        span: Span(
-                                                            2,
-                                                            3,
-                                                        ),
-                                                    },
-                                                },
-                                            ),
-                                            span: Span(
-                                                1,
-                                                2,
-                                            ),
-                                        },
-                                        right: Spanned {
-                                            item: BinaryNode(
-                                                BinaryNode {
-                                                    kind: SUBTRACT,
-                                                    left: Spanned {
-                                                        item: Value(
-                                                            Num(
-                                                                2.0,
-                                                            ),
-                                                        ),
-                                                        span: Span(
-                                                            4,
-                                                            5,
-                                                        ),
-                                                    },
-                                                    right: Spanned {
-                                                        item: BinaryNode(
-                                                            BinaryNode {
-                                                                kind: DIVIDE,
-                                                                left: Spanned {
-                                                                    item: Value(
-                                                                        Num(
-                                                                            2.0,
-                                                                        ),
-                                                                    ),
-                                                                    span: Span(
-                                                                        6,
-                                                                        7,
-                                                                    ),
-                                                                },
-                                                                right: Spanned {
-                                                                    item: BinaryNode(
-                                                                        BinaryNode {
-                                                                            kind: MODULO,
-                                                                            left: Spanned {
-                                                                                item: Value(
-                                                                                    Num(
-                                                                                        2.0,
-                                                                                    ),
-                                                                                ),
-                                                                                span: Span(
-                                                                                    8,
-                                                                                    9,
-                                                                                ),
-                                                                            },
-                                                                            right: Spanned {
-                                                                                item: Value(
-                                                                                    Num(
-                                                                                        5.0,
-                                                                                    ),
-                                                                                ),
-                                                                                span: Span(
-                                                                                    10,
-                                                                                    11,
-                                                                                ),
-                                                                            },
-                                                                        },
-                                                                    ),
-                                                                    span: Span(
-                                                                        9,
-                                                                        10,
-                                                                    ),
-                                                                },
-                                                            },
-                                                        ),
-                                                        span: Span(
-                                                            7,
-                                                            8,
-                                                        ),
-                                                    },
-                                                },
-                                            ),
-                                            span: Span(
-                                                5,
-                                                6,
-                                            ),
-                                        },
-                                    },
-                                ),
-                                span: Span(
-                                    3,
-                                    4,
-                                ),
-                            },
-                            right: Spanned {
-                                item: Value(
-                                    Num(
-                                        10.0,
-                                    ),
-                                ),
-                                span: Span(
-                                    16,
-                                    18,
-                                ),
-                            },
-                        },
-                    ),
-                    span: Span(
-                        12,
-                        15,
-                    ),
-                },
-                right: Spanned {
-                    item: BinaryNode(
-                        BinaryNode {
-                            kind: ISDIFERENT,
-                            left: Spanned {
-                                item: Value(
-                                    Num(
-                                        10.0,
-                                    ),
-                                ),
-                                span: Span(
-                                    22,
-                                    24,
-                                ),
-                            },
-                            right: Spanned {
-                                item: BinaryNode(
-                                    BinaryNode {
-                                        kind: ISEQUAL,
-                                        left: Spanned {
-                                            item: Value(
-                                                Num(
-                                                    1.0,
-                                                ),
-                                            ),
-                                            span: Span(
-                                                26,
-                                                27,
-                                            ),
-                                        },
-                                        right: Spanned {
-                                            item: BinaryNode(
-                                                BinaryNode {
-                                                    kind: LESSER,
-                                                    left: Spanned {
-                                                        item: Value(
-                                                            Num(
-                                                                2.0,
-                                                            ),
-                                                        ),
-                                                        span: Span(
-                                                            29,
-                                                            30,
-                                                        ),
-                                                    },
-                                                    right: Spanned {
-                                                        item: BinaryNode(
-                                                            BinaryNode {
-                                                                kind: LESSER_EQUAL,
-                                                                left: Spanned {
-                                                                    item: Value(
-                                                                        Num(
-                                                                            4.0,
-                                                                        ),
-                                                                    ),
-                                                                    span: Span(
-                                                                        31,
-                                                                        32,
-                                                                    ),
-                                                                },
-                                                                right: Spanned {
-                                                                    item: BinaryNode(
-                                                                        BinaryNode {
-                                                                            kind: GREATER,
-                                                                            left: Spanned {
-                                                                                item: Value(
-                                                                                    Num(
-                                                                                        3.0,
-                                                                                    ),
-                                                                                ),
-                                                                                span: Span(
-                                                                                    34,
-                                                                                    35,
-                                                                                ),
-                                                                            },
-                                                                            right: Spanned {
-                                                                                item: BinaryNode(
-                                                                                    BinaryNode {
-                                                                                        kind: GREATER_EQUAL,
-                                                                                        left: Spanned {
-                                                                                            item: Value(
-                                                                                                Num(
-                                                                                                    0.0,
-                                                                                                ),
-                                                                                            ),
-                                                                                            span: Span(
-                                                                                                36,
-                                                                                                37,
-                                                                                            ),
-                                                                                        },
-                                                                                        right: Spanned {
-                                                                                            item: Value(
-                                                                                                Num(
-                                                                                                    3.0,
-                                                                                                ),
-                                                                                            ),
-                                                                                            span: Span(
-                                                                                                39,
-                                                                                                40,
-                                                                                            ),
-                                                                                        },
-                                                                                    },
-                                                                                ),
-                                                                                span: Span(
-                                                                                    37,
-                                                                                    38,
-                                                                                ),
-                                                                            },
-                                                                        },
-                                                                    ),
-                                                                    span: Span(
-                                                                        35,
-                                                                        36,
-                                                                    ),
-                                                                },
-                                                            },
-                                                        ),
-                                                        span: Span(
-                                                            32,
-                                                            33,
-                                                        ),
-                                                    },
-                                                },
-                                            ),
-                                            span: Span(
-                                                30,
-                                                31,
-                                            ),
-                                        },
-                                    },
-                                ),
-                                span: Span(
-                                    27,
-                                    28,
-                                ),
-                            },
-                        },
-                    ),
-                    span: Span(
-                        24,
-                        25,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            19,
-            21,
-        ),
-    },
+    Or(
+        And(
+            Add(
+                Multiply(
+                    Int(1) at 0:1,
+                    Int(2) at 2:3,
+                ) at 1:2,
+                Subtract(
+                    Int(2) at 4:5,
+                    Divide(
+                        Int(2) at 6:7,
+                        Modulo(
+                            Int(2) at 8:9,
+                            Int(5) at 10:11,
+                        ) at 9:10,
+                    ) at 7:8,
+                ) at 5:6,
+            ) at 3:4,
+            Int(10) at 16:18,
+        ) at 12:15,
+        IsDifferent(
+            Int(10) at 22:24,
+            IsEqual(
+                Int(1) at 26:27,
+                Lesser(
+                    Int(2) at 29:30,
+                    LesserOrEqual(
+                        Int(4) at 31:32,
+                        Greater(
+                            Int(3) at 34:35,
+                            GreaterOrEqual(
+                                Int(0) at 36:37,
+                                Int(3) at 39:40,
+                            ) at 37:38,
+                        ) at 35:36,
+                    ) at 32:33,
+                ) at 30:31,
+            ) at 27:28,
+        ) at 24:25,
+    ) at 19:21,
 )

@@ -1,0 +1,7 @@
+---
+source: src/frontend/parser_test.rs
+expression: "parse_expr(\"1.2_2\")"
+---
+Ok(
+    Float(1.22) at 0:5,
+)

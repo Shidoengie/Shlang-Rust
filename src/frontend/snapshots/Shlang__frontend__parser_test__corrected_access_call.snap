@@ -3,133 +3,17 @@ source: src/frontend/parser_test.rs
 expression: "parse_expr(\"(((a.b()).c()).d()).e()\")"
 ---
 Ok(
-    Spanned {
-        item: FieldAccess(
-            FieldAccess {
-                target: Spanned {
-                    item: FieldAccess(
-                        FieldAccess {
-                            target: Spanned {
-                                item: FieldAccess(
-                                    FieldAccess {
-                                        target: Spanned {
-                                            item: FieldAccess(
-                                                FieldAccess {
-                                                    target: Spanned {
-                                                        item: Variable(
-                                                            "a",
-                                                        ),
-                                                        span: Span(
-                                                            3,
-                                                            4,
-                                                        ),
-                                                    },
-                                                    requested: Spanned {
-                                                        item: Call(
-                                                            Call {
-                                                                callee: Spanned {
-                                                                    item: Variable(
-                                                                        "b",
-                                                                    ),
-                                                                    span: Span(
-                                                                        4,
-                                                                        5,
-                                                                    ),
-                                                                },
-                                                                args: [],
-                                                            },
-                                                        ),
-                                                        span: Span(
-                                                            4,
-                                                            5,
-                                                        ),
-                                                    },
-                                                },
-                                            ),
-                                            span: Span(
-                                                4,
-                                                5,
-                                            ),
-                                        },
-                                        requested: Spanned {
-                                            item: Call(
-                                                Call {
-                                                    callee: Spanned {
-                                                        item: Variable(
-                                                            "c",
-                                                        ),
-                                                        span: Span(
-                                                            9,
-                                                            10,
-                                                        ),
-                                                    },
-                                                    args: [],
-                                                },
-                                            ),
-                                            span: Span(
-                                                9,
-                                                10,
-                                            ),
-                                        },
-                                    },
-                                ),
-                                span: Span(
-                                    9,
-                                    10,
-                                ),
-                            },
-                            requested: Spanned {
-                                item: Call(
-                                    Call {
-                                        callee: Spanned {
-                                            item: Variable(
-                                                "d",
-                                            ),
-                                            span: Span(
-                                                14,
-                                                15,
-                                            ),
-                                        },
-                                        args: [],
-                                    },
-                                ),
-                                span: Span(
-                                    14,
-                                    15,
-                                ),
-                            },
-                        },
-                    ),
-                    span: Span(
-                        14,
-                        15,
-                    ),
-                },
-                requested: Spanned {
-                    item: Call(
-                        Call {
-                            callee: Spanned {
-                                item: Variable(
-                                    "e",
-                                ),
-                                span: Span(
-                                    19,
-                                    20,
-                                ),
-                            },
-                            args: [],
-                        },
-                    ),
-                    span: Span(
-                        19,
-                        20,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            19,
-            20,
-        ),
-    },
+    FieldAccess {
+        target: FieldAccess {
+            target: FieldAccess {
+                target: FieldAccess {
+                    target: Var(a) at 3:4,
+                    requested: .b() at 7:8,
+                } at 5:8,
+                requested: .c() at 12:13,
+            } at 10:13,
+            requested: .d() at 17:18,
+        } at 15:18,
+        requested: .e() at 22:23,
+    } at 20:23,
 )

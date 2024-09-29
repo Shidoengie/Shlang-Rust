@@ -21,6 +21,9 @@ macro_rules! test_func {
 }
 
 test_func!(parse_expr,(
+string_literal:r#""hello""#
+float_literal:"1.2_2"
+int_literal:"100_000"
 parse_nested_paren:"((1+2)+(1+2));"
 parse_paren:"(1+2+b);"
 expression_operators:"1*2+2-2/2%5 and 10 or 10!=1==2<4<=3>0>=3;"
@@ -51,4 +54,7 @@ nested_struct:"struct abc{struct dfg{};};"
 index:"a[1]"
 index_with_call:"a[1]()[2]"
 list_literal:"[1,2,3]"
+empty_closure:"$(){}"
+closure_with_params:"$(a,b,c){}"
+chain_closure:"$(a,b,c) 10"
 ));

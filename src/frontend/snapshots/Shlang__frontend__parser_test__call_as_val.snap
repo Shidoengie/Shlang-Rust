@@ -3,80 +3,15 @@ source: src/frontend/parser_test.rs
 expression: "parse_expr(\"a(1,1,1)+1;\")"
 ---
 Ok(
-    Spanned {
-        item: BinaryNode(
-            BinaryNode {
-                kind: ADD,
-                left: Spanned {
-                    item: Call(
-                        Call {
-                            callee: Spanned {
-                                item: Variable(
-                                    "a",
-                                ),
-                                span: Span(
-                                    0,
-                                    1,
-                                ),
-                            },
-                            args: [
-                                Spanned {
-                                    item: Value(
-                                        Num(
-                                            1.0,
-                                        ),
-                                    ),
-                                    span: Span(
-                                        2,
-                                        3,
-                                    ),
-                                },
-                                Spanned {
-                                    item: Value(
-                                        Num(
-                                            1.0,
-                                        ),
-                                    ),
-                                    span: Span(
-                                        4,
-                                        5,
-                                    ),
-                                },
-                                Spanned {
-                                    item: Value(
-                                        Num(
-                                            1.0,
-                                        ),
-                                    ),
-                                    span: Span(
-                                        6,
-                                        7,
-                                    ),
-                                },
-                            ],
-                        },
-                    ),
-                    span: Span(
-                        1,
-                        8,
-                    ),
-                },
-                right: Spanned {
-                    item: Value(
-                        Num(
-                            1.0,
-                        ),
-                    ),
-                    span: Span(
-                        9,
-                        10,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            8,
-            9,
-        ),
-    },
+    Add(
+        Call {
+            callee: Var(a) at 0:1,
+            args: [
+                Int(1) at 2:3,
+                Int(1) at 4:5,
+                Int(1) at 6:7,
+            ],
+        } at 1:8,
+        Int(1) at 9:10,
+    ) at 8:9,
 )

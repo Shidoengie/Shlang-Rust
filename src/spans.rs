@@ -1,10 +1,13 @@
-use std::ops::{Add, Deref};
+use std::{
+    fmt::Debug,
+    ops::{Add, Deref},
+};
 pub trait SpanUtil {
     fn get_span(&self) -> Span;
     fn take_span(self) -> Span;
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Spanned<T> {
     pub item: T,
     pub span: Span,
@@ -22,6 +25,11 @@ impl<T> Spanned<T> {
             item,
             span: self.span,
         };
+    }
+}
+impl<T: Debug> Debug for Spanned<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:#?} at {:?}", self.item, self.span)
     }
 }
 impl<T: Clone> Spanned<Box<T>> {
@@ -55,10 +63,15 @@ pub trait IntoSpanned {
     }
 }
 impl<T> IntoSpanned for T {}
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Clone, PartialEq, Eq, Hash, Copy)]
 pub struct Span(pub usize, pub usize);
 impl Span {
     pub const EMPTY: Self = Self(0, 0);
+}
+impl Debug for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.0, self.1)
+    }
 }
 impl Add<Self> for Span {
     type Output = Span;

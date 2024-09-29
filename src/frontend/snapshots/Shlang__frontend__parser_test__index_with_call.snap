@@ -3,62 +3,14 @@ source: src/frontend/parser_test.rs
 expression: "parse_expr(\"a[1]()[2]\")"
 ---
 Ok(
-    Spanned {
-        item: Index {
-            target: Spanned {
-                item: Call(
-                    Call {
-                        callee: Spanned {
-                            item: Index {
-                                target: Spanned {
-                                    item: Variable(
-                                        "a",
-                                    ),
-                                    span: Span(
-                                        0,
-                                        1,
-                                    ),
-                                },
-                                index: Spanned {
-                                    item: Value(
-                                        Num(
-                                            1.0,
-                                        ),
-                                    ),
-                                    span: Span(
-                                        2,
-                                        3,
-                                    ),
-                                },
-                            },
-                            span: Span(
-                                2,
-                                4,
-                            ),
-                        },
-                        args: [],
-                    },
-                ),
-                span: Span(
-                    4,
-                    6,
-                ),
-            },
-            index: Spanned {
-                item: Value(
-                    Num(
-                        2.0,
-                    ),
-                ),
-                span: Span(
-                    7,
-                    8,
-                ),
-            },
-        },
-        span: Span(
-            7,
-            9,
-        ),
-    },
+    Index {
+        target: Call {
+            callee: Index {
+                target: Var(a) at 0:1,
+                index: Int(1) at 2:3,
+            } at 2:4,
+            args: [],
+        } at 4:6,
+        index: Int(2) at 7:8,
+    } at 7:9,
 )

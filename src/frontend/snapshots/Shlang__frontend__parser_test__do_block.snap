@@ -3,75 +3,13 @@ source: src/frontend/parser_test.rs
 expression: "parse_expr(\"do{var a = 1;1+a}\")"
 ---
 Ok(
-    Spanned {
-        item: DoBlock(
-            [
-                Spanned {
-                    item: Declaration(
-                        Declaration {
-                            var_name: "a",
-                            value: Spanned {
-                                item: Value(
-                                    Num(
-                                        1.0,
-                                    ),
-                                ),
-                                span: Span(
-                                    11,
-                                    12,
-                                ),
-                            },
-                        },
-                    ),
-                    span: Span(
-                        7,
-                        10,
-                    ),
-                },
-                Spanned {
-                    item: ResultNode(
-                        Spanned {
-                            item: BinaryNode(
-                                BinaryNode {
-                                    kind: ADD,
-                                    left: Spanned {
-                                        item: Value(
-                                            Num(
-                                                1.0,
-                                            ),
-                                        ),
-                                        span: Span(
-                                            13,
-                                            14,
-                                        ),
-                                    },
-                                    right: Spanned {
-                                        item: Variable(
-                                            "a",
-                                        ),
-                                        span: Span(
-                                            15,
-                                            16,
-                                        ),
-                                    },
-                                },
-                            ),
-                            span: Span(
-                                14,
-                                15,
-                            ),
-                        },
-                    ),
-                    span: Span(
-                        14,
-                        15,
-                    ),
-                },
-            ],
-        ),
-        span: Span(
-            2,
-            17,
-        ),
-    },
+    Do{
+        Declare(a) as Int(1) at 11:12 at 3:10,
+        Result(
+            Add(
+                Int(1) at 13:14,
+                Var(a) at 15:16,
+            ),
+        ) at 14:15,
+    } at 2:17,
 )

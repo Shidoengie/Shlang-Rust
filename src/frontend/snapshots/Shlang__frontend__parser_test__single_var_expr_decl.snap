@@ -3,24 +3,5 @@ source: src/frontend/parser_test.rs
 expression: "parse_expr(\"var a;\")"
 ---
 Ok(
-    Spanned {
-        item: Declaration(
-            Declaration {
-                var_name: "a",
-                value: Spanned {
-                    item: Value(
-                        Null,
-                    ),
-                    span: Span(
-                        4,
-                        5,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            4,
-            6,
-        ),
-    },
+    Declare(a) as Null at 0:3 at 0:5,
 )

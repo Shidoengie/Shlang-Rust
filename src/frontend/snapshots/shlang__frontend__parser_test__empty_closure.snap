@@ -1,0 +1,7 @@
+---
+source: src/frontend/parser_test.rs
+expression: "parse_expr(\"$(){}\")"
+---
+Ok(
+    Closure(){} at 1:5,
+)

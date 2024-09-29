@@ -1,0 +1,11 @@
+---
+source: src/frontend/parser_test.rs
+expression: "parse_expr(\"$(a,b,c) 10\")"
+---
+Ok(
+    Closure(a, b, c){
+        Result(
+            Int(10),
+        ) at 9:11,
+    } at 1:11,
+)

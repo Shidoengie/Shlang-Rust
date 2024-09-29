@@ -3,24 +3,8 @@ source: src/frontend/parser_test.rs
 expression: "parse_expr(\"a();\")"
 ---
 Ok(
-    Spanned {
-        item: Call(
-            Call {
-                callee: Spanned {
-                    item: Variable(
-                        "a",
-                    ),
-                    span: Span(
-                        0,
-                        1,
-                    ),
-                },
-                args: [],
-            },
-        ),
-        span: Span(
-            1,
-            3,
-        ),
-    },
+    Call {
+        callee: Var(a) at 0:1,
+        args: [],
+    } at 1:3,
 )

@@ -15,8 +15,8 @@ impl IRgen {
             idents: vec![],
         }
     }
-    pub fn generate(&mut self, input: &str) {
-        let mut parser = Parser::new(input.clone());
+    pub fn generate(&mut self, input: &str) -> &[Spanned<Op>] {
+        let mut parser = Parser::new(input);
 
         let (prog, _) = parser.parse().unwrap();
 
@@ -24,6 +24,7 @@ impl IRgen {
         for node in prog {
             self.node_gen(node);
         }
+        return &self.stack;
     }
     fn push_val(&mut self, val: Value, span: impl SpanUtil) {
         self.stack

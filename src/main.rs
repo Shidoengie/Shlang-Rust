@@ -22,10 +22,7 @@ fn input(message: &str) -> String {
     return String::from(result.trim());
 }
 fn main() {
-    let mut vm = StackVM::new(vec![
-        StackOp::Push(Value::Int(1)).to_spanned(Span::EMPTY),
-        StackOp::Goto(0, true).to_spanned(Span::EMPTY),
-    ]);
+    let mut vm = StackVM::from_str("1.0+2.0+3.0;");
     vm.exec();
     loop {
         ast();

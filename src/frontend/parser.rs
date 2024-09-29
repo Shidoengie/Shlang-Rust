@@ -44,7 +44,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let mut text = self.input[token.span.0..token.span.1].to_string();
         let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
         text = String::from_iter(idk);
-        Node::Float(text.parse().unwrap()).as_spanned(token.span)
+        Node::Int(text.parse().unwrap()).as_spanned(token.span)
     }
     /// peeks the current token
     fn peek(&mut self) -> Option<Token> {
@@ -595,7 +595,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         self.next();
         let result = self.or_prec()?;
-        self.binary_node(BinaryOp::OR, left, result, op.span)
+        self.binary_node(BinaryOp::Or, left, result, op.span)
     }
 
     /// Lowest level of operator precedence used for assignment
@@ -850,15 +850,16 @@ impl<'input> Parser<'input, Lexer<'input>> {
             TokenType::Struct => self.parse_struct(),
             TokenType::Var => self.parse_vardef(value),
             TokenType::Float => Ok(self.parse_float(value)),
+            TokenType::Int => Ok(self.parse_int(value)),
             TokenType::False => Ok(Node::Bool(false).as_spanned(value.span)),
-            TokenType::True => Ok(Node::Bool(false).as_spanned(value.span)),
+            TokenType::True => Ok(Node::Bool(true).as_spanned(value.span)),
             TokenType::Null => Ok(Node::NullNode.as_spanned(value.span)),
             TokenType::Func => {
                 let func = self.parse_funcdef()?;
                 self.next();
                 Ok(func)
             }
-            TokenType::At => self.parse_closure(),
+            TokenType::Dollar => self.parse_closure(),
             TokenType::LBracket => {
                 let literal = self.parse_expr_list(value, TokenType::RBracket)?;
                 let span = value.span + self.peek_some()?.span;

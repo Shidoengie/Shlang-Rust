@@ -3,32 +3,8 @@ source: src/frontend/parser_test.rs
 expression: "parse_expr(\"a[1]\")"
 ---
 Ok(
-    Spanned {
-        item: Index {
-            target: Spanned {
-                item: Variable(
-                    "a",
-                ),
-                span: Span(
-                    0,
-                    1,
-                ),
-            },
-            index: Spanned {
-                item: Value(
-                    Num(
-                        1.0,
-                    ),
-                ),
-                span: Span(
-                    2,
-                    3,
-                ),
-            },
-        },
-        span: Span(
-            2,
-            4,
-        ),
-    },
+    Index {
+        target: Var(a) at 0:1,
+        index: Int(1) at 2:3,
+    } at 2:4,
 )

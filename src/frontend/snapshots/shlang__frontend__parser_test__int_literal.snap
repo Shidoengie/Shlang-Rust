@@ -1,0 +1,7 @@
+---
+source: src/frontend/parser_test.rs
+expression: "parse_expr(\"100_000\")"
+---
+Ok(
+    Int(100000) at 0:7,
+)

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::frontend::codegen::IRgen;
 use crate::frontend::nodes;
 use crate::frontend::nodes::BinaryOp;
@@ -11,9 +13,12 @@ pub struct StackVM {
     pub values: Vec<Value>,
 }
 impl StackVM {
-    pub fn new(proc: Vec<Spanned<StackOp>>) -> Self {
+    pub fn from_str(input: impl AsRef<str>) -> Self {
+        Self::new(IRgen::new().generate(input.as_ref()))
+    }
+    pub fn new(proc: impl Into<Vec<Spanned<StackOp>>>) -> Self {
         Self {
-            proc,
+            proc: proc.into(),
             counter: 0,
             values: vec![],
         }

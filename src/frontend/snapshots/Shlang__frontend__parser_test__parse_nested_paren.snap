@@ -3,81 +3,14 @@ source: src/frontend/parser_test.rs
 expression: "parse_expr(\"((1+2)+(1+2));\")"
 ---
 Ok(
-    Spanned {
-        item: BinaryNode(
-            BinaryNode {
-                kind: ADD,
-                left: Spanned {
-                    item: BinaryNode(
-                        BinaryNode {
-                            kind: ADD,
-                            left: Spanned {
-                                item: Value(
-                                    Num(
-                                        1.0,
-                                    ),
-                                ),
-                                span: Span(
-                                    2,
-                                    3,
-                                ),
-                            },
-                            right: Spanned {
-                                item: Value(
-                                    Num(
-                                        2.0,
-                                    ),
-                                ),
-                                span: Span(
-                                    4,
-                                    5,
-                                ),
-                            },
-                        },
-                    ),
-                    span: Span(
-                        3,
-                        4,
-                    ),
-                },
-                right: Spanned {
-                    item: BinaryNode(
-                        BinaryNode {
-                            kind: ADD,
-                            left: Spanned {
-                                item: Value(
-                                    Num(
-                                        1.0,
-                                    ),
-                                ),
-                                span: Span(
-                                    8,
-                                    9,
-                                ),
-                            },
-                            right: Spanned {
-                                item: Value(
-                                    Num(
-                                        2.0,
-                                    ),
-                                ),
-                                span: Span(
-                                    10,
-                                    11,
-                                ),
-                            },
-                        },
-                    ),
-                    span: Span(
-                        9,
-                        10,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            6,
-            7,
-        ),
-    },
+    Add(
+        Add(
+            Int(1) at 2:3,
+            Int(2) at 4:5,
+        ) at 3:4,
+        Add(
+            Int(1) at 8:9,
+            Int(2) at 10:11,
+        ) at 9:10,
+    ) at 6:7,
 )

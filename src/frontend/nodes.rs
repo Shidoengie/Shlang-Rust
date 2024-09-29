@@ -2,18 +2,12 @@ use crate::spans::*;
 use rayon::prelude::*;
 
 use std::collections::*;
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Write};
+use std::ops::Deref;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct FuncDef {
-    pub block: NodeStream,
-    pub args: Vec<String>,
-    pub captures: bool,
-}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
     Null,
-    Void,
     Num,
     Closure,
     Bool,
@@ -28,7 +22,6 @@ pub enum Type {
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let txt = match self {
-            Self::Void => "void",
             Self::Null => "null",
             Self::Function => "func",
             Self::Bool => "bool",
@@ -43,7 +36,7 @@ impl Display for Type {
         write!(f, "{txt}")
     }
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Node {
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
@@ -91,6 +84,61 @@ impl Node {
     }
 }
 
+impl Debug for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::Bool(val) => {
+                if *val {
+                    write!(f, "true")
+                } else {
+                    write!(f, "false")
+                }
+            }
+            Node::Int(num) => write!(f, "Int({num})"),
+            Node::Float(num) => write!(f, "Float({num})"),
+            Node::Str(txt) => write!(f, r#""{txt}""#),
+            Node::Variable(val) => write!(f, "Var({val})"),
+            Node::NullNode => f.write_str("Null"),
+            Node::BreakNode => f.write_str("Break"),
+            Node::ContinueNode => f.write_str("continue"),
+            Node::Declaration(name, val) => {
+                write!(f, "Declare({name}) as {val:?}")
+            }
+            Node::Index { target, index } => f
+                .debug_struct("Index")
+                .field("target", target)
+                .field("index", index)
+                .finish(),
+            Node::ListLit(list) => {
+                f.write_str("List")?;
+                f.debug_set().entries(list).finish()
+            }
+            Node::DoBlock(block) => {
+                write!(f, "Do")?;
+                f.debug_set().entries(block).finish()
+            }
+            Node::Loop(block) => {
+                write!(f, "Loop")?;
+                f.debug_set().entries(block).finish()
+            }
+
+            Node::ReturnNode(ret) => f.debug_tuple("Return").field(ret.item.deref()).finish(),
+            Node::ResultNode(ret) => f.debug_tuple("Result").field(ret.item.deref()).finish(),
+            Node::BinaryNode(bin) => write!(f, "{bin:#?}"),
+            Node::UnaryNode(node) => write!(f, "{node:#?}"),
+            Node::Constructor(node) => write!(f, "{node:#?}"),
+            Node::StructDef(node) => write!(f, "{node:#?}"),
+            Node::Branch(node) => write!(f, "{node:#?}"),
+            Node::ForLoop(node) => write!(f, "{node:#?}"),
+            Node::Assignment(node) => write!(f, "{node:#?}"),
+            Node::FieldAccess(node) => write!(f, "{node:#?}"),
+            Node::While(node) => write!(f, "{node:#?}"),
+            Node::Call(node) => write!(f, "{node:#?}"),
+            Node::FuncDef(node) => write!(f, "{node:#?}"),
+            Node::DontResult => f.write_str("DontResult"),
+        }
+    }
+}
 pub type NodeSpan = Spanned<Node>;
 type NodeRef = Spanned<Box<Node>>;
 impl NodeSpan {
@@ -132,7 +180,7 @@ pub enum BinaryOp {
     Multiply,
     Modulo,
     And,
-    OR,
+    Or,
     IsEqual,
     IsDifferent,
     Greater,
@@ -142,7 +190,7 @@ pub enum BinaryOp {
     NullCoalescing,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct BinaryNode {
     pub kind: BinaryOp,
     pub left: NodeRef,
@@ -156,15 +204,28 @@ impl BinaryNode {
         self.kind.ne(kind)
     }
 }
+impl Debug for BinaryNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple(&format!("{:?}", self.kind))
+            .field(&self.left)
+            .field(&self.right)
+            .finish()
+    }
+}
 #[derive(Clone, Debug, PartialEq)]
 pub enum UnaryOp {
     Negate,
     Not,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct UnaryNode {
     pub kind: UnaryOp,
     pub target: NodeRef,
+}
+impl Debug for UnaryNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}({:?})", self.kind, self.target)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -179,27 +240,66 @@ pub struct Call {
     pub args: NodeStream,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Field {
     Declaration(String, Spanned<Box<Node>>),
     StructDef(StructDef),
 }
+impl Debug for Field {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Declaration(name, val) => {
+                write!(f, "Declare({name}) as {val:?}")
+            }
 
+            Self::StructDef(node) => write!(f, "{node:#?}"),
+        }
+    }
+}
 #[derive(Clone, Debug, PartialEq)]
 pub struct FieldAccess {
     pub target: NodeRef,
     pub requested: Spanned<AccessType>,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum AccessType {
     Method(String, Vec<Spanned<Node>>),
     Property(String),
 }
-#[derive(Clone, Debug, PartialEq)]
+impl Debug for AccessType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Property(prop) => write!(f, ".{prop}"),
+            Self::Method(name, args) => {
+                write!(f, ".")?;
+                if args.is_empty() {
+                    return write!(f, "{name}()");
+                }
+                let mut buffer = f.debug_tuple(&name);
+                for node in args {
+                    buffer.field(node);
+                }
+                buffer.finish()
+            }
+        }
+    }
+}
+
+#[derive(Clone, PartialEq)]
 pub struct StructDef {
     pub name: Option<String>,
     pub fields: Vec<Spanned<Field>>,
 }
+impl Debug for StructDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Struct ")?;
+        if let Some(ref name) = self.name {
+            write!(f, "{name}")?;
+        }
+        f.debug_set().entries(&self.fields).finish()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 
 pub struct Constructor {
@@ -234,9 +334,35 @@ pub struct While {
     pub condition: NodeRef,
     pub proc: NodeStream,
 }
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ForLoop {
     pub ident: String,
     pub list: NodeRef,
     pub proc: NodeStream,
+}
+
+#[derive(Clone, PartialEq)]
+pub struct FuncDef {
+    pub block: NodeStream,
+    pub args: Vec<String>,
+    pub captures: bool,
+}
+impl Debug for FuncDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.captures {
+            write!(f, "Closure(")?;
+        } else {
+            write!(f, "Function(")?;
+        }
+        for (index, name) in self.args.iter().enumerate() {
+            f.write_str(&name)?;
+            if index + 1 != self.args.len() {
+                write!(f, ", ")?;
+            }
+        }
+        write!(f, ")")?;
+
+        f.debug_set().entries(&self.block).finish()
+    }
 }

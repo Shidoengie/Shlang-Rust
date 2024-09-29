@@ -1,0 +1,7 @@
+---
+source: src/frontend/parser_test.rs
+expression: "parse_expr(r#\"\"hello\"\"#)"
+---
+Ok(
+    "hello" at 1:7,
+)

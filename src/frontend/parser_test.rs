@@ -8,8 +8,12 @@ fn parse_expr(source: &str) -> ParseRes<NodeSpan> {
     let mut parser = Parser::new(source);
     parser.parse_expr()
 }
+fn gen_code(source: &str) -> ParseRes<NodeSpan> {
+    let mut parser = Parser::new(source);
+    parser.parse_expr()
+}
 macro_rules! test_func {
-    ($func:expr,($($name:ident : $input:expr)*)) => {
+    ($func:ident,($($name:ident : $input:expr)*)) => {
         $(
         #[test]
         fn $name () {
@@ -18,9 +22,25 @@ macro_rules! test_func {
         }
         )*
     };
+    ($func:ident,$func2:ident,($($name:ident : $input:expr)*)) => {
+        $(
+        #[test]
+        fn $name () {
+            // Perform your desired operation using the input parameter
+            assert_debug_snapshot!($func($input));
+        }
+        #[test]
+        fn $name_$func2 () {
+            // Perform your desired operation using the input parameter
+            assert_debug_snapshot!($func($input));
+        }
+        )*
+    };
 }
 
-test_func!(parse_expr,(
+test_func!(
+    parse_expr,
+(
 string_literal:r#""hello""#
 float_literal:"1.2_2"
 int_literal:"100_000"

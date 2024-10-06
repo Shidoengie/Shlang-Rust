@@ -5,6 +5,7 @@ use frontend::stacknodes::*;
 use frontend::*;
 use frontend::{codegen, stacknodes};
 
+use lang_errors::{ErrorBuilder, LangError};
 use shlang::*;
 use spans::{IntoSpanned, Span};
 use stacknodes::StackOp;
@@ -22,20 +23,24 @@ fn input(message: &str) -> String {
     return String::from(result.trim());
 }
 fn main() {
-    let mut vm = StackVM::from_str("1.0+2.0+3.0;");
-    vm.exec();
     loop {
-        ast();
-    }
-}
+        let inp = input(">:");
+        let err_out = ErrorBuilder::new(inp.clone());
+        let mut generated = IRgen::new();
+        let stack = catch! {
+            err {
+                err.print_msg(err_out);
+                continue;
+            } in generated.generate(&inp)
+        };
 
-fn calc() {
-    let source = input(".>");
-    let res = StackVM::exec_from(&source.as_str());
-    println!("{:?}", res);
-}
-fn ast() {
-    let source = input(".>");
-    let mut parser = Parser::new(&source.as_str());
-    println!("{:?}", parser.parse());
+        let mut vm = StackVM::new(stack);
+        let res = catch! {
+            err {
+                err.print_msg(err_out);
+                continue;
+            } in vm.exec()
+        };
+        println!("{res:?}");
+    }
 }

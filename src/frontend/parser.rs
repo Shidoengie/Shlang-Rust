@@ -1,14 +1,38 @@
-use std::collections::HashMap;
-use std::iter::Peekable;
-
 use super::lexer::Lexer;
 use super::nodes::*;
 use super::tokens::*;
-
-use crate::lang_errors::*;
+use crate::lang_errors::LangError;
 use crate::spans::*;
-
+use std::collections::HashMap;
+use std::iter::Peekable;
 pub type ParseRes<T> = Result<T, Spanned<ParseError>>;
+
+#[derive(Clone, Debug)]
+pub enum ParseError {
+    InvalidToken(TokenType, TokenType),
+    UnexpectedToken(TokenType),
+    UnexpectedToplevel(TokenType),
+    UnterminatedParetheses(TokenType),
+    UnexpectedStreamEnd,
+    UnexpectedFieldNode(Node),
+    UnexpectedVoidExpression,
+}
+impl LangError for Spanned<ParseError> {
+    fn msg(&self) -> String {
+        use ParseError::*;
+        match &self.item {
+            InvalidToken(expected, got) => {
+                format!("expected token {expected:?} but got token {:?}", got)
+            }
+            UnexpectedToken(tok) => format!("Unexpected token {:?}", tok),
+            UnexpectedToplevel(_) => "Unexpected token at toplevel".to_string(),
+            UnexpectedStreamEnd => "Expected To find another token but none was found".to_string(),
+            UnterminatedParetheses(_) => "Unterminated parentheses".to_string(),
+            UnexpectedFieldNode(_) => "Invalid Node in struct feilds".to_string(),
+            UnexpectedVoidExpression => "Unexpected void expression".to_string(),
+        }
+    }
+}
 
 #[derive(Clone)]
 pub struct Parser<'input, I>

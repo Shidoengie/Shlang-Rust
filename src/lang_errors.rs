@@ -1,3 +1,4 @@
+use crate::frontend::stacknodes::Type;
 use crate::frontend::{nodes::*, tokens::*};
 use crate::spans::*;
 use colored::*;
@@ -54,99 +55,5 @@ pub trait LangError {
         Self: SpanUtil,
     {
         err_out.emit(self.msg().as_str(), self.get_span());
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum ParseError {
-    InvalidToken(TokenType, TokenType),
-    UnexpectedToken(TokenType),
-    UnexpectedToplevel(TokenType),
-    UnterminatedParetheses(TokenType),
-    UnexpectedStreamEnd,
-    UnexpectedFieldNode(Node),
-    UnexpectedVoidExpression,
-}
-impl LangError for Spanned<ParseError> {
-    fn msg(&self) -> String {
-        use ParseError::*;
-        match &self.item {
-            InvalidToken(expected, got) => {
-                format!("expected token {expected:?} but got token {:?}", got)
-            }
-            UnexpectedToken(tok) => format!("Unexpected token {:?}", tok),
-            UnexpectedToplevel(_) => "Unexpected token at toplevel".to_string(),
-            UnexpectedStreamEnd => "Expected To find another token but none was found".to_string(),
-            UnterminatedParetheses(_) => "Unterminated parentheses".to_string(),
-            UnexpectedFieldNode(_) => "Invalid Node in struct feilds".to_string(),
-            UnexpectedVoidExpression => "Unexpected void expression".to_string(),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum InterpreterError {
-    MixedTypes(Type, Type),
-    InvalidType(Vec<Type>, Type),
-    InvalidControl,
-    VoidAssignment,
-    NonExistentVar(String),
-    InvalidAssignment(String),
-    InvalidConstructor,
-    InvalidOp(BinaryOp, Type),
-    InvalidArgSize(u32, u32),
-    InvalidBinary(Type),
-    Panic(String),
-    Unspecified(String),
-}
-
-impl LangError for Spanned<InterpreterError> {
-    fn msg(&self) -> String {
-        use InterpreterError::*;
-        match &self.item {
-            MixedTypes(first, last) => format!("Mixed types: {first:?} and {last:?}"),
-
-            InvalidType(accepted, got) => {
-                let opts = String::from_iter(
-                    format!("{accepted:?}")
-                        .chars()
-                        .filter(|c| c != &'[' && c != &']'),
-                )
-                .replace(',', " or ");
-                if accepted.len() > 1 {
-                    return format!("Invalid types expected: {opts:?} but got {got:?}");
-                }
-                format!("Invalid type expected: {opts:?} but got {got:?}")
-            }
-            InvalidControl => "Unexpected control flow node".to_string(),
-            VoidAssignment => "Attempted to assign void to a variable".to_string(),
-            NonExistentVar(name) => "Couldnt find variable with name: ".to_string() + name.as_str(),
-            InvalidAssignment(name) => {
-                "Attempted to assign to non existent variable with name: ".to_string()
-                    + name.as_str()
-            }
-            InvalidConstructor => "Attempted to construct a non existent struct".to_string(),
-            InvalidOp(op, inv) => format!("Cant do {op:?} operation with type {inv:?}"),
-            InvalidArgSize(expected, got) => {
-                let expected_txt = if expected == &1 {
-                    "argument"
-                } else {
-                    "arguments"
-                };
-                let got_txt = if got == &1 { "argument" } else { "arguments" };
-                format!(
-                "Invalid argument size expected {expected:?} {expected_txt} but got {got:?} {got_txt}"
-                )
-            }
-            InvalidBinary(got) => format!("Invalid type in binary operation: {:?}", got),
-            Unspecified(msg) => msg.to_string(),
-            Panic(msg) => msg.to_string(),
-        }
-    }
-    fn print_msg(&self, err_out: ErrorBuilder) {
-        match self.item {
-            InterpreterError::Panic(_) => err_out.emit_panic(self.msg().as_str(), self.get_span()),
-            _ => err_out.emit(self.msg().as_str(), self.get_span()),
-        }
     }
 }

@@ -152,13 +152,13 @@ impl StackVM {
                 Ok(())
             }
             StackOp::Store(index) => {
-                let val = self.pop();
+                let val = self.pop(span)?;
                 self.values[index] = val;
                 self.counter += 1;
                 Ok(())
             }
             StackOp::Pop => {
-                self.pop();
+                self.pop(span)?;
                 self.counter += 1;
                 Ok(())
             }
@@ -179,14 +179,17 @@ impl StackVM {
             }
         }
     }
-    fn pop(&mut self) -> Value {
-        self.values.pop().expect("Expected another value")
+    fn pop(&mut self, span: Span) -> VmRes<Value> {
+        let Some(val) = self.values.pop() else {
+            return unspec!(span, "");
+        };
+        return Ok(val);
     }
     fn push(&mut self, value: Value) {
         self.values.push(value);
     }
-    fn pop_pair(&mut self) -> (Value, Value) {
-        let pair = (self.pop(), self.pop());
-        (pair.1, pair.0)
+    fn pop_pair(&mut self, spans: (Span, Span)) -> VmRes<(Value, Value)> {
+        let pair = (self.pop(spans.0)?, self.pop(spans.1)?);
+        Ok((pair.1, pair.0))
     }
 }

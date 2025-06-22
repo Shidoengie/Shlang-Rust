@@ -1,53 +1,11 @@
 ---
 source: src/frontend/parser_test.rs
-expression: "parse_expr(\"func a (b){1}\")"
+expression: "parse_expr (\"func a (b){1}\")"
 ---
 Ok(
-    Spanned {
-        item: Declaration(
-            Declaration {
-                var_name: "a",
-                value: Spanned {
-                    item: Value(
-                        Function(
-                            Function {
-                                block: [
-                                    Spanned {
-                                        item: ResultNode(
-                                            Spanned {
-                                                item: Value(
-                                                    Num(
-                                                        1.0,
-                                                    ),
-                                                ),
-                                                span: Span(
-                                                    11,
-                                                    12,
-                                                ),
-                                            },
-                                        ),
-                                        span: Span(
-                                            11,
-                                            12,
-                                        ),
-                                    },
-                                ],
-                                args: [
-                                    "b",
-                                ],
-                            },
-                        ),
-                    ),
-                    span: Span(
-                        5,
-                        11,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            5,
-            11,
-        ),
-    },
+    Declare(a) as Function(b){
+        Result(
+            Number(1),
+        ) at 11:12,
+    } at 5:11 at 5:11,
 )

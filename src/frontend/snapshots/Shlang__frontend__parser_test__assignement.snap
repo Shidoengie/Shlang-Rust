@@ -1,36 +1,10 @@
 ---
 source: src/frontend/parser_test.rs
-expression: "parse_expr(\"b = 1;\")"
+expression: "parse_expr (\"b = 1;\")"
 ---
 Ok(
-    Spanned {
-        item: Assignment(
-            Assignment {
-                target: Spanned {
-                    item: Variable(
-                        "b",
-                    ),
-                    span: Span(
-                        0,
-                        1,
-                    ),
-                },
-                value: Spanned {
-                    item: Value(
-                        Num(
-                            1.0,
-                        ),
-                    ),
-                    span: Span(
-                        4,
-                        5,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            2,
-            3,
-        ),
-    },
+    Assignment {
+        target: Var(b) at 0:1,
+        value: Number(1) at 4:5,
+    } at 0:5,
 )

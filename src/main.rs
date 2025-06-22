@@ -1,12 +1,12 @@
 use backend::scope::Scope;
 use colored::Colorize;
-use frontend::nodes::EnvKey;
-use frontend::nodes::Value;
-use frontend::nodes::ValueRepr;
 use lang_errors::*;
-use shlang::frontend::nodes::RefKey;
+
+use shlang::backend::values::*;
+use shlang::frontend::nodes::Node;
 use shlang::*;
 use slotmap::SlotMap;
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io;
@@ -69,7 +69,16 @@ fn execute_file(args: Vec<String>) {
         eprintln!("At file: {file_path}",);
         return;
     } in parser.parse());
-    let mut interpreter = Interpreter::new(ast, functions);
+    let parsed_funcs = HashMap::from_iter(functions.iter().map(|(name, value)| {
+        let Node::Func { block, args } = value else {
+            unimplemented!("All Nodes should be the variant func, please check the parser.");
+        };
+        (
+            name.clone(),
+            Function::new(block.clone(), args.clone()).into(),
+        )
+    }));
+    let mut interpreter = Interpreter::new(ast, parsed_funcs);
     catch!(err {
         err.print_msg(err_out);
         let path = format!("At file: {file_path}").bright_black().italic();
@@ -117,7 +126,16 @@ fn repl() {
             err.print_msg(err_out);
             continue;
         } in parser.parse());
-        let mut inter = Interpreter::new(ast, functions);
+        let parsed_funcs = HashMap::from_iter(functions.iter().map(|(name, value)| {
+            let Node::Func { block, args } = value else {
+                unimplemented!("All Nodes should be the variant func, please check the parser.");
+            };
+            (
+                name.clone(),
+                Function::new(block.clone(), args.clone()).into(),
+            )
+        }));
+        let mut inter = Interpreter::new(ast, parsed_funcs);
         inter.heap = heap;
         inter.envs = envs;
         match inter.execute_with(&mut scope) {

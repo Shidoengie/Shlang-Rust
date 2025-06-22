@@ -12,6 +12,7 @@ use crate::vars;
 use crate::vars_internal;
 pub use closures::*;
 
+use crate::backend::values::*;
 pub use func_methods::*;
 use functions::*;
 pub use global_methods::*;
@@ -22,7 +23,6 @@ use std::collections::HashMap;
 use std::f64::consts::{E, PI, TAU};
 use std::fmt::Display;
 pub use strings::*;
-
 const NULL: FuncResult = Ok(Value::Null);
 
 pub fn default_scope() -> Scope {

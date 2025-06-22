@@ -1,28 +1,10 @@
 ---
 source: src/frontend/parser_test.rs
-expression: "parse_expr(\"!(0);\")"
+expression: "parse_expr (\"!(0);\")"
 ---
 Ok(
-    Spanned {
-        item: UnaryNode(
-            UnaryNode {
-                kind: NOT,
-                object: Spanned {
-                    item: Value(
-                        Num(
-                            0.0,
-                        ),
-                    ),
-                    span: Span(
-                        2,
-                        3,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            1,
-            2,
-        ),
-    },
+    UnaryNode {
+        kind: NOT,
+        object: Number(0) at 2:3,
+    } at 1:3,
 )

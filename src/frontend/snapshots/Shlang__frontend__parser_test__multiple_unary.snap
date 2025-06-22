@@ -1,61 +1,17 @@
 ---
 source: src/frontend/parser_test.rs
-expression: "parse_expr(\"!true + !true;\")"
+expression: "parse_expr (\"!true + !true;\")"
 ---
 Ok(
-    Spanned {
-        item: BinaryNode(
-            BinaryNode {
-                kind: ADD,
-                left: Spanned {
-                    item: UnaryNode(
-                        UnaryNode {
-                            kind: NOT,
-                            object: Spanned {
-                                item: Value(
-                                    Bool(
-                                        true,
-                                    ),
-                                ),
-                                span: Span(
-                                    1,
-                                    5,
-                                ),
-                            },
-                        },
-                    ),
-                    span: Span(
-                        1,
-                        5,
-                    ),
-                },
-                right: Spanned {
-                    item: UnaryNode(
-                        UnaryNode {
-                            kind: NOT,
-                            object: Spanned {
-                                item: Value(
-                                    Bool(
-                                        true,
-                                    ),
-                                ),
-                                span: Span(
-                                    9,
-                                    13,
-                                ),
-                            },
-                        },
-                    ),
-                    span: Span(
-                        9,
-                        13,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            6,
-            7,
-        ),
-    },
+    BinaryNode {
+        kind: Add,
+        left: UnaryNode {
+            kind: NOT,
+            object: true at 1:5,
+        } at 1:5,
+        right: UnaryNode {
+            kind: NOT,
+            object: true at 9:13,
+        } at 9:13,
+    } at 1:13,
 )

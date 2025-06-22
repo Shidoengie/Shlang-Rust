@@ -1,59 +1,15 @@
 ---
 source: src/frontend/parser_test.rs
-expression: "parse_expr(\"(1+2+b);\")"
+expression: "parse_expr (\"(1+2+b);\")"
 ---
 Ok(
-    Spanned {
-        item: BinaryNode(
-            BinaryNode {
-                kind: ADD,
-                left: Spanned {
-                    item: Value(
-                        Num(
-                            1.0,
-                        ),
-                    ),
-                    span: Span(
-                        1,
-                        2,
-                    ),
-                },
-                right: Spanned {
-                    item: BinaryNode(
-                        BinaryNode {
-                            kind: ADD,
-                            left: Spanned {
-                                item: Value(
-                                    Num(
-                                        2.0,
-                                    ),
-                                ),
-                                span: Span(
-                                    3,
-                                    4,
-                                ),
-                            },
-                            right: Spanned {
-                                item: Variable(
-                                    "b",
-                                ),
-                                span: Span(
-                                    5,
-                                    6,
-                                ),
-                            },
-                        },
-                    ),
-                    span: Span(
-                        4,
-                        5,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            2,
-            3,
-        ),
-    },
+    BinaryNode {
+        kind: Add,
+        left: BinaryNode {
+            kind: Add,
+            left: Number(1) at 1:2,
+            right: Number(2) at 3:4,
+        } at 1:4,
+        right: Var(b) at 5:6,
+    } at 1:6,
 )

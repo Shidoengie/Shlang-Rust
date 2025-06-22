@@ -1,70 +1,15 @@
 ---
 source: src/frontend/parser_test.rs
-expression: "parse_expr(\"var a = 1+2+b;\")"
+expression: "parse_expr (\"var a = 1+2+b;\")"
 ---
 Ok(
-    Spanned {
-        item: Declaration(
-            Declaration {
-                var_name: "a",
-                value: Spanned {
-                    item: BinaryNode(
-                        BinaryNode {
-                            kind: ADD,
-                            left: Spanned {
-                                item: Value(
-                                    Num(
-                                        1.0,
-                                    ),
-                                ),
-                                span: Span(
-                                    8,
-                                    9,
-                                ),
-                            },
-                            right: Spanned {
-                                item: BinaryNode(
-                                    BinaryNode {
-                                        kind: ADD,
-                                        left: Spanned {
-                                            item: Value(
-                                                Num(
-                                                    2.0,
-                                                ),
-                                            ),
-                                            span: Span(
-                                                10,
-                                                11,
-                                            ),
-                                        },
-                                        right: Spanned {
-                                            item: Variable(
-                                                "b",
-                                            ),
-                                            span: Span(
-                                                12,
-                                                13,
-                                            ),
-                                        },
-                                    },
-                                ),
-                                span: Span(
-                                    11,
-                                    12,
-                                ),
-                            },
-                        },
-                    ),
-                    span: Span(
-                        9,
-                        10,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            4,
-            7,
-        ),
-    },
+    Declare(a) as BinaryNode {
+        kind: Add,
+        left: BinaryNode {
+            kind: Add,
+            left: Number(1) at 8:9,
+            right: Number(2) at 10:11,
+        } at 8:11,
+        right: Var(b) at 12:13,
+    } at 8:13 at 0:13,
 )

@@ -1,56 +1,14 @@
 ---
 source: src/frontend/parser_test.rs
-expression: "parse_expr(\"b.a*2\")"
+expression: "parse_expr (\"b.a*2\")"
 ---
 Ok(
-    Spanned {
-        item: BinaryNode(
-            BinaryNode {
-                kind: MULTIPLY,
-                left: Spanned {
-                    item: FieldAccess(
-                        FieldAccess {
-                            target: Spanned {
-                                item: Variable(
-                                    "b",
-                                ),
-                                span: Span(
-                                    0,
-                                    1,
-                                ),
-                            },
-                            requested: Spanned {
-                                item: Variable(
-                                    "a",
-                                ),
-                                span: Span(
-                                    1,
-                                    2,
-                                ),
-                            },
-                        },
-                    ),
-                    span: Span(
-                        1,
-                        2,
-                    ),
-                },
-                right: Spanned {
-                    item: Value(
-                        Num(
-                            2.0,
-                        ),
-                    ),
-                    span: Span(
-                        4,
-                        5,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            3,
-            4,
-        ),
-    },
+    BinaryNode {
+        kind: Multiply,
+        left: FieldAccess {
+            target: Var(b) at 0:1,
+            requested: Var(a) at 2:3,
+        } at 0:3,
+        right: Number(2) at 4:5,
+    } at 0:5,
 )

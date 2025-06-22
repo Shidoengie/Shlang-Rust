@@ -1,0 +1,55 @@
+/*
+struct Map {
+    var content = []
+
+    func get(self,name){
+        if(self.content.len() == 0){
+            return null
+        }
+        for i in self.content{
+            if i[0] == name {
+                return i[1];
+            }
+        }
+        return null
+    }
+    func remove(self,name){
+        if(self.content.len() == 0){
+            return error("non existent key")
+        }
+        var index = 0;
+        for i in self.content {
+            if i[0] == name {
+                self.content.pop_at(index);
+                return;
+            }
+            index += 1;
+        }
+        return error("non existent key")
+    }
+    func add(self,name,value){
+        if(self.get(name) != null){
+            return error("key already exists")
+        }
+        self.content.push([name,value]);
+    }
+    
+}
+func map(){
+    return new Map{};
+}
+var a = map();
+try(a.add("hi",10));
+a.remove("hi");
+print(a.get("hi"))
+*/
+struct fun{
+    var b = 1;
+    func a(self){
+        self.b += 1;
+        return self;
+    }
+
+}
+var b = new fun{b:10}.a().a().a();
+print(b.b);

@@ -278,7 +278,16 @@ pub fn eval(data: FuncData, state: &mut Interpreter) -> FuncResult {
             return Ok(create_err(err.msg(), &mut state.heap));
         } in parser.parse()
     );
-    let mut inter = Interpreter::new(ast, functions);
+    let parsed_funcs = HashMap::from_iter(functions.iter().map(|(name, value)| {
+        let Node::Func { block, args } = value else {
+            unimplemented!("All Nodes should be the variant func, please check the parser.");
+        };
+        (
+            name.clone(),
+            Function::new(block.clone(), args.clone()).into(),
+        )
+    }));
+    let mut inter = Interpreter::new(ast, parsed_funcs);
     inter.heap.clone_from(&state.heap);
     let result = catch! {
         err {
@@ -318,7 +327,16 @@ pub fn import_var(data: FuncData, state: &mut Interpreter) -> FuncResult {
 
         } in parser.parse()
     );
-    let mut inter = Interpreter::new(ast, functions);
+    let parsed_funcs = HashMap::from_iter(functions.iter().map(|(name, value)| {
+        let Node::Func { block, args } = value else {
+            unimplemented!("All Nodes should be the variant func, please check the parser.");
+        };
+        (
+            name.clone(),
+            Function::new(block.clone(), args.clone()).into(),
+        )
+    }));
+    let mut inter = Interpreter::new(ast, parsed_funcs);
     inter.envs.clone_from(&state.envs);
     let base = Scope::from_vars(vars!(
         __name => Value::Str("lib".to_string())

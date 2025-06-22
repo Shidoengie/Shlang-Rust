@@ -1,49 +1,11 @@
 ---
 source: src/frontend/parser_test.rs
-expression: "parse_expr(\"[1,2,3]\")"
+expression: "parse_expr (\"[1,2,3]\")"
 ---
 Ok(
-    Spanned {
-        item: ListLit(
-            [
-                Spanned {
-                    item: Value(
-                        Num(
-                            1.0,
-                        ),
-                    ),
-                    span: Span(
-                        1,
-                        2,
-                    ),
-                },
-                Spanned {
-                    item: Value(
-                        Num(
-                            2.0,
-                        ),
-                    ),
-                    span: Span(
-                        3,
-                        4,
-                    ),
-                },
-                Spanned {
-                    item: Value(
-                        Num(
-                            3.0,
-                        ),
-                    ),
-                    span: Span(
-                        5,
-                        6,
-                    ),
-                },
-            ],
-        ),
-        span: Span(
-            0,
-            7,
-        ),
-    },
+    List{
+        Number(1) at 1:2,
+        Number(2) at 3:4,
+        Number(3) at 5:6,
+    } at 0:7,
 )

@@ -1,8 +1,10 @@
 use super::defaults::global_methods;
 use super::scope::Scope;
+use super::values::*;
 use crate::backend::defaults;
 use crate::backend::defaults::default_scope;
 
+use crate::backend::values::Value;
 use crate::catch;
 use crate::frontend::nodes::*;
 use crate::hashmap;
@@ -124,8 +126,13 @@ impl Interpreter {
     fn eval_node(&mut self, node: &NodeSpan, parent: &mut Scope) -> EvalRes<Control> {
         let (span, expr) = (node.span, node.item.clone());
         match expr {
-            Node::Value(val) => Ok(Control::Value(val)),
-
+            Node::Func { block, args } => {
+                Ok(Control::Value(Value::Function(Function { block, args })))
+            }
+            Node::Bool(val) => Ok(Control::Value(Value::Bool(val))),
+            Node::Str(val) => Ok(Control::Value(Value::Str(val))),
+            Node::Number(val) => Ok(Control::Value(Value::Num(val))),
+            Node::Null => Ok(Control::Value(Value::Null)),
             Node::Variable(var) => self.eval_var(var, span, parent),
             Node::Call(request) => self.eval_call(request, &mut parent.clone(), parent),
             Node::UnaryNode(unary_op) => {

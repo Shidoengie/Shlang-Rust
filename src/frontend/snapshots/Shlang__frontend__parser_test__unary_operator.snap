@@ -1,28 +1,10 @@
 ---
 source: src/frontend/parser_test.rs
-expression: "parse_expr(\"!true;\")"
+expression: "parse_expr (\"!true;\")"
 ---
 Ok(
-    Spanned {
-        item: UnaryNode(
-            UnaryNode {
-                kind: NOT,
-                object: Spanned {
-                    item: Value(
-                        Bool(
-                            true,
-                        ),
-                    ),
-                    span: Span(
-                        1,
-                        5,
-                    ),
-                },
-            },
-        ),
-        span: Span(
-            1,
-            5,
-        ),
-    },
+    UnaryNode {
+        kind: NOT,
+        object: true at 1:5,
+    } at 1:5,
 )

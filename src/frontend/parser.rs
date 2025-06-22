@@ -34,11 +34,11 @@ impl<'input> Parser<'input, Lexer<'input>> {
     pub fn filtered_text(&mut self, token: &Token, filter: char) -> String {
         String::from_iter(self.text(token).chars().filter(|c| c != &filter))
     }
-    pub fn parse_num(&mut self, token: &Token) -> Value {
+    pub fn parse_num(&mut self, token: &Token) -> Node {
         let mut text = self.input[token.span.0..token.span.1].to_string();
         let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
         text = String::from_iter(idk);
-        Value::Num(text.parse().unwrap())
+        Node::Number(text.parse().unwrap())
     }
 
     /// peeks the current token
@@ -144,14 +144,14 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let span = first.span + var_ident.span;
         Declaration {
             var_name,
-            value: bx!(Value::Null.to_nodespan(first.span)),
+            value: bx!(Node::Null.to_spanned(first.span)),
         }
         .to_nodespan(span)
     }
     fn var_decl(&mut self, var_name: String, name_ident: &Token) -> ParseRes<NodeSpan> {
-        let last = self.expect_next()?;
-        let val = self.parse_only_expr()?;
-        let span = name_ident.span + last.span;
+        self.next(); // Consume '='
+        let val = self.parse_pratt_expression(Precedence::Lowest)?;
+        let span = name_ident.span + val.span;
         Ok(Declaration {
             var_name,
             value: bx!(val),
@@ -172,11 +172,13 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
     }
     /// Parses tokens into an assignment node
-    fn parse_assignment(&mut self, target: NodeSpan, token: Token) -> ParseRes<NodeSpan> {
-        let last = self.expect_next()?;
-        let value = self.parse_only_expr()?;
-        let span = token.span + last.span;
-        match last.kind {
+    fn parse_assignment(&mut self, target: NodeSpan, op_token: Token) -> ParseRes<NodeSpan> {
+        let op_precedence = Precedence::from(&op_token.kind);
+        self.next(); // Consume the assignment operator
+        let value = self.parse_pratt_expression(op_precedence)?;
+        let span = target.span + value.span;
+
+        match op_token.kind {
             TokenType::PlusEqual => {
                 return self.compound_assignment(BinaryOp::Add, target, value, span)
             }
@@ -192,13 +194,13 @@ impl<'input> Parser<'input, Lexer<'input>> {
             TokenType::StarEqual => {
                 return self.compound_assignment(BinaryOp::Multiply, target, value, span)
             }
-            _ => {}
+            TokenType::Equal => Ok(Assignment {
+                target: bx!(target),
+                value: bx!(value),
+            }
+            .to_nodespan(span)),
+            _ => unreachable!(),
         }
-        Ok(Assignment {
-            target: bx!(target),
-            value: bx!(value),
-        }
-        .to_nodespan(span))
     }
     /// Desugars += -= /= and *= into Assignment and Binary nodes
     /// in essence it turns a += 1 into a = a + 1
@@ -209,7 +211,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         value: NodeSpan,
         span: Span,
     ) -> ParseRes<NodeSpan> {
-        let value = self.binary_node(kind, var.clone(), value, span)?;
+        let value = self.binary_node(kind, var.clone(), value.clone(), var.span + value.span)?;
         Ok(Assignment {
             target: bx!(var),
             value: bx!(value),
@@ -217,6 +219,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
         .to_nodespan(span))
     }
 }
+
+// NOTE: All sections for function, loop, branch, list, and struct parsing
+// remain largely the same. The only change is that any call to a `_prec`
+// function is replaced by a call to `parse_expr` or `parse_only_expr`.
+// Because the original code was already well-structured to use `parse_only_expr`,
+// many of these sections do not need to be changed at all.
 
 ///function parsing
 impl<'input> Parser<'input, Lexer<'input>> {
@@ -269,20 +277,24 @@ impl<'input> Parser<'input, Lexer<'input>> {
         self.next();
         let params = self.parse_func_params()?;
         let last = self.peek_some()?;
-        let func: Value = Function::new(self.parse_block()?, params).into();
+        let block = self.parse_block()?;
 
         let func_span = name_ident.span + last.span;
         Ok(Declaration {
             var_name: func_name,
-            value: bx!(func.to_nodespan(func_span)),
+            value: bx!(Node::Func {
+                block,
+                args: params
+            }
+            .to_spanned(func_span)),
         }
         .to_nodespan(func_span))
     }
     /// This creates the function object which is passed as a value
-    fn build_func(&mut self) -> ParseRes<Value> {
-        let params = self.parse_func_params()?;
-        let func_block = self.parse_block()?;
-        Ok(Function::new(func_block, params).into())
+    fn build_func(&mut self) -> ParseRes<Node> {
+        let args = self.parse_func_params()?;
+        let block = self.parse_block()?;
+        Ok(Node::Func { args, block })
     }
     /// This uses build_func to create the function and then converts it into a nodespan
     /// this is so it can be used in a block
@@ -290,7 +302,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let func = self.build_func()?;
         let last = self.peek_some()?;
         let span = first.span + last.span;
-        Ok(func.to_nodespan(span))
+        Ok(func.to_spanned(span))
     }
     /// Takes the aformentioned function and combines them to alow the current function syntax
     fn parse_funcdef(&mut self) -> ParseRes<NodeSpan> {
@@ -307,11 +319,6 @@ impl<'input> Parser<'input, Lexer<'input>> {
 ///function call parsing
 impl<'input> Parser<'input, Lexer<'input>> {
     /// Parses a list of expresions like a list or call parameters
-    /// # Arguments
-    /// - `token` - the token after the expression has been detected,
-    ///     - example: `(>1<,2,3)` this should be the input
-    /// - `closing_tok` (closing token) - the token that ends the expression list
-    ///     example: `( >)<` this should be the input
     fn parse_expr_list(&mut self, token: &Token, closing_tok: TokenType) -> ParseRes<NodeStream> {
         let mut token = token.clone();
         let mut params: NodeStream = vec![];
@@ -337,18 +344,17 @@ impl<'input> Parser<'input, Lexer<'input>> {
         Ok(params)
     }
     fn parse_call(&mut self, callee: NodeSpan) -> ParseRes<NodeSpan> {
-        let mut first = self.expect_next()?.span;
+        let first_span = self.peek_some()?.span;
         let token = self.peek_some()?;
         let params = self.parse_expr_list(&token, TokenType::RParen)?;
-        let last = self.expect_next()?.span;
+        let last_span = self.expect_next()?.span;
 
-        let span = first + last;
-        let call = Call {
+        let span = first_span + last_span;
+        Ok(Call {
             args: params,
             callee: bx!(callee),
         }
-        .to_nodespan(span);
-        self.primary_ops(call)
+        .to_nodespan(span))
     }
 }
 
@@ -410,7 +416,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let expr = self.parse_only_expr()?;
         if expr.item == Node::DontResult {
             return Ok(
-                Node::ReturnNode(bx!(Value::Null.to_nodespan(expr.span))).to_spanned(value.span)
+                Node::ReturnNode(bx!(Node::Null.to_spanned(expr.span))).to_spanned(value.span)
             );
         }
         Ok(Node::ReturnNode(bx!(expr)).to_spanned(value.span))
@@ -442,7 +448,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 ///list parsing
 impl<'input> Parser<'input, Lexer<'input>> {
     fn parse_index(&mut self, target: NodeSpan) -> ParseRes<NodeSpan> {
-        let first = self.skip_some()?;
+        let first = self.peek_some()?;
 
         let index = self.parse_only_expr()?;
         let last = self.peek_some()?;
@@ -452,173 +458,131 @@ impl<'input> Parser<'input, Lexer<'input>> {
         self.next();
         let span = first.span + last.span;
 
-        let index = Node::Index {
+        Ok(Node::Index {
             target: bx!(target),
             index: bx!(index),
         }
-        .to_spanned(span);
-        self.primary_ops(index)
+        .to_spanned(span))
     }
 }
 
-/// Operator and operator precedence parsing
-/// Since this is a recursive descent parser instead of a pratt parser each function denotes a level of precedence
-/// Why well it was easier
+// --- START: REFACTORED PRATT PARSER IMPLEMENTATION ---
+// This entire section replaces the old precedence climbing functions.
 impl<'input> Parser<'input, Lexer<'input>> {
-    fn primary_prec(&mut self) -> ParseRes<NodeSpan> {
-        let value = self.expect_next()?;
-        let left = self.atom_parser(Some(&value))?;
-
-        let right = self.primary_ops(left)?;
-
-        Ok(right)
-    }
-
-    fn primary_ops(&mut self, left: NodeSpan) -> ParseRes<NodeSpan> {
-        let Some(op) = self.peek() else {
-            return Ok(left);
-        };
-        match op.kind {
-            TokenType::LParen => self.parse_call(left),
-            TokenType::LBracket => self.parse_index(left),
-            TokenType::Dot => self.parse_field_access(left, op.span),
-            _ => Ok(left),
+    /// Gets the precedence of the upcoming token.
+    fn peek_precedence(&mut self) -> Precedence {
+        if let Some(t) = self.peek() {
+            Precedence::from(&t.kind)
+        } else {
+            Precedence::Lowest
         }
     }
 
-    /// a level of precedence for:
-    /// * / %
-    fn prod_prec(&mut self) -> ParseRes<NodeSpan> {
-        let left = self.primary_prec()?;
-        let Some(op) = self.peek() else {
-            return Ok(left);
-        };
-        let kind = match op.kind {
-            TokenType::Slash => BinaryOp::Divide,
-            TokenType::Start => BinaryOp::Multiply,
-            TokenType::Percent => BinaryOp::Modulo,
-            _ => return Ok(left),
-        };
-        self.next();
-        let result = self.prod_prec()?;
-        self.binary_node(kind, left, result, op.span)
-    }
-
-    /// a level of precedence for:
-    /// + -
-    fn add_prec(&mut self) -> ParseRes<NodeSpan> {
-        let left = self.prod_prec()?;
-        let Some(op) = self.peek() else {
-            return Ok(left);
-        };
-        let kind = match op.kind {
-            TokenType::Plus => BinaryOp::Add,
-            TokenType::Minus => BinaryOp::Subtract,
-            _ => return Ok(left),
-        };
-        self.next();
-        let result = self.add_prec()?;
-        self.binary_node(kind, left, result, op.span)
-    }
-    /// a level of precedence for:
-    /// ??
-    fn null_prec(&mut self) -> ParseRes<NodeSpan> {
-        let left = self.add_prec()?;
-        let Some(op) = self.peek() else {
-            return Ok(left);
-        };
-        let kind = match op.kind {
-            TokenType::DualQuestion => BinaryOp::NullCoalescing,
-            _ => return Ok(left),
-        };
-        self.next();
-        let result = self.null_prec()?;
-        self.binary_node(kind, left, result, op.span)
-    }
-    /// a level of precedence for:
-    /// >= > < <= == !=
-    fn eq_prec(&mut self) -> ParseRes<NodeSpan> {
-        let left = self.null_prec()?;
-        let Some(op) = self.peek() else {
-            return Ok(left);
-        };
-        let kind = match op.kind {
-            TokenType::Greater => BinaryOp::Greater,
-            TokenType::GreaterEqual => BinaryOp::GreaterOrEqual,
-            TokenType::Lesser => BinaryOp::Lesser,
-            TokenType::LesserEqual => BinaryOp::LesserOrEqual,
-            TokenType::DoubleEqual => BinaryOp::IsEqual,
-            TokenType::BangEqual => BinaryOp::IsDifferent,
-            _ => return Ok(left),
-        };
-        self.next();
-        let result = self.eq_prec()?;
-        self.binary_node(kind, left, result, op.span)
-    }
-
-    /// a level of precedence for logic and
-    fn and_prec(&mut self) -> ParseRes<NodeSpan> {
-        let left = self.eq_prec()?;
-        let Some(op) = self.peek() else {
-            return Ok(left);
-        };
-        if op.isnt(&TokenType::And) && op.isnt(&TokenType::DualAmpersand) {
-            return Ok(left);
-        }
-        self.next();
-        let result = self.and_prec()?;
-        self.binary_node(BinaryOp::And, left, result, op.span)
-    }
-
-    /// a level of precedence for logic or
-    fn or_prec(&mut self) -> ParseRes<NodeSpan> {
-        let left = self.and_prec()?;
-        let Some(op) = self.peek() else {
-            return Ok(left);
-        };
-        if op.isnt(&TokenType::Or) && op.isnt(&TokenType::DualPipe) {
-            return Ok(left);
-        }
-        self.next();
-        let result = self.or_prec()?;
-        self.binary_node(BinaryOp::OR, left, result, op.span)
-    }
-
-    /// Lowest level of operator precedence used for assignment
-    /// Converts tokens into AST nodes
+    /// The main public entry point for parsing any expression.
     pub fn parse_expr(&mut self) -> ParseRes<NodeSpan> {
-        let left = self.or_prec()?;
-        let Some(op) = self.peek() else {
-            return Ok(left);
-        };
-        match op.kind {
+        self.parse_pratt_expression(Precedence::Lowest)
+    }
+
+    /// An entry point for parsing expressions that must return a value (not void).
+    fn parse_only_expr(&mut self) -> ParseRes<NodeSpan> {
+        let node = self.parse_expr()?;
+        expect_expr(&node)?;
+        Ok(node)
+    }
+
+    /// The core of the Pratt parser. It takes a precedence leveal and parses
+    /// until it hits an operator with a lower or equal precedence.
+    fn parse_pratt_expression(&mut self, precedence: Precedence) -> ParseRes<NodeSpan> {
+        // --- Prefix Parsing ---
+        let token = self.expect_next()?;
+        let mut left = self.parse_prefix(&token)?;
+
+        // --- Infix Parsing ---
+        // Loop as long as we see operators with higher precedence than our current level.
+        while precedence < self.peek_precedence() {
+            let op_token = self.peek_some()?;
+            left = self.parse_infix(left, op_token)?;
+        }
+        Ok(left)
+    }
+
+    /// Handles parsing for tokens that appear at the start of an expression.
+    /// This replaces the old `atom_parser` and `primary_prec` logic.
+    fn parse_prefix(&mut self, token: &Token) -> ParseRes<NodeSpan> {
+        match &token.kind {
+            TokenType::Str(lit) => Ok(Node::Str(lit.to_string()).to_spanned(token.span)),
+            TokenType::Struct => self.parse_struct(),
+            TokenType::Var => self.parse_vardef(token),
+            TokenType::Number => Ok(self.parse_num(token).to_spanned(token.span)),
+            TokenType::False => Ok(Node::Bool(false).to_spanned(token.span)),
+            TokenType::True => Ok(Node::Bool(true).to_spanned(token.span)),
+            TokenType::Null => Ok(Node::Null.to_spanned(token.span)),
+            TokenType::Func => {
+                let func = self.parse_funcdef()?;
+                self.next();
+                Ok(func)
+            }
+            TokenType::At => self.parse_closure(),
+            TokenType::LBracket => {
+                let literal = self.parse_expr_list(token, TokenType::RBracket)?;
+                let span = token.span + self.peek_some()?.span;
+                self.next();
+                Ok(Node::ListLit(literal).to_spanned(span))
+            }
+            TokenType::LBrace => self.anon_struct(),
+            TokenType::Identifier => Ok(Node::Variable(self.text(token)).to_spanned(token.span)),
+            TokenType::While => self.parse_while_loop(),
+            TokenType::If => self.parse_branch(),
+            TokenType::Do => self.parse_do(),
+            TokenType::Loop => self.parse_loop(),
+            TokenType::For => self.parse_for(),
+            TokenType::Return => self.parse_return(token),
+            TokenType::Break => Ok(Node::BreakNode.to_spanned(token.span)),
+            TokenType::Continue => Ok(Node::ContinueNode.to_spanned(token.span)),
+            TokenType::Not | TokenType::Bang => self.unary_operator(UnaryOp::NOT),
+            TokenType::Minus => self.unary_operator(UnaryOp::NEGATIVE),
+            TokenType::LParen => self.parse_paren(token.clone()),
+            TokenType::New => self.parse_constructor(),
+            TokenType::Semicolon => Ok(Spanned::new(Node::DontResult, Span(0, 0))),
+            _ => unexpected_token(token.clone()),
+        }
+    }
+
+    /// Handles parsing for tokens that appear *between* two expressions (infix)
+    /// or after an expression (postfix-like calls/indexing).
+    fn parse_infix(&mut self, left: NodeSpan, op_token: Token) -> ParseRes<NodeSpan> {
+        match op_token.kind {
+            TokenType::LParen => {
+                self.next(); // Consume '('
+                self.parse_call(left)
+            }
+            TokenType::LBracket => {
+                self.next(); // Consume '['
+                self.parse_index(left)
+            }
+            TokenType::Dot => {
+                self.next(); // Consume '.'
+                self.parse_field_access(left, op_token.span)
+            }
             TokenType::Equal
             | TokenType::QuestionEqual
             | TokenType::PlusEqual
             | TokenType::MinusEqual
             | TokenType::StarEqual
-            | TokenType::SlashEqual => self.parse_assignment(left, op),
-            _ => Ok(left),
-        }
-    }
-    /// Excludes void expressions / statements
-    fn parse_only_expr(&mut self) -> ParseRes<NodeSpan> {
-        let left = self.or_prec()?;
-        expect_expr(&left)?;
-        let Some(op) = self.peek() else {
-            return Ok(left);
-        };
-        match op.kind {
-            TokenType::Equal
-            | TokenType::PlusEqual
-            | TokenType::MinusEqual
-            | TokenType::StarEqual
-            | TokenType::SlashEqual => {
-                return Err(ParseError::UnexpectedVoidExpression.to_spanned(left.span + op.span))
+            | TokenType::SlashEqual => self.parse_assignment(left, op_token),
+
+            // Standard binary operators
+            _ => {
+                let precedence = Precedence::from(&op_token.kind);
+                self.next(); // Consume the operator
+                let right = self.parse_pratt_expression(precedence)?;
+                let kind = BinaryOp::from(op_token.kind);
+                let span = left.span + right.span;
+                self.binary_node(kind, left, right, span)
             }
-            _ => Ok(left),
         }
     }
+
     fn binary_node(
         &self,
         kind: BinaryOp,
@@ -635,29 +599,26 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         .to_nodespan(span))
     }
-    ///parses unary operators:
-    /// ! not -
+    ///parses unary operators: ! not -
     fn unary_operator(&mut self, kind: UnaryOp) -> ParseRes<NodeSpan> {
-        let token = self.expect_next()?;
-        let right = self.atom_expr(Some(&token))?;
-
+        let op_span = self.peek_some()?.span;
+        // Pass the operator's precedence to the recursive call
+        let right = self.parse_pratt_expression(Precedence::Unary)?;
+        let right_span = right.span;
         Ok(UnaryNode {
             kind,
             object: bx!(right),
         }
-        .to_nodespan(token.span))
+        .to_nodespan(op_span + right_span))
     }
     /// parses parentheses/groupings
-    fn parse_paren(&mut self, paren: Token) -> ParseRes<NodeSpan> {
+    fn parse_paren(&mut self, _paren: Token) -> ParseRes<NodeSpan> {
         let expr = self.parse_expr()?;
-        let Some(end) = self.peek() else {
-            return Err(ParseError::UnterminatedParetheses(paren.kind).to_spanned(paren.span));
-        };
-        self.check_valid(TokenType::RParen, end)?;
-        self.next();
+        self.consume(TokenType::RParen)?;
         Ok(expr)
     }
 }
+// --- END: REFACTORED PRATT PARSER IMPLEMENTATION ---
 
 ///struct parsing
 impl<'input> Parser<'input, Lexer<'input>> {
@@ -781,9 +742,8 @@ impl<'input> Parser<'input, Lexer<'input>> {
         target: NodeSpan,
         requested: String,
         ident: Token,
-        span: Span,
     ) -> ParseRes<NodeSpan> {
-        self.expect_next()?;
+        self.expect_next()?; // Consume '('
         let token = self.peek_some()?;
         let method_params = self.parse_expr_list(&token, TokenType::RParen)?;
         self.next();
@@ -804,109 +764,51 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         .to_nodespan(ident.span + arg_span));
     }
-    fn parse_field_access(&mut self, target: NodeSpan, span: Span) -> ParseRes<NodeSpan> {
-        self.expect_next()?;
+    fn parse_field_access(&mut self, target: NodeSpan, _span: Span) -> ParseRes<NodeSpan> {
         let ident = self.expect(TokenType::Identifier)?;
         self.next();
         let requested = self.text(&ident);
 
-        let val = if self.is_expected(TokenType::LParen).is_none() {
-            FieldAccess {
-                target: bx!(target),
+        if self.is_expected(TokenType::LParen).is_none() {
+            Ok(FieldAccess {
+                target: bx!(target.clone()),
                 requested: bx!(Node::Variable(requested).to_spanned(ident.span)),
             }
-            .to_nodespan(span)
+            .to_nodespan(target.span + ident.span))
         } else {
-            self.parse_method(target, requested, ident, span)?
-        };
-        self.primary_ops(val)
+            self.parse_method(target, requested, ident)
+        }
     }
 }
+
 ///base parser
 impl<'input> Parser<'input, Lexer<'input>> {
-    fn atom_expr(&mut self, peeked: Option<&Token>) -> ParseRes<NodeSpan> {
-        let Some(value) = peeked else {
-            return Err(ParseError::UnexpectedStreamEnd.to_spanned(Span::EMPTY));
-        };
-
-        if value.kind == TokenType::Var {
-            return Err(ParseError::UnexpectedVoidExpression.to_spanned(value.span));
-        }
-        let expr = self.atom_parser(peeked)?;
-        expect_expr(&expr)?;
-        return Ok(expr);
-    }
-    /// Parses deterministic expressions / atoms
-    /// these are expressions whose type can be readily known
-    fn atom_parser(&mut self, peeked: Option<&Token>) -> ParseRes<NodeSpan> {
-        let Some(value) = peeked else {
-            return Err(ParseError::UnexpectedStreamEnd.to_spanned(Span::EMPTY));
-        };
-
-        match &value.kind {
-            TokenType::Str(lit) => Ok(Value::Str(lit.to_string()).to_nodespan(value.span)),
-            TokenType::Struct => self.parse_struct(),
-            TokenType::Var => self.parse_vardef(value),
-            TokenType::Number => Ok(self.parse_num(value).to_nodespan(value.span)),
-            TokenType::False => Ok(Value::Bool(false).to_nodespan(value.span)),
-            TokenType::True => Ok(Value::Bool(true).to_nodespan(value.span)),
-            TokenType::Null => Ok(Value::Null.to_nodespan(value.span)),
-            TokenType::Func => {
-                let func = self.parse_funcdef()?;
-                self.next();
-                Ok(func)
-            }
-            TokenType::At => self.parse_closure(),
-            TokenType::LBracket => {
-                let literal = self.parse_expr_list(value, TokenType::RBracket)?;
-                let span = value.span + self.peek_some()?.span;
-                self.next();
-                Ok(Node::ListLit(literal).to_spanned(span))
-            }
-            TokenType::LBrace => self.anon_struct(),
-            TokenType::Identifier => Ok(Node::Variable(self.text(value)).to_spanned(value.span)),
-            TokenType::While => self.parse_while_loop(),
-            TokenType::If => self.parse_branch(),
-            TokenType::Do => self.parse_do(),
-            TokenType::Loop => self.parse_loop(),
-            TokenType::For => self.parse_for(),
-            TokenType::Return => self.parse_return(value),
-            TokenType::Break => Ok(Node::BreakNode.to_spanned(value.span)),
-            TokenType::Continue => Ok(Node::ContinueNode.to_spanned(value.span)),
-            TokenType::Not | TokenType::Bang => self.unary_operator(UnaryOp::NOT),
-            TokenType::Minus => self.unary_operator(UnaryOp::NEGATIVE),
-            TokenType::LParen => self.parse_paren(value.clone()),
-
-            TokenType::New => self.parse_constructor(),
-            TokenType::Semicolon => Ok(Spanned::new(Node::DontResult, Span(0, 0))),
-            _ => unexpected_token(value.clone()),
-        }
-    }
-
     /// Parses input as expressions and collects it into a block
-    pub fn parse(&mut self) -> ParseRes<(NodeStream, HashMap<String, Function>)> {
+    pub fn parse(&mut self) -> ParseRes<(NodeStream, HashMap<String, Node>)> {
         let mut body: NodeStream = vec![];
-        let mut functions: HashMap<String, Function> = HashMap::new();
+        let mut functions: HashMap<String, Node> = HashMap::new();
         while self.peek().is_some() {
             let expr = self.parse_expr()?;
             let Node::Declaration(ref var) = expr.item else {
                 body.push(expr.clone());
                 continue;
             };
-            let Node::Value(Value::Function(ref func)) = (var.value).item else {
+            let Node::Func { args: _, block: _ } = &(var.value).item else {
                 body.push(expr.clone());
                 continue;
             };
-            functions.insert(var.var_name.clone(), func.clone());
+            functions.insert(var.var_name.clone(), var.value.item.clone());
         }
         Ok((Self::filter_block(body), functions))
     }
 }
+
 fn unexpected_token<T>(token: Token) -> ParseRes<T> {
     Err(ParseError::UnexpectedToken(token.kind).to_spanned(token.span))
 }
+
 fn expect_expr(expr: &NodeSpan) -> ParseRes<&NodeSpan> {
-    if matches!(expr.item, Node::Assignment(_)) || matches!(expr.item, Node::Declaration(_)) {
+    if !expr.item.can_result() {
         return Err(ParseError::UnexpectedVoidExpression.to_spanned(expr.span));
     }
     return Ok(expr);

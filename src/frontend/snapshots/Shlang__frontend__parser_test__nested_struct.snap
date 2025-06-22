@@ -1,35 +1,21 @@
 ---
 source: src/frontend/parser_test.rs
-expression: "parse_expr(\"struct abc{struct dfg{};};\")"
+expression: "parse_expr (\"struct abc{struct dfg{};};\")"
 ---
 Ok(
-    Spanned {
-        item: StructDef(
-            StructDef {
-                name: Some(
-                    "abc",
-                ),
-                fields: [
-                    Spanned {
-                        item: StructDef(
-                            StructDef {
-                                name: Some(
-                                    "dfg",
-                                ),
-                                fields: [],
-                            },
-                        ),
-                        span: Span(
-                            18,
-                            23,
-                        ),
-                    },
-                ],
-            },
+    StructDef {
+        name: Some(
+            "abc",
         ),
-        span: Span(
-            7,
-            25,
-        ),
-    },
+        fields: [
+            StructDef(
+                StructDef {
+                    name: Some(
+                        "dfg",
+                    ),
+                    fields: [],
+                },
+            ) at 18:23,
+        ],
+    } at 7:25,
 )

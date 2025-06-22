@@ -1,6 +1,7 @@
 use super::interpreter::{EvalRes, IError};
 
 use crate::{
+    backend::values::*,
     frontend::nodes::{self, *},
     spans::{IntoSpanned, Span},
 };
@@ -23,7 +24,7 @@ impl Scope {
         None
     }
     pub fn get_vars<const U: usize>(&self, vars: [impl AsRef<str>; U]) -> [Option<Value>; U] {
-        const ARRAY_REPEAT_VALUE: Option<nodes::Value> = None;
+        const ARRAY_REPEAT_VALUE: Option<Value> = None;
         let mut out: [Option<Value>; U] = [ARRAY_REPEAT_VALUE; U];
         for (i, v) in vars.iter().enumerate() {
             out[i] = self.get_var(v);

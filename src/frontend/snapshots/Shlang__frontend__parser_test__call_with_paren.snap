@@ -1,60 +1,14 @@
 ---
 source: src/frontend/parser_test.rs
-expression: "parse_expr(\"a((1),1,1);\")"
+expression: "parse_expr (\"a((1),1,1);\")"
 ---
 Ok(
-    Spanned {
-        item: Call(
-            Call {
-                callee: Spanned {
-                    item: Variable(
-                        "a",
-                    ),
-                    span: Span(
-                        0,
-                        1,
-                    ),
-                },
-                args: [
-                    Spanned {
-                        item: Value(
-                            Num(
-                                1.0,
-                            ),
-                        ),
-                        span: Span(
-                            3,
-                            4,
-                        ),
-                    },
-                    Spanned {
-                        item: Value(
-                            Num(
-                                1.0,
-                            ),
-                        ),
-                        span: Span(
-                            6,
-                            7,
-                        ),
-                    },
-                    Spanned {
-                        item: Value(
-                            Num(
-                                1.0,
-                            ),
-                        ),
-                        span: Span(
-                            8,
-                            9,
-                        ),
-                    },
-                ],
-            },
-        ),
-        span: Span(
-            1,
-            10,
-        ),
-    },
+    Call {
+        callee: Var(a) at 0:1,
+        args: [
+            Number(1) at 3:4,
+            Number(1) at 6:7,
+            Number(1) at 8:9,
+        ],
+    } at 2:10,
 )

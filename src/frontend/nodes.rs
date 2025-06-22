@@ -1,143 +1,76 @@
 use crate::backend::scope::Scope;
 
+use crate::frontend::tokens::TokenType;
 use crate::{spans::*, Interpreter};
-use rayon::prelude::*;
-use slotmap::new_key_type;
 
 use std::collections::*;
 use std::fmt::{Debug, Display};
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub enum Precedence {
+    Lowest,
+    Assign,     // =
+    Or,         // or, ||
+    And,        // and, &&
+    Equality,   // ==, !=
+    Comparison, // <, >, <=, >=
+    Nullish,    // ??
+    Sum,        // +, -
+    Product,    // *, /, %
+    Unary,      // -, !
+    Call,       // my_func()
+    Index,      // my_list[0]
+    Member,     // my_obj.field
+}
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum Value {
-    Closure(Closure),
-    Null,
-    Void,
-    Num(f64),
-    Bool(bool),
-    Str(String),
-    Function(Function),
-    BuiltinFunc(BuiltinFunc),
-    Struct(Struct),
-    Ref(RefKey),
-    List(Vec<Value>),
-}
-pub trait ValueRepr {
-    fn repr(&self) -> String;
-}
-pub type TypedValue = (Value, Type);
-pub fn list_join(list: &[Value], seperator: &str) -> String {
-    if list.is_empty() {
-        return "[]".to_owned();
-    }
-    let out = String::from_par_iter(list.par_iter().enumerate().map(|(i, v)| {
-        if i == list.len() - 1 {
-            return v.to_string();
-        }
-        v.to_string() + seperator
-    }));
-    return format!("[{out}]");
-}
-impl Value {
-    pub fn get_type(&self) -> Type {
-        match self {
-            Value::Bool(_) => Type::Bool,
-            Value::BuiltinFunc(_) | Value::Function(_) => Type::Function,
-            Value::Null => Type::Null,
-            Value::Void => Type::Void,
-            Value::Str(_) => Type::Str,
-            Value::Num(_) => Type::Num,
-            Value::List(_) => Type::List,
-            Value::Struct(obj) => match &obj.id {
-                Some(id) => Type::Struct(id.clone()),
-                None => Type::AnonStruct,
-            },
-            Value::Closure(_) => Type::Closure,
-            Value::Ref(_) => Type::Ref,
+/// Helper to get the precedence of a given token type.
+impl From<&TokenType> for Precedence {
+    fn from(kind: &TokenType) -> Self {
+        match kind {
+            TokenType::Equal
+            | TokenType::QuestionEqual
+            | TokenType::PlusEqual
+            | TokenType::MinusEqual
+            | TokenType::StarEqual
+            | TokenType::SlashEqual => Precedence::Assign,
+            TokenType::Or | TokenType::DualPipe => Precedence::Or,
+            TokenType::And | TokenType::DualAmpersand => Precedence::And,
+            TokenType::DoubleEqual | TokenType::BangEqual => Precedence::Equality,
+            TokenType::Greater
+            | TokenType::GreaterEqual
+            | TokenType::Lesser
+            | TokenType::LesserEqual => Precedence::Comparison,
+            TokenType::DualQuestion => Precedence::Nullish,
+            TokenType::Plus | TokenType::Minus => Precedence::Sum,
+            TokenType::Slash | TokenType::Start | TokenType::Percent => Precedence::Product,
+            TokenType::LParen => Precedence::Call,
+            TokenType::LBracket => Precedence::Index,
+            TokenType::Dot => Precedence::Member,
+            _ => Precedence::Lowest,
         }
     }
+}
 
-    pub fn is_void(&self) -> bool {
-        self == &Self::Void
-    }
-    pub fn matches_typeof(&self, val: &Self) -> bool {
-        self.get_type() == val.get_type()
-    }
-}
-impl ValueRepr for Value {
-    fn repr(&self) -> String {
-        match self {
-            Self::Num(num) => num.to_string(),
-            Self::Bool(cond) => cond.to_string(),
-            Self::Str(txt) => format!("\"{txt}\""),
-            Self::Null => "null".to_string(),
-            Self::Void => "void".to_string(),
-            Self::List(list) => list_join(list, ","),
-            Self::Struct(obj) => obj.repr(),
-            Self::Function(func) => func.repr(),
-            Self::Closure(cl) => cl.repr(),
-            Self::Ref(id) => format!("ref {:?}", id),
-            _ => "unnamed".to_string(),
+/// Helper to convert a token type into its corresponding BinaryOp.
+impl From<TokenType> for BinaryOp {
+    fn from(kind: TokenType) -> Self {
+        match kind {
+            TokenType::Plus => BinaryOp::Add,
+            TokenType::Minus => BinaryOp::Subtract,
+            TokenType::Slash => BinaryOp::Divide,
+            TokenType::Start => BinaryOp::Multiply,
+            TokenType::Percent => BinaryOp::Modulo,
+            TokenType::And | TokenType::DualAmpersand => BinaryOp::And,
+            TokenType::Or | TokenType::DualPipe => BinaryOp::OR,
+            TokenType::DoubleEqual => BinaryOp::IsEqual,
+            TokenType::BangEqual => BinaryOp::IsDifferent,
+            TokenType::Greater => BinaryOp::Greater,
+            TokenType::Lesser => BinaryOp::Lesser,
+            TokenType::GreaterEqual => BinaryOp::GreaterOrEqual,
+            TokenType::LesserEqual => BinaryOp::LesserOrEqual,
+            TokenType::DualQuestion => BinaryOp::NullCoalescing,
+            // This panic should ideally never be reached if the parser logic is correct.
+            _ => panic!("Cannot convert token type {:?} to a BinaryOp", kind),
         }
-    }
-}
-impl Display for Value {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let out = match self {
-            Self::Num(num) => num.to_string(),
-            Self::Bool(cond) => cond.to_string(),
-            Self::Str(txt) => txt.to_string(),
-            Self::Null => "null".to_string(),
-            Self::Void => "void".to_string(),
-            Self::List(list) => list_join(list, ","),
-            Self::Struct(obj) => obj.repr(),
-            Self::Function(func) => func.repr(),
-            Self::Closure(cl) => cl.repr(),
-            Self::Ref(id) => format!("ref {:?}", id),
-            _ => "unnamed".to_string(),
-        };
-        write!(f, "{out}")
-    }
-}
-impl IntoNodespan for Value {
-    fn to_nodespan(self, span: Span) -> NodeSpan {
-        Spanned::new(Node::Value(self), span)
-    }
-}
-#[derive(Clone, Debug, PartialEq)]
-pub struct Struct {
-    pub id: Option<String>,
-    pub env: Scope,
-}
-impl Struct {
-    pub fn get_prop(&self, prop: impl AsRef<str>) -> Option<Value> {
-        return self.env.get_var(prop);
-    }
-    pub fn get_method(&self, prop: impl AsRef<str>) -> Option<Function> {
-        match self.env.get_var(prop)? {
-            Value::Function(func) => Some(func),
-            _ => None,
-        }
-    }
-}
-impl ValueRepr for Struct {
-    fn repr(&self) -> String {
-        let mut buffer = if let Some(name) = &self.id {
-            name.to_owned()
-        } else {
-            String::new()
-        };
-        buffer += "{";
-        let vars = &self.env.vars;
-        for (index, (k, v)) in vars.iter().enumerate() {
-            buffer += k;
-            buffer += ":";
-            buffer += &v.repr();
-            if index < vars.len() - 1 {
-                buffer += ", "
-            }
-        }
-        buffer += "}";
-        buffer
     }
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -145,159 +78,18 @@ pub struct ClosureDef {
     pub block: NodeStream,
     pub args: Vec<String>,
 }
-#[derive(Clone, Debug, PartialEq)]
-pub struct Closure {
-    pub block: NodeStream,
-    pub args: Vec<String>,
-    pub env: EnvKey,
-}
 
-impl From<Closure> for Value {
-    fn from(x: Closure) -> Self {
-        Value::Closure(x)
-    }
-}
-impl ValueRepr for Closure {
-    fn repr(&self) -> String {
-        let mut buffer = String::from("$(");
-        for i in &self.args {
-            buffer += i;
-            if self.args.last().unwrap() != i {
-                buffer += ", "
-            }
-        }
-        buffer += ") ";
-        buffer
-    }
-}
-#[derive(Clone, Debug, PartialEq)]
-pub struct Function {
-    pub block: NodeStream,
-    pub args: Vec<String>,
-}
-impl From<Closure> for Function {
-    fn from(value: Closure) -> Self {
-        return Self {
-            args: value.args,
-            block: value.block,
-        };
-    }
-}
-impl Function {
-    pub fn new(block: NodeStream, args: Vec<String>) -> Self {
-        Self { block, args }
-    }
-}
-impl ValueRepr for Function {
-    fn repr(&self) -> String {
-        let mut buffer = String::from("func(");
-        for i in &self.args {
-            buffer += i;
-            if self.args.last().unwrap() != i {
-                buffer += ", "
-            }
-        }
-        buffer += ") ";
-        buffer
-    }
-}
-impl From<Function> for Value {
-    fn from(x: Function) -> Self {
-        Value::Function(x)
-    }
-}
-new_key_type! {
-    /// Key type used for the heap
-    pub struct RefKey;
-    /// Key type used for storing closure environments
-    pub struct EnvKey;
-}
-
-pub struct FuncData<'a> {
-    pub args: Vec<Value>,
-    pub span: Span,
-    pub parent: &'a mut Scope,
-}
-
-/// The result of the function
-///
-/// - Ok(Value) Normal value wont affect control flow
-/// - Err(Value) Will stop control flow
-pub type FuncResult = Result<Value, Value>;
-
-type FuncPtr = fn(FuncData, &mut Interpreter) -> FuncResult;
-
-#[derive(Clone)]
-pub struct BuiltinFunc {
-    pub function: FuncPtr,
-    pub arg_range: Option<(u8, u8)>,
-    pub id: String,
-}
-
-impl Debug for BuiltinFunc {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("BuiltinFunc")
-            .field("id", &self.id)
-            .field("arg_size", &self.arg_range)
-            .finish()
-    }
-}
-impl PartialEq for BuiltinFunc {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-impl BuiltinFunc {
-    pub fn new(id: String, function: FuncPtr, arg_range: Option<(u8, u8)>) -> Self {
-        Self {
-            function,
-            arg_range,
-            id,
-        }
-    }
-}
-impl From<BuiltinFunc> for Value {
-    fn from(x: BuiltinFunc) -> Self {
-        Value::BuiltinFunc(x)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Type {
-    Null,
-    Void,
-    Num,
-    Closure,
-    Bool,
-    Str,
-    Function,
-    List,
-    AnonStruct,
-    Struct(String),
-    Ref,
-}
-
-impl Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let txt = match self {
-            Self::Void => "void",
-            Self::Null => "null",
-            Self::Function => "func",
-            Self::Bool => "bool",
-            Self::Num => "num",
-            Self::Str => "str",
-            Self::List => "list",
-            Self::Closure => "closure",
-            Self::Struct(id) => id,
-            Self::AnonStruct => "struct",
-            Self::Ref => "ref",
-        };
-        write!(f, "{txt}")
-    }
-}
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Node {
-    Value(Value),
+    //Value(Value),
+    Number(f64),
+    Null,
+    Bool(bool),
+    Str(String),
+    Func {
+        block: NodeStream,
+        args: Vec<String>,
+    },
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
     ResultNode(Box<NodeSpan>),
@@ -341,7 +133,92 @@ impl Node {
         )
     }
 }
+impl Debug for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::Bool(val) => {
+                if *val {
+                    write!(f, "true")
+                } else {
+                    write!(f, "false")
+                }
+            }
 
+            Node::Number(num) => write!(f, "Number({num})"),
+            Node::Str(txt) => write!(f, r#""{txt}""#),
+            Node::Variable(val) => write!(f, "Var({val})"),
+            Node::Null => f.write_str("Null"),
+            Node::BreakNode => f.write_str("Break"),
+            Node::ContinueNode => f.write_str("continue"),
+            Node::Declaration(decl) => {
+                write!(
+                    f,
+                    "Declare({name}) as {val:?}",
+                    name = decl.var_name,
+                    val = decl.value
+                )
+            }
+            Node::Index { target, index } => f
+                .debug_struct("Index")
+                .field("target", target)
+                .field("index", index)
+                .finish(),
+            Node::ListLit(list) => {
+                f.write_str("List")?;
+                f.debug_set().entries(list).finish()
+            }
+            Node::DoBlock(block) => {
+                write!(f, "Do")?;
+                f.debug_set().entries(block).finish()
+            }
+            Node::Loop(block) => {
+                write!(f, "Loop")?;
+                f.debug_set().entries(block).finish()
+            }
+
+            Node::ReturnNode(ret) => f.debug_tuple("Return").field(&ret.item).finish(),
+            Node::ResultNode(ret) => f.debug_tuple("Result").field(&ret.item).finish(),
+            Node::BinaryNode(bin) => write!(f, "{bin:#?}"),
+            Node::UnaryNode(node) => write!(f, "{node:#?}"),
+            Node::Constructor(node) => write!(f, "{node:#?}"),
+            Node::StructDef(node) => write!(f, "{node:#?}"),
+            Node::Branch(node) => write!(f, "{node:#?}"),
+            Node::ForLoop(node) => write!(f, "{node:#?}"),
+            Node::Assignment(node) => write!(f, "{node:#?}"),
+            Node::FieldAccess(node) => write!(f, "{node:#?}"),
+            Node::While(node) => write!(f, "{node:#?}"),
+            Node::Call(node) => write!(f, "{node:#?}"),
+
+            Node::DontResult => f.write_str("DontResult"),
+            Node::Func { block, args } => {
+                write!(f, "Function(")?;
+
+                for (index, name) in args.iter().enumerate() {
+                    f.write_str(&name)?;
+                    if index + 1 != args.len() {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, ")")?;
+
+                f.debug_set().entries(block).finish()
+            }
+            Node::ClosureDef(closure) => {
+                write!(f, "Closure(")?;
+
+                for (index, name) in closure.args.iter().enumerate() {
+                    f.write_str(&name)?;
+                    if index + 1 != closure.args.len() {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, ")")?;
+
+                f.debug_set().entries(&closure.block).finish()
+            }
+        }
+    }
+}
 pub type NodeSpan = Spanned<Node>;
 pub type NodeRef = Box<Spanned<Node>>;
 impl NodeSpan {
@@ -356,11 +233,6 @@ pub trait IntoNodespan {
 
 pub type NodeStream = Vec<Spanned<Node>>;
 
-impl From<Value> for Node {
-    fn from(x: Value) -> Self {
-        Node::Value(x)
-    }
-}
 macro_rules! nodes_from {
     ($($name:ident)*) => {
         $(
@@ -504,4 +376,3 @@ pub struct ForLoop {
     pub list: Box<NodeSpan>,
     pub proc: NodeStream,
 }
-pub type VarMap = HashMap<String, Value>;

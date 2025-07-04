@@ -7,11 +7,11 @@ Ok(
         kind: Add,
         left: UnaryNode {
             kind: NOT,
-            object: Number(0) at 1:2,
-        } at 1:2,
+            object: Number(0)[1,2],
+        }[1,2],
         right: UnaryNode {
             kind: NEGATIVE,
-            object: Number(0) at 5:6,
-        } at 5:6,
-    } at 1:6,
+            object: Number(0)[5,6],
+        }[5,6],
+    }[1,6],
 )

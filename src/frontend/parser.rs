@@ -125,7 +125,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             return Ok(body);
         }
         loop {
-            let expr = self.parse_expr()?;
+            let expr = self.parse_expr(false)?;
             body.push(expr);
             if self.peek().is(&TokenType::RBrace) {
                 break;
@@ -150,7 +150,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
     fn var_decl(&mut self, var_name: String, name_ident: &Token) -> ParseRes<NodeSpan> {
         self.next(); // Consume '='
-        let val = self.parse_pratt_expression(Precedence::Lowest)?;
+        let val = self.parse_pratt_expression(Precedence::Lowest, false)?;
         let span = name_ident.span + val.span;
         Ok(Declaration {
             var_name,
@@ -175,7 +175,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn parse_assignment(&mut self, target: NodeSpan, op_token: Token) -> ParseRes<NodeSpan> {
         let op_precedence = Precedence::from(&op_token.kind);
         self.next(); // Consume the assignment operator
-        let value = self.parse_pratt_expression(op_precedence)?;
+        let value = self.parse_pratt_expression(op_precedence, false)?;
         let span = target.span + value.span;
 
         match op_token.kind {
@@ -220,12 +220,6 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
 }
 
-// NOTE: All sections for function, loop, branch, list, and struct parsing
-// remain largely the same. The only change is that any call to a `_prec`
-// function is replaced by a call to `parse_expr` or `parse_only_expr`.
-// Because the original code was already well-structured to use `parse_only_expr`,
-// many of these sections do not need to be changed at all.
-
 ///function parsing
 impl<'input> Parser<'input, Lexer<'input>> {
     fn parse_closure(&mut self) -> ParseRes<NodeSpan> {
@@ -238,7 +232,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             return Ok(ClosureDef { args, block }.to_nodespan(first_span + last_span));
         }
         let last_span = self.peek_some()?.span;
-        let expr = self.parse_expr()?;
+        let expr = self.parse_expr(false)?;
         let block = vec![Node::ResultNode(bx!(expr.clone())).to_spanned(expr.span)];
         return Ok(ClosureDef { args, block }.to_nodespan(first_span + last_span));
     }
@@ -328,7 +322,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 break;
             }
 
-            let expr = self.parse_only_expr()?;
+            let expr = self.parse_only_expr(false)?;
             token = self.peek_some()?;
             params.push(expr);
             if token.is(&closing_tok) {
@@ -362,7 +356,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 impl<'input> Parser<'input, Lexer<'input>> {
     fn parse_while_loop(&mut self) -> ParseRes<NodeSpan> {
         let first = self.peek_some()?;
-        let condition = bx!(self.parse_only_expr()?);
+        let condition = bx!(self.parse_only_expr(true)?);
         let last = self.peek_some()?;
         let proc = self.parse_block()?;
         self.next();
@@ -374,7 +368,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let ident = self.consume_ident()?;
 
         self.consume(TokenType::In)?;
-        let list = bx!(self.parse_only_expr()?);
+        let list = bx!(self.parse_only_expr(true)?);
         let last = self.peek_some()?;
         let proc = self.parse_block()?;
         self.next();
@@ -413,7 +407,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
     /// parses if expressions
     fn parse_return(&mut self, value: &Token) -> ParseRes<NodeSpan> {
-        let expr = self.parse_only_expr()?;
+        let expr = self.parse_only_expr(false)?;
         if expr.item == Node::DontResult {
             return Ok(
                 Node::ReturnNode(bx!(Node::Null.to_spanned(expr.span))).to_spanned(value.span)
@@ -423,7 +417,8 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
     fn parse_branch(&mut self) -> ParseRes<NodeSpan> {
         let first = self.peek_some()?;
-        let condition = self.parse_only_expr()?;
+        let condition = self.parse_only_expr(true)?;
+
         let last = self.peek_some()?;
         let if_block = self.parse_block()?;
         self.next();
@@ -450,7 +445,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn parse_index(&mut self, target: NodeSpan) -> ParseRes<NodeSpan> {
         let first = self.peek_some()?;
 
-        let index = self.parse_only_expr()?;
+        let index = self.parse_only_expr(false)?;
         let last = self.peek_some()?;
         if last.isnt(&TokenType::RBracket) {
             return unexpected_token(last);
@@ -466,7 +461,6 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
 }
 
-// --- START: REFACTORED PRATT PARSER IMPLEMENTATION ---
 // This entire section replaces the old precedence climbing functions.
 impl<'input> Parser<'input, Lexer<'input>> {
     /// Gets the precedence of the upcoming token.
@@ -479,35 +473,37 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
 
     /// The main public entry point for parsing any expression.
-    pub fn parse_expr(&mut self) -> ParseRes<NodeSpan> {
-        self.parse_pratt_expression(Precedence::Lowest)
+    pub fn parse_expr(&mut self, in_conditional: bool) -> ParseRes<NodeSpan> {
+        self.parse_pratt_expression(Precedence::Lowest, in_conditional)
     }
 
     /// An entry point for parsing expressions that must return a value (not void).
-    fn parse_only_expr(&mut self) -> ParseRes<NodeSpan> {
-        let node = self.parse_expr()?;
+    fn parse_only_expr(&mut self, in_conditional: bool) -> ParseRes<NodeSpan> {
+        let node = self.parse_expr(in_conditional)?;
         expect_expr(&node)?;
         Ok(node)
     }
 
     /// The core of the Pratt parser. It takes a precedence leveal and parses
     /// until it hits an operator with a lower or equal precedence.
-    fn parse_pratt_expression(&mut self, precedence: Precedence) -> ParseRes<NodeSpan> {
-        // --- Prefix Parsing ---
+    fn parse_pratt_expression(
+        &mut self,
+        precedence: Precedence,
+        in_conditional: bool,
+    ) -> ParseRes<NodeSpan> {
         let token = self.expect_next()?;
         let mut left = self.parse_prefix(&token)?;
-
-        // --- Infix Parsing ---
-        // Loop as long as we see operators with higher precedence than our current level.
+        if self.peek_precedence() == Precedence::Constructor && in_conditional {
+            return Ok(left);
+        }
         while precedence < self.peek_precedence() {
             let op_token = self.peek_some()?;
-            left = self.parse_infix(left, op_token)?;
+            left = self.parse_infix(left, op_token, in_conditional)?;
         }
         Ok(left)
     }
 
     /// Handles parsing for tokens that appear at the start of an expression.
-    /// This replaces the old `atom_parser` and `primary_prec` logic.
     fn parse_prefix(&mut self, token: &Token) -> ParseRes<NodeSpan> {
         match &token.kind {
             TokenType::Str(lit) => Ok(Node::Str(lit.to_string()).to_spanned(token.span)),
@@ -542,7 +538,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             TokenType::Not | TokenType::Bang => self.unary_operator(UnaryOp::NOT),
             TokenType::Minus => self.unary_operator(UnaryOp::NEGATIVE),
             TokenType::LParen => self.parse_paren(token.clone()),
-            TokenType::New => self.parse_constructor(),
+            //TokenType::New => self.parse_constructor(),
             TokenType::Semicolon => Ok(Spanned::new(Node::DontResult, Span(0, 0))),
             _ => unexpected_token(token.clone()),
         }
@@ -550,7 +546,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
     /// Handles parsing for tokens that appear *between* two expressions (infix)
     /// or after an expression (postfix-like calls/indexing).
-    fn parse_infix(&mut self, left: NodeSpan, op_token: Token) -> ParseRes<NodeSpan> {
+    fn parse_infix(
+        &mut self,
+        left: NodeSpan,
+        op_token: Token,
+        in_conditional: bool,
+    ) -> ParseRes<NodeSpan> {
         match op_token.kind {
             TokenType::LParen => {
                 self.next(); // Consume '('
@@ -560,6 +561,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 self.next(); // Consume '['
                 self.parse_index(left)
             }
+            TokenType::LBrace if !in_conditional => self.parse_constructor(left),
             TokenType::Dot => {
                 self.next(); // Consume '.'
                 self.parse_field_access(left, op_token.span)
@@ -575,7 +577,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             _ => {
                 let precedence = Precedence::from(&op_token.kind);
                 self.next(); // Consume the operator
-                let right = self.parse_pratt_expression(precedence)?;
+                let right = self.parse_pratt_expression(precedence, false)?;
                 let kind = BinaryOp::from(op_token.kind);
                 let span = left.span + right.span;
                 self.binary_node(kind, left, right, span)
@@ -603,7 +605,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn unary_operator(&mut self, kind: UnaryOp) -> ParseRes<NodeSpan> {
         let op_span = self.peek_some()?.span;
         // Pass the operator's precedence to the recursive call
-        let right = self.parse_pratt_expression(Precedence::Unary)?;
+        let right = self.parse_pratt_expression(Precedence::Unary, false)?;
         let right_span = right.span;
         Ok(UnaryNode {
             kind,
@@ -613,12 +615,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
     /// parses parentheses/groupings
     fn parse_paren(&mut self, _paren: Token) -> ParseRes<NodeSpan> {
-        let expr = self.parse_expr()?;
+        let expr = self.parse_expr(false)?;
+
         self.consume(TokenType::RParen)?;
         Ok(expr)
     }
 }
-// --- END: REFACTORED PRATT PARSER IMPLEMENTATION ---
 
 ///struct parsing
 impl<'input> Parser<'input, Lexer<'input>> {
@@ -647,7 +649,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         loop {
             let target = self.consume(TokenType::Identifier)?;
             self.consume(TokenType::Colon)?;
-            let expr = self.parse_only_expr()?;
+            let expr = self.parse_only_expr(false)?;
             let span = expr.span;
             let field_name = self.text(&target);
             fields.push(Spanned::new(
@@ -711,7 +713,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         loop {
             let target = self.consume(TokenType::Identifier)?;
             self.consume(TokenType::Colon)?;
-            let expr = self.parse_only_expr()?;
+            let expr = self.parse_only_expr(false)?;
             body.insert(self.text(&target), expr);
             if self.peek().is(&TokenType::Comma) {
                 self.next();
@@ -723,14 +725,17 @@ impl<'input> Parser<'input, Lexer<'input>> {
         Ok(body)
     }
 
-    fn parse_constructor(&mut self) -> ParseRes<NodeSpan> {
-        let ident = self.consume(TokenType::Identifier)?;
-        let name = self.text(&ident);
+    fn parse_constructor(&mut self, target: NodeSpan) -> ParseRes<NodeSpan> {
+        let Node::Variable(name) = target.item else {
+            return ParseError::Unspecified("Unexpected expression for constructor".to_owned())
+                .to_spanned(target)
+                .err();
+        };
 
         let params = self.struct_params()?;
         let last = self.peek_some()?;
         self.next();
-        let span = ident.span + last.span;
+        let span = target.span + last.span;
         Ok(Constructor { name, params }.to_nodespan(span))
     }
 }
@@ -788,7 +793,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let mut body: NodeStream = vec![];
         let mut functions: HashMap<String, Node> = HashMap::new();
         while self.peek().is_some() {
-            let expr = self.parse_expr()?;
+            let expr = self.parse_expr(false)?;
             let Node::Declaration(ref var) = expr.item else {
                 body.push(expr.clone());
                 continue;

@@ -8,18 +8,19 @@ use std::fmt::{Debug, Display};
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub enum Precedence {
     Lowest,
-    Assign,     // =
-    Or,         // or, ||
-    And,        // and, &&
-    Equality,   // ==, !=
-    Comparison, // <, >, <=, >=
-    Nullish,    // ??
-    Sum,        // +, -
-    Product,    // *, /, %
-    Unary,      // -, !
-    Call,       // my_func()
-    Index,      // my_list[0]
-    Member,     // my_obj.field
+    Assign,      // =
+    Or,          // or, ||
+    And,         // and, &&
+    Equality,    // ==, !=
+    Comparison,  // <, >, <=, >=
+    Nullish,     // ??
+    Sum,         // +, -
+    Product,     // *, /, %
+    Unary,       // -, !
+    Call,        // my_func()
+    Index,       // my_list[0]
+    Constructor, // my_obj{x:10}
+    Member,      // my_obj.field
 }
 
 /// Helper to get the precedence of a given token type.
@@ -43,6 +44,7 @@ impl From<&TokenType> for Precedence {
             TokenType::Plus | TokenType::Minus => Precedence::Sum,
             TokenType::Slash | TokenType::Start | TokenType::Percent => Precedence::Product,
             TokenType::LParen => Precedence::Call,
+            TokenType::LBrace => Precedence::Constructor,
             TokenType::LBracket => Precedence::Index,
             TokenType::Dot => Precedence::Member,
             _ => Precedence::Lowest,

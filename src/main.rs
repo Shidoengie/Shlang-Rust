@@ -90,18 +90,18 @@ fn print_repl_res(val: Value, heap: &SlotMap<RefKey, Value>) {
     let output = deref_val(val, heap);
     if let Value::Struct(ref obj) = output {
         let Some(ref id) = obj.id else {
-            println!("{}", obj.repr().bright_black());
+            println!("{}", obj.to_string().bright_black());
             return;
         };
         if id != "Error" {
-            println!("{}", obj.repr().bright_black());
+            println!("{}", obj.to_string().bright_black());
             return;
         }
         let msg = obj.env.get_var("msg").unwrap();
         println!("{} {msg}", "ERROR!".red());
         return;
     }
-    println!("{}", output.repr().bright_black().italic());
+    println!("{}", output.to_string().bright_black().italic());
 }
 fn repl() {
     let mut scope = Scope::default();

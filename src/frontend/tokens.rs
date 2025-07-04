@@ -54,7 +54,7 @@ pub enum TokenType {
     MinusEqual,
     StarEqual,
     SlashEqual,
-    New,
+
     For,
     In,
     Question,
@@ -117,7 +117,7 @@ pub fn map_keyword(text: String) -> Option<TokenType> {
         "null" => TokenType::Null,
         "struct" => TokenType::Struct,
         "continue" => TokenType::Continue,
-        "new" => TokenType::New,
+
         "for" => TokenType::For,
         "in" => TokenType::In,
         _ => return None,

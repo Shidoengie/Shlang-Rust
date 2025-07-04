@@ -5,7 +5,7 @@ use crate::{
     frontend::nodes::{self, *},
     spans::{IntoSpanned, Span},
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 #[derive(Clone, Debug, PartialEq)]
 pub struct Scope {
     pub parent: Option<Box<Scope>>,
@@ -50,11 +50,11 @@ impl Scope {
         }
         None
     }
-    pub fn define(&mut self, var_name: String, value: Value) {
+    pub fn define(&mut self, var_name: impl Display, value: Value) {
         if let Value::Struct(obj) = &value {
-            self.structs.insert(var_name.clone(), obj.clone());
+            self.structs.insert(var_name.to_string(), obj.clone());
         }
-        self.vars.insert(var_name, value);
+        self.vars.insert(var_name.to_string(), value);
     }
 
     pub fn new(

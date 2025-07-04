@@ -6,11 +6,11 @@ Ok(
     FieldAccess {
         target: FieldAccess {
             target: FieldAccess {
-                target: Var(a) at 0:1,
-                requested: Var(b) at 2:3,
-            } at 0:3,
-            requested: Var(c) at 4:5,
-        } at 0:5,
-        requested: Var(d) at 6:7,
-    } at 0:7,
+                target: Var(a)[0,1],
+                requested: Var(b)[2,3],
+            }[0,3],
+            requested: Var(c)[4,5],
+        }[0,5],
+        requested: Var(d)[6,7],
+    }[0,7],
 )

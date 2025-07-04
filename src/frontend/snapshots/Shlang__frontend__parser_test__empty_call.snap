@@ -4,7 +4,7 @@ expression: "parse_expr (\"a();\")"
 ---
 Ok(
     Call {
-        callee: Var(a) at 0:1,
+        callee: Var(a)[0,1],
         args: [],
-    } at 2:3,
+    }[2,3],
 )

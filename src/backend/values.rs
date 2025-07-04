@@ -1,11 +1,24 @@
+use dyn_clone::DynClone;
 use rayon::prelude::*;
-use slotmap::new_key_type;
+use slotmap::{new_key_type, SlotMap};
 use std::{
+    any::Any,
     collections::HashMap,
+    env,
     fmt::{Debug, Display},
+    sync::Arc,
 };
 
-use crate::{backend::scope::Scope, frontend::nodes::NodeStream, spans::Span, Interpreter};
+use crate::{
+    backend::{
+        interpreter::{EvalRes, IError},
+        scope::Scope,
+    },
+    frontend::nodes::NodeStream,
+    lang_errors::InterpreterError,
+    spans::{IntoSpanned, Span},
+    Interpreter,
+};
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Closure(Closure),
@@ -19,23 +32,9 @@ pub enum Value {
     Struct(Struct),
     Ref(RefKey),
     List(Vec<Value>),
+    NativeObject(NativeObject),
 }
-pub trait ValueRepr {
-    fn repr(&self) -> String;
-}
-pub type TypedValue = (Value, Type);
-pub fn list_join(list: &[Value], seperator: &str) -> String {
-    if list.is_empty() {
-        return "[]".to_owned();
-    }
-    let out = String::from_par_iter(list.par_iter().enumerate().map(|(i, v)| {
-        if i == list.len() - 1 {
-            return v.to_string();
-        }
-        v.to_string() + seperator
-    }));
-    return format!("[{out}]");
-}
+
 impl Value {
     pub fn get_type(&self) -> Type {
         match self {
@@ -50,6 +49,7 @@ impl Value {
                 Some(id) => Type::Struct(id.clone()),
                 None => Type::AnonStruct,
             },
+            Value::NativeObject(obj) => Type::Struct(obj.id.clone()),
             Value::Closure(_) => Type::Closure,
             Value::Ref(_) => Type::Ref,
         }
@@ -62,22 +62,19 @@ impl Value {
         self.get_type() == val.get_type()
     }
 }
-impl ValueRepr for Value {
-    fn repr(&self) -> String {
-        match self {
-            Self::Num(num) => num.to_string(),
-            Self::Bool(cond) => cond.to_string(),
-            Self::Str(txt) => format!("\"{txt}\""),
-            Self::Null => "null".to_string(),
-            Self::Void => "void".to_string(),
-            Self::List(list) => list_join(list, ","),
-            Self::Struct(obj) => obj.repr(),
-            Self::Function(func) => func.repr(),
-            Self::Closure(cl) => cl.repr(),
-            Self::Ref(id) => format!("ref {:?}", id),
-            _ => "unnamed".to_string(),
-        }
+
+pub type TypedValue = (Value, Type);
+pub fn list_join(list: &[Value], seperator: &str) -> String {
+    if list.is_empty() {
+        return "[]".to_owned();
     }
+    let out = String::from_iter(list.iter().enumerate().map(|(i, v)| {
+        if i == list.len() - 1 {
+            return v.to_string();
+        }
+        v.to_string() + seperator
+    }));
+    return format!("[{out}]");
 }
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -88,9 +85,10 @@ impl Display for Value {
             Self::Null => "null".to_string(),
             Self::Void => "void".to_string(),
             Self::List(list) => list_join(list, ","),
-            Self::Struct(obj) => obj.repr(),
-            Self::Function(func) => func.repr(),
-            Self::Closure(cl) => cl.repr(),
+            Self::Struct(obj) => obj.to_string(),
+            Self::Function(func) => func.to_string(),
+            Self::Closure(cl) => cl.to_string(),
+            Self::NativeObject(obj) => format!("{id}{{native}}", id = obj.id),
             Self::Ref(id) => format!("ref {:?}", id),
             _ => "unnamed".to_string(),
         };
@@ -98,12 +96,49 @@ impl Display for Value {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
+pub enum Control {
+    Return(Value),
+    Result(Value),
+    Value(Value),
+    Break,
+    Continue,
+}
+impl From<Value> for Control {
+    fn from(value: Value) -> Self {
+        Self::Value(value)
+    }
+}
+impl Control {
+    pub fn into_val(self) -> Value {
+        match self {
+            Control::Result(v) | Control::Return(v) | Control::Value(v) => v,
+            _ => panic!("Control node doesnt have a value"),
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct Struct {
     pub id: Option<String>,
     pub env: Scope,
 }
 impl Struct {
+    pub fn method(
+        &mut self,
+        name: impl ToString,
+        arg_range: Option<(u8, u8)>,
+        func: FuncPtr,
+    ) -> &mut Self {
+        self.prop(
+            name.to_string(),
+            Value::BuiltinFunc(BuiltinFunc {
+                function: func,
+                arg_range,
+                id: name.to_string(),
+            }),
+        )
+    }
+
     pub fn get_prop(&self, prop: impl AsRef<str>) -> Option<Value> {
         return self.env.get_var(prop);
     }
@@ -113,9 +148,52 @@ impl Struct {
             _ => None,
         }
     }
+    pub fn new(name: impl ToString) -> Self {
+        let name = name.to_string();
+        return Self {
+            id: if name.is_empty() { None } else { Some(name) },
+            env: Scope::default(),
+        };
+    }
+    pub fn set_props(&mut self, env: VarMap) -> &mut Self {
+        self.env = Scope::from_vars(env);
+        return self;
+    }
+    pub fn prop(&mut self, name: impl ToString, value: Value) -> &mut Self {
+        self.env.define(name.to_string(), value);
+        return self;
+    }
+
+    pub fn call_method(
+        &self,
+        name: impl Display,
+        data: FuncData,
+        ctx: &mut Interpreter,
+        key: RefKey,
+    ) -> EvalRes<Value> {
+        let Some(method) = self.get_method(name.to_string()) else {
+            return Err(
+                IError::MethodNotFound(name.to_string(), self.id.to_owned()).to_spanned(data.span)
+            );
+        };
+        let mut args = vec![Value::Ref(key)];
+        args.extend_from_slice(&data.args);
+        ctx.call_func(method, args, data.span, data.parent)
+    }
+    pub fn insert(&self, heap: &mut SlotMap<RefKey, Value>) -> Value {
+        let id = heap.insert(Value::Struct(self.clone()));
+        return Value::Ref(id);
+    }
+    pub fn has_method(&self, name: impl Display) -> bool {
+        let Some(value) = self.env.get_var(name.to_string()) else {
+            return false;
+        };
+        value.get_type() == Type::Function
+    }
 }
-impl ValueRepr for Struct {
-    fn repr(&self) -> String {
+
+impl Display for Struct {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut buffer = if let Some(name) = &self.id {
             name.to_owned()
         } else {
@@ -126,13 +204,13 @@ impl ValueRepr for Struct {
         for (index, (k, v)) in vars.iter().enumerate() {
             buffer += k;
             buffer += ":";
-            buffer += &v.repr();
+            buffer += &v.to_string();
             if index < vars.len() - 1 {
                 buffer += ", "
             }
         }
         buffer += "}";
-        buffer
+        write!(f, "{buffer}")
     }
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -147,9 +225,9 @@ impl From<Closure> for Value {
         Value::Closure(x)
     }
 }
-impl ValueRepr for Closure {
-    fn repr(&self) -> String {
-        let mut buffer = String::from("$(");
+impl Display for Closure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut buffer = String::from("@(");
         for i in &self.args {
             buffer += i;
             if self.args.last().unwrap() != i {
@@ -157,7 +235,7 @@ impl ValueRepr for Closure {
             }
         }
         buffer += ") ";
-        buffer
+        write!(f, "{buffer}")
     }
 }
 #[derive(Clone, Debug, PartialEq)]
@@ -178,8 +256,8 @@ impl Function {
         Self { block, args }
     }
 }
-impl ValueRepr for Function {
-    fn repr(&self) -> String {
+impl Display for Function {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut buffer = String::from("func(");
         for i in &self.args {
             buffer += i;
@@ -188,7 +266,7 @@ impl ValueRepr for Function {
             }
         }
         buffer += ") ";
-        buffer
+        write!(f, "{buffer}")
     }
 }
 impl From<Function> for Value {
@@ -209,11 +287,13 @@ pub struct FuncData<'a> {
     pub parent: &'a mut Scope,
 }
 
-/// The result of the function
-///
-/// - Ok(Value) Normal value wont affect control flow
-/// - Err(Value) Will stop control flow
-pub type FuncResult = Result<Value, Value>;
+#[derive(Debug)]
+pub enum CallError {
+    Major(InterpreterError),
+    Panic(Value),
+}
+
+pub type FuncResult<T = Value> = Result<T, CallError>;
 
 type FuncPtr = fn(FuncData, &mut Interpreter) -> FuncResult;
 
@@ -251,7 +331,48 @@ impl From<BuiltinFunc> for Value {
         Value::BuiltinFunc(x)
     }
 }
+pub struct NativeConstructorData<'a> {
+    pub arguments: VarMap,
+    pub span: Span,
+    pub parent: &'a mut Scope,
+}
+/// The result of the Native Constructor
+///
+/// - Ok(NativeObject) Object was constructed correctly
+/// - Err(String) Object was not constructed correctly,
+pub type NativeConstructorResult = Result<NativeObject, String>;
 
+pub type NativeConstructor = fn(NativeConstructorData, &mut Interpreter) -> NativeConstructorResult;
+pub type NativeFuncResult<T = Value> = Result<T, NativeCallError>;
+#[derive(Debug)]
+pub enum NativeCallError {
+    MethodNotFound,
+    Unspecified(String),
+    Panic(Value),
+}
+pub trait NativeTrait: Debug + Any + DynClone {
+    fn lang_call(&mut self, name: &str, ctx: &mut Interpreter, data: FuncData) -> NativeFuncResult;
+}
+dyn_clone::clone_trait_object!(NativeTrait);
+
+#[derive(Clone, Debug)]
+pub struct NativeObject {
+    pub id: String,
+    pub inner: Box<dyn NativeTrait>,
+}
+impl NativeObject {
+    pub fn new(id: impl Display, inner: impl NativeTrait) -> Self {
+        return Self {
+            id: id.to_string(),
+            inner: Box::new(inner),
+        };
+    }
+}
+impl PartialEq for NativeObject {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
     Null,

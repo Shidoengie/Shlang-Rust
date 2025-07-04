@@ -56,10 +56,17 @@ pub trait LangError {
     {
         err_out.emit(self.msg().as_str(), self.get_span());
     }
+    fn err<T>(self) -> Result<T, Self>
+    where
+        Self: Sized,
+    {
+        return Err(self);
+    }
 }
 
 #[derive(Clone, Debug)]
 pub enum ParseError {
+    Unspecified(String),
     InvalidToken(TokenType, TokenType),
     UnexpectedToken(TokenType),
     UnexpectedToplevel(TokenType),
@@ -81,6 +88,7 @@ impl LangError for Spanned<ParseError> {
             UnterminatedParetheses(_) => "Unterminated parentheses".to_string(),
             UnexpectedFieldNode(_) => "Invalid Node in struct feilds".to_string(),
             UnexpectedVoidExpression => "Unexpected void expression".to_string(),
+            Unspecified(err) => err.to_owned(),
         }
     }
 }
@@ -92,6 +100,7 @@ pub enum InterpreterError {
     InvalidControl,
     VoidAssignment,
     NonExistentVar(String),
+    MethodNotFound(String, Option<String>),
     InvalidAssignment(String),
     InvalidConstructor,
     InvalidOp(BinaryOp, Type),
@@ -105,6 +114,12 @@ impl LangError for Spanned<InterpreterError> {
     fn msg(&self) -> String {
         use InterpreterError::*;
         match &self.item {
+            MethodNotFound(method, ty) => {
+                let Some(obj) = ty else {
+                    return format!("Method {method} not found.");
+                };
+                format!("Method {method} not found on {obj} ")
+            }
             MixedTypes(first, last) => format!("Mixed types: {first:?} and {last:?}"),
 
             InvalidType(accepted, got) => {

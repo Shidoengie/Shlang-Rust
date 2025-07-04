@@ -1,10 +1,10 @@
-use super::defaults::global_methods;
 use super::scope::Scope;
 use super::values::*;
-use crate::backend::defaults;
-use crate::backend::defaults::default_scope;
+use crate::backend::{
+    defaults::{self, default_scope, global_methods, native_objects},
+    values::Value,
+};
 
-use crate::backend::values::Value;
 use crate::catch;
 use crate::frontend::nodes::*;
 use crate::hashmap;
@@ -16,22 +16,6 @@ use slotmap::SlotMap;
 use std::collections::HashMap;
 use std::*;
 
-#[derive(Clone, Debug)]
-pub enum Control {
-    Return(Value),
-    Result(Value),
-    Value(Value),
-    Break,
-    Continue,
-}
-impl Control {
-    pub fn into_val(self) -> Value {
-        match self {
-            Control::Result(v) | Control::Return(v) | Control::Value(v) => v,
-            _ => panic!("Control node doesnt have a value"),
-        }
-    }
-}
 macro_rules! unwrap_val {
     ($val:expr) => {
         match $val {
@@ -53,6 +37,7 @@ pub struct Interpreter {
     pub heap: SlotMap<RefKey, Value>,
     pub envs: SlotMap<EnvKey, Scope>,
     pub functions: HashMap<String, Function>,
+    pub native_constructors: HashMap<String, NativeConstructor>,
 }
 
 ///Interface with the interpreter
@@ -61,6 +46,7 @@ impl Interpreter {
         Self {
             program,
             functions,
+            native_constructors: native_objects::native_constructors(),
             heap: SlotMap::with_key(),
             envs: SlotMap::with_key(),
         }
@@ -70,12 +56,14 @@ impl Interpreter {
         functions: HashMap<String, Function>,
         heap: SlotMap<RefKey, Value>,
         envs: SlotMap<EnvKey, Scope>,
+        native_constructors: HashMap<String, NativeConstructor>,
     ) -> Self {
         Self {
             program,
             functions,
             heap,
             envs,
+            native_constructors,
         }
     }
     pub fn execute(&mut self) -> EvalRes<Value> {
@@ -94,20 +82,10 @@ impl Interpreter {
                 last = val;
                 continue;
             }
-            return Err(IError::InvalidControl.to_spanned(node.span));
+            return IError::InvalidControl.to_spanned(node.span).err();
         }
 
         Ok(last)
-    }
-
-    pub fn execute_node(node: NodeSpan) -> EvalRes<Control> {
-        Self {
-            envs: SlotMap::with_key(),
-            program: vec![],
-            heap: SlotMap::with_key(),
-            functions: HashMap::new(),
-        }
-        .eval_node(&node, &mut Scope::default())
     }
 
     pub fn parse_vars(&mut self, mut parent: Scope) -> EvalRes<Scope> {
@@ -152,7 +130,7 @@ impl Interpreter {
             Node::ForLoop(for_loop) => self.eval_for_loop(for_loop, parent),
             Node::BreakNode => Ok(Control::Break),
             Node::ContinueNode => Ok(Control::Continue),
-            Node::Declaration(declaration) => self.declare(declaration, parent),
+            Node::Declaration(declaration) => self.declare(&declaration, parent, false),
             Node::Assignment(ass) => self.assign(ass, parent),
             Node::While(obj) => self.eval_while_loop(obj, parent),
             Node::Loop(obj) => self.eval_loop(obj, parent),
@@ -432,18 +410,32 @@ impl Interpreter {
 
 ///Variable declaration and execution
 impl Interpreter {
-    fn declare(&mut self, request: Declaration, parent: &mut Scope) -> EvalRes<Control> {
+    fn declare(
+        &mut self,
+        request: &Declaration,
+        parent: &mut Scope,
+        in_struct: bool,
+    ) -> EvalRes<Control> {
         let value = match unwrap_val!(self.eval_node(&request.value, parent)?) {
             Value::Closure(cl) => {
                 let scope = &mut self.envs[cl.env];
                 scope.define(request.var_name.clone(), Value::Closure(cl.clone()));
                 Value::Closure(cl)
             }
+            Value::Function(func)
+                if in_struct && (request.var_name == "__repr" && func.args.len() != 1) =>
+            {
+                return unspec_err(
+                    "__repr should accept exactly 1 argument",
+                    request.value.span,
+                );
+            }
+
             Value::Void => return Err(IError::VoidAssignment.to_spanned(request.value.span)),
             value => value,
         };
 
-        parent.define(request.var_name, value);
+        parent.define(request.var_name.to_owned(), value);
 
         VOID
     }
@@ -534,7 +526,23 @@ impl Interpreter {
                 &mut defaults::list_struct().env,
                 Value::Ref(id),
             ),
+            Value::NativeObject(obj) => {
+                self.access_native_object(id, obj.clone(), requested, base_env)
+            }
             val => self.eval_access(val.clone(), requested, base_env, parent),
+        }
+    }
+    fn access_native_object(
+        &mut self,
+        id: RefKey,
+        obj: NativeObject,
+        requested: NodeSpan,
+        base_env: &mut Scope,
+    ) -> EvalRes<Control> {
+        match requested.item.clone() {
+            Node::Call(request) => self.eval_native_method(request, id, obj, base_env),
+            Node::Variable(name) => todo!(),
+            _ => unimplemented!(),
         }
     }
     fn access_struct(
@@ -667,7 +675,7 @@ impl Interpreter {
 
         self.envs[id] = env;
 
-        return Ok(result);
+        return Ok(result.into());
     }
 }
 
@@ -706,7 +714,8 @@ impl Interpreter {
         match func_val {
             Value::BuiltinFunc(func) => self.call_builtin(func, arg_values, arg_span, parent),
             Value::Function(called) => {
-                self.call_func(called, arg_values, request.callee.span, parent)
+                let res = self.call_func(called, arg_values, request.callee.span, parent)?;
+                Ok(res.into())
             }
             Value::Closure(id) => self.call_closure(id, arg_values, request.callee.span),
             _ => return type_err(Type::Function, func_val.get_type(), request.callee.span),
@@ -719,7 +728,7 @@ impl Interpreter {
         args: Vec<Value>,
         span: Span,
         parent: &mut Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes<Value> {
         if args.len() != called.args.len() {
             return Err(
                 IError::InvalidArgSize(called.args.len() as u32, args.len() as u32)
@@ -727,7 +736,7 @@ impl Interpreter {
             );
         }
         let arg_map = self.build_args(&called, args);
-        let arg_scope = Scope::new(None, arg_map, HashMap::new());
+        let arg_scope = Scope::from_vars(arg_map);
         let result = self.eval_block_with(called.block, parent, arg_scope)?;
         match result {
             Control::Continue | Control::Break => {
@@ -737,7 +746,7 @@ impl Interpreter {
                 if val.is_void() {
                     return unspec_err("Attempted to return void", span);
                 }
-                return Ok(Control::Value(val));
+                return Ok(val);
             }
         }
     }
@@ -748,10 +757,42 @@ impl Interpreter {
         }
         arg_map
     }
+    fn handle_panic(&mut self, err: Value, span: Span) -> EvalRes<Value> {
+        let val = if let Value::Ref(key) = err {
+            self.heap[key].clone()
+        } else {
+            err
+        };
+        match &val {
+            Value::Struct(obj) => {
+                let Some(ref id) = obj.id else {
+                    return Err(IError::Panic(val.to_string()).to_spanned(span));
+                };
+                if id != "Error" {
+                    return Err(IError::Panic(val.to_string()).to_spanned(span));
+                }
+                let msg = obj.env.get_var("msg").unwrap();
+                return Err(IError::Panic(msg.to_string()).to_spanned(span));
+            }
+            _ => return Err(IError::Panic(val.to_string()).to_spanned(span)),
+        }
+    }
+    fn handle_func_results(&mut self, result: FuncResult, span: Span) -> EvalRes<Value> {
+        Ok(catch! { err {
+            use CallError as Ce;
 
+            match err {
+                Ce::Major(val) => return Err(val.to_spanned(span)),
+                Ce::Panic(val) => return self.handle_panic(val, span),
+            }
+
+            } in result
+        })
+    }
     fn call_builtin(
         &mut self,
         called: BuiltinFunc,
+
         arg_values: Vec<Value>,
         span: Span,
         parent: &mut Scope,
@@ -762,32 +803,108 @@ impl Interpreter {
             span,
             parent,
         };
-        let result = catch! {err {
-            let val = if let Value::Ref(key) = err {
-                self.heap[key].clone()
-            } else {
-                err
-            };
-            match &val {
-                Value::Struct(obj) => {
-                    let Some(ref id) = obj.id else {
-                        return Err(IError::Panic(val.to_string()).to_spanned(span));
-                    };
-                    if id != "Error" {
-                        return Err(IError::Panic(val.to_string()).to_spanned(span));
-                    }
-                    let msg = obj.env.get_var("msg").unwrap();
-                    return Err(IError::Panic(msg.to_string()).to_spanned(span));
-                }
-                _ => return Err(IError::Panic(val.to_string()).to_spanned(span)),
-            }
-            } in (called.function)(data,self)
-        };
-
-        Ok(Control::Value(result))
+        let result = (called.function)(data, self);
+        Ok(Control::Value(self.handle_func_results(result, span)?))
     }
 }
+///Native object handling
+impl Interpreter {
+    fn construct_native_object(
+        &mut self,
+        constructor: Constructor,
 
+        parent: &mut Scope,
+        span: Span,
+    ) -> EvalRes<Control> {
+        if !self.native_constructors.contains_key(&constructor.name) {
+            return unspec_err("Attempted to get a non existent struct", span);
+        }
+        let mut params = HashMap::<String, Value>::new();
+        for (k, v) in constructor.params {
+            let result = self.eval_node(&v, parent)?;
+            params.insert(k, unwrap_val!(result));
+        }
+        let native_constructor = self.native_constructors.get(&constructor.name).unwrap();
+
+        let constructor_data = NativeConstructorData {
+            arguments: params,
+            parent,
+            span,
+        };
+
+        let obj = catch!( err {
+            return unspec_err(err, span);
+        } in native_constructor(constructor_data,self));
+        let key = self.heap.insert(Value::NativeObject(obj));
+        Ok(Control::Value(Value::Ref(key)))
+    }
+    fn eval_constructor(
+        &mut self,
+        constructor: Constructor,
+        parent: &mut Scope,
+        span: Span,
+    ) -> EvalRes<Control> {
+        let Ok(request) = self.get_struct(&constructor.name, span, parent) else {
+            return self.construct_native_object(constructor, parent, span);
+        };
+        let struct_val = self.construct_fields(request, constructor.params, parent)?;
+        let key = self.heap.insert(unwrap_val!(struct_val));
+        Ok(Control::Value(Value::Ref(key)))
+    }
+    fn native_method_results(
+        &mut self,
+        result: NativeFuncResult,
+        requested: &str,
+        target: &str,
+        span: Span,
+    ) -> EvalRes<Value> {
+        Ok(catch! { err {
+            use NativeCallError as Ce;
+
+            match err {
+                Ce::MethodNotFound => return IError::MethodNotFound(
+                    requested.to_owned(),Some(target.to_owned())
+                ).to_spanned(span).err(),
+                Ce::Unspecified(msg) => return Err(IError::Unspecified(msg).to_spanned(span)),
+                Ce::Panic(val) => return self.handle_panic(val, span),
+            }
+
+            } in result
+        })
+    }
+    fn eval_native_method(
+        &mut self,
+        request: Call,
+        id: RefKey,
+        mut obj: NativeObject,
+        base_env: &mut Scope,
+    ) -> EvalRes<Control> {
+        let Node::Variable(method) = &request.callee.item else {
+            unimplemented!()
+        };
+        let call_args = request.args;
+        let mut args: Vec<Value> = vec![];
+        for arg in call_args.iter() {
+            let argument = unwrap_val!(self.eval_node(arg, base_env)?);
+
+            args.push(self.capture_fn(argument, base_env));
+        }
+        let arg_span = if !call_args.is_empty() {
+            Span(request.callee.span.1 + 1, call_args.last().unwrap().span.1)
+        } else {
+            Span(request.callee.span.1 + 1, request.callee.span.1 + 2)
+        };
+        let data = FuncData {
+            args,
+            span: arg_span,
+            parent: base_env,
+        };
+        let res = obj.inner.lang_call(&method, self, data);
+        let val = self.native_method_results(res, &method, &obj.id, arg_span)?;
+        self.heap[id] = Value::NativeObject(obj);
+        return Ok(Control::Value(val));
+    }
+}
 ///Struct handling
 impl Interpreter {
     fn eval_method(
@@ -800,10 +917,12 @@ impl Interpreter {
         let Node::Variable(method) = &request.callee.item else {
             unimplemented!()
         };
+
         let func_val = match obj_env.get_var(method) {
             None => {
                 let Some(global) = global_methods().get_var(method) else {
-                    return unspec_err("Undefined method", request.callee.span);
+                    return Err(IError::MethodNotFound(method.to_owned(), None)
+                        .to_spanned(request.callee.span));
                 };
                 global
             }
@@ -811,8 +930,10 @@ impl Interpreter {
         };
 
         let call_args = request.args;
+
         let mut arg_values: Vec<Value> = vec![obj];
         match func_val {
+            // This is done so as to when a method has no arguments we wont be passing implicit self
             Value::BuiltinFunc(ref func) => {
                 if func.arg_range.is_some_and(|range| range == (0, 0)) {
                     arg_values = vec![];
@@ -843,7 +964,8 @@ impl Interpreter {
         match func_val {
             Value::BuiltinFunc(func) => self.call_builtin(func, arg_values, arg_span, obj_env),
             Value::Function(called) => {
-                self.call_func(called, arg_values, request.callee.span, obj_env)
+                let res = self.call_func(called, arg_values, request.callee.span, obj_env)?;
+                Ok(res.into())
             }
             Value::Closure(called) => self.call_closure(called, arg_values, request.callee.span),
             _ => type_err(Type::Function, func_val.get_type(), request.callee.span),
@@ -875,21 +997,14 @@ impl Interpreter {
         }
         Ok(Control::Value(Value::Struct(obj.clone())))
     }
-    fn eval_constructor(
-        &mut self,
-        constructor: Constructor,
-        parent: &mut Scope,
-        span: Span,
-    ) -> EvalRes<Control> {
-        let request = self.get_struct(&constructor.name, span, parent)?;
-        let struct_val = self.construct_fields(request, constructor.params, parent)?;
-        let key = self.heap.insert(unwrap_val!(struct_val));
-        Ok(Control::Value(Value::Ref(key)))
-    }
 
     fn eval_structdef(&mut self, def: StructDef, parent: &mut Scope) -> EvalRes<Control> {
         let mut struct_env = Scope::default();
         for field in def.fields {
+            if let Field::Declaration(decl) = &field.item {
+                self.declare(decl, &mut struct_env, true)?;
+                continue;
+            }
             self.eval_node(&field.to_node(), &mut struct_env)?;
         }
         let mut obj = Struct {
@@ -958,10 +1073,12 @@ impl Interpreter {
     }
 }
 fn unspec_err<T>(msg: impl Display, span: Span) -> EvalRes<T> {
-    return Err(IError::Unspecified(msg.to_string()).to_spanned(span));
+    return IError::Unspecified(msg.to_string()).to_spanned(span).err();
 }
 fn type_err<T>(expected: Type, got: Type, span: Span) -> EvalRes<T> {
-    return Err(IError::InvalidType(vec![expected], got).to_spanned(span));
+    return IError::InvalidType(vec![expected], got)
+        .to_spanned(span)
+        .err();
 }
 fn check_args(arg_range: Option<(u8, u8)>, given_size: usize, mut span: Span) -> EvalRes<()> {
     let Some(range) = arg_range else {

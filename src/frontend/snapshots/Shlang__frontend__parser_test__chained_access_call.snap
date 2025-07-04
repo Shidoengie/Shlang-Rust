@@ -7,25 +7,25 @@ Ok(
         target: FieldAccess {
             target: FieldAccess {
                 target: FieldAccess {
-                    target: Var(a) at 0:1,
+                    target: Var(a)[0,1],
                     requested: Call {
-                        callee: Var(b) at 2:3,
+                        callee: Var(b)[2,3],
                         args: [],
-                    } at 4:5,
-                } at 2:5,
+                    }[4,5],
+                }[2,5],
                 requested: Call {
-                    callee: Var(c) at 6:7,
+                    callee: Var(c)[6,7],
                     args: [],
-                } at 8:9,
-            } at 6:9,
+                }[8,9],
+            }[6,9],
             requested: Call {
-                callee: Var(d) at 10:11,
+                callee: Var(d)[10,11],
                 args: [],
-            } at 12:13,
-        } at 10:13,
+            }[12,13],
+        }[10,13],
         requested: Call {
-            callee: Var(e) at 14:15,
+            callee: Var(e)[14,15],
             args: [],
-        } at 16:17,
-    } at 14:17,
+        }[16,17],
+    }[14,17],
 )

@@ -5,12 +5,12 @@ expression: "parse_expr (\"a.b().c\")"
 Ok(
     FieldAccess {
         target: FieldAccess {
-            target: Var(a) at 0:1,
+            target: Var(a)[0,1],
             requested: Call {
-                callee: Var(b) at 2:3,
+                callee: Var(b)[2,3],
                 args: [],
-            } at 4:5,
-        } at 2:5,
-        requested: Var(c) at 6:7,
-    } at 2:7,
+            }[4,5],
+        }[2,5],
+        requested: Var(c)[6,7],
+    }[2,7],
 )

@@ -4,7 +4,7 @@ expression: "parse_expr (\"b = 1;\")"
 ---
 Ok(
     Assignment {
-        target: Var(b) at 0:1,
-        value: Number(1) at 4:5,
-    } at 0:5,
+        target: Var(b)[0,1],
+        value: Number(1)[4,5],
+    }[0,5],
 )

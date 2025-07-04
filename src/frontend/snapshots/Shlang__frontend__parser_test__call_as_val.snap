@@ -6,13 +6,13 @@ Ok(
     BinaryNode {
         kind: Add,
         left: Call {
-            callee: Var(a) at 0:1,
+            callee: Var(a)[0,1],
             args: [
-                Number(1) at 2:3,
-                Number(1) at 4:5,
-                Number(1) at 6:7,
+                Number(1)[2,3],
+                Number(1)[4,5],
+                Number(1)[6,7],
             ],
-        } at 2:8,
-        right: Number(1) at 9:10,
-    } at 2:10,
+        }[2,8],
+        right: Number(1)[9,10],
+    }[2,10],
 )

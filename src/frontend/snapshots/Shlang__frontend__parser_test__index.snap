@@ -4,7 +4,7 @@ expression: "parse_expr (\"a[1]\")"
 ---
 Ok(
     Index {
-        target: Var(a) at 0:1,
-        index: Number(1) at 2:3,
-    } at 2:4,
+        target: Var(a)[0,1],
+        index: Number(1)[2,3],
+    }[2,4],
 )

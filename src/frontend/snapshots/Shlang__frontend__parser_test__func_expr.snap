@@ -6,6 +6,6 @@ Ok(
     Function(b){
         Result(
             Number(1),
-        ) at 8:9,
-    } at 4:10,
+        )[8,9],
+    }[4,10],
 )

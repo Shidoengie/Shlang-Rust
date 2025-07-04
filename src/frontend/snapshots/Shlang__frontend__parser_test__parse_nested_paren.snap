@@ -7,13 +7,13 @@ Ok(
         kind: Add,
         left: BinaryNode {
             kind: Add,
-            left: Number(1) at 2:3,
-            right: Number(2) at 4:5,
-        } at 2:5,
+            left: Number(1)[2,3],
+            right: Number(2)[4,5],
+        }[2,5],
         right: BinaryNode {
             kind: Add,
-            left: Number(1) at 8:9,
-            right: Number(2) at 10:11,
-        } at 8:11,
-    } at 2:11,
+            left: Number(1)[8,9],
+            right: Number(2)[10,11],
+        }[8,11],
+    }[2,11],
 )

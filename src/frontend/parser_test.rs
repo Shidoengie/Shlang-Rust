@@ -6,7 +6,7 @@ use std::*;
 
 fn parse_expr(source: &str) -> ParseRes<NodeSpan> {
     let mut parser = Parser::new(source);
-    parser.parse_expr()
+    parser.parse_expr(false)
 }
 macro_rules! test_func {
     ($func:expr,($($name:ident : $input:expr)*)) => {

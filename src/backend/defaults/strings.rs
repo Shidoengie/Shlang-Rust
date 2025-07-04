@@ -6,7 +6,8 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 
 pub fn str_struct() -> Struct {
-    let env = vars![
+    let mut str = Struct::default();
+    str.set_props(vars![
         parse_num(parse_num, 1),
         substr(3),
         len(1),
@@ -19,11 +20,8 @@ pub fn str_struct() -> Struct {
         has(has_val, 2),
         as_error(into_err,1),
         repeat(2)
-    ];
-    Struct {
-        id: None,
-        env: Scope::new(None, env, HashMap::from([])),
-    }
+    ]);
+    str
 }
 fn repeat(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(

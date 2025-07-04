@@ -29,7 +29,7 @@ impl<T> Spanned<T> {
 }
 impl<T: Debug> Debug for Spanned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:#?} at {:?}", self.item, self.span)
+        write!(f, "{:#?}[{:?},{:?}]", self.item, self.span.0, self.span.1)
     }
 }
 impl<T: Clone> Spanned<Box<T>> {

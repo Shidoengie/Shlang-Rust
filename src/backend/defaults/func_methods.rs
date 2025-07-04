@@ -5,16 +5,13 @@ use crate::lang_errors::LangError;
 use crate::{get_params, Interpreter};
 
 pub fn func_struct() -> Struct {
-    let env = vars![
+    let mut fnstr = Struct::default();
+    fnstr.set_props(vars![
         call_with(call_func_with,2=>3),
         arg_len(count_args, 1),
         args(get_args,1)
-    ];
-
-    Struct {
-        id: None,
-        env: Scope::from_vars(env),
-    }
+    ]);
+    fnstr
 }
 fn call_func_with(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
@@ -47,5 +44,5 @@ fn call_func_with(data: FuncData, state: &mut Interpreter) -> FuncResult {
     let res = catch!( err {
         return Ok(create_err(err.msg(), &mut state.heap));
     } in state.call_func(func.clone(),args,data.span ,&mut env_obj.env));
-    return Ok(res.into_val());
+    return Ok(res);
 }

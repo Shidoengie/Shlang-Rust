@@ -1,5 +1,5 @@
 use super::*;
-use crate::backend::interpreter::Control;
+use crate::backend::values::Control;
 use crate::catch;
 use crate::lang_errors::LangError;
 use crate::{get_params, Interpreter};
@@ -16,10 +16,10 @@ fn catch_err(data: FuncData, state: &mut Interpreter) -> FuncResult {
     let func = match &data.args[1] {
         Value::Closure(cl) => cl,
         v => {
-            return Err(Value::Str(format!(
+            return Err(CallError::Panic(Value::Str(format!(
                 "Expected type Closure but got type {}",
                 v.get_type()
-            )))
+            ))))
         }
     };
     if let Value::Ref(id) = val {
@@ -35,7 +35,7 @@ fn catch_err(data: FuncData, state: &mut Interpreter) -> FuncResult {
 
     let res = catch!(
         err {
-            return Err(create_err(err.msg(), &mut state.heap));
+            return Err(CallError::Panic(create_err(err.msg(), &mut state.heap)));
         } in state.call_closure(func.to_owned(), vec![val.clone()], data.span)
     );
     let Control::Value(val) = res else {

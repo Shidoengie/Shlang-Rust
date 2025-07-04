@@ -1,28 +1,33 @@
 mod closures;
 mod func_methods;
 mod functions;
+
 mod global_methods;
 mod lists;
+pub mod native_objects;
 mod numbers;
 mod strings;
-
 use crate::backend::scope::Scope;
 use crate::frontend::nodes::*;
 use crate::vars;
 use crate::vars_internal;
-pub use closures::*;
 
 use crate::backend::values::*;
-pub use func_methods::*;
+use crate::Interpreter;
+
 use functions::*;
+
+pub use closures::*;
+pub use func_methods::*;
 pub use global_methods::*;
 pub use lists::*;
 pub use numbers::*;
+pub use strings::*;
+
 use slotmap::SlotMap;
 use std::collections::HashMap;
 use std::f64::consts::{E, PI, TAU};
 use std::fmt::Display;
-pub use strings::*;
 const NULL: FuncResult = Ok(Value::Null);
 
 pub fn default_scope() -> Scope {
@@ -31,6 +36,7 @@ pub fn default_scope() -> Scope {
         PI => Value::Num(PI),
         E => Value::Num(E),
         TAU => Value::Num(TAU),
+
         print_err(print_err,1),
         wait(wait_builtin,1),
         time(unix_time),
@@ -71,7 +77,7 @@ pub fn default_scope() -> Scope {
         open_file(open_textfile,1),
         create_file(1),
         create_dir(1),
-        write_file(2)
+        write_file(2),
     ];
     let structs = vars! {
         Error => error_struct(String::new()),
@@ -86,20 +92,18 @@ pub fn default_scope() -> Scope {
 }
 
 fn error_struct(msg: String) -> Struct {
-    let props = vars![
+    let mut obj = Struct::new("Error");
+    obj.set_props(vars![
         msg => Value::Str(msg),
         panic(emit_panic,1)
-    ];
-    Struct {
-        id: Some("Error".to_string()),
-        env: Scope::from_vars(props),
-    }
+    ]);
+    obj
 }
 
 fn create_err(msg: impl Display, heap: &mut SlotMap<RefKey, Value>) -> Value {
     let err_obg = error_struct(msg.to_string());
-    let id = heap.insert(Value::Struct(err_obg));
-    return Value::Ref(id);
+
+    return err_obg.insert(heap);
 }
 fn type_err_obj(expected: &Type, got: &Type, at: i32, heap: &mut SlotMap<RefKey, Value>) -> Value {
     create_err(
@@ -294,182 +298,182 @@ macro_rules! get_params {
 macro_rules! assert_params {
     ($param1:pat = $type1:expr ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
                 &mut $state.heap,
-            ));
+            )));
         };
     };
     ($param1:pat = $type1:expr,$param2:pat = $type2:expr ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param2 = &$data.args[1] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
                 &mut $state.heap,
-            ));
+            )));
         };
     };
     ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr  ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param2 = &$data.args[1] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param3 = &$data.args[2] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
                 &mut $state.heap,
-            ));
+            )));
         };
     };
     ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr  ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param2 = &$data.args[1] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param3 = &$data.args[2] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param4 = &$data.args[3] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type4,
                 &$data.args[3].get_type(),
                 4,
                 &mut $state.heap,
-            ));
+            )));
         };
     };
     ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr ; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param2 = &$data.args[1] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param3 = &$data.args[2] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param4 = &$data.args[3] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type4,
                 &$data.args[3].get_type(),
                 4,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param5 = &$data.args[4] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type5,
                 &$data.args[4].get_type(),
                 5,
                 &mut $state.heap,
-            ));
+            )));
         };
     };
     ($param1:pat = $type1:expr,$param2:pat = $type2:expr,$param3:pat = $type3:expr ,$param4:pat = $type4:expr ,$param5:pat = $type5:expr, $param6:pat = $type6:expr; $data:expr, $state:expr) => {
         let $param1 = &$data.args[0] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type1,
                 &$data.args[0].get_type(),
                 1,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param2 = &$data.args[1] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type2,
                 &$data.args[1].get_type(),
                 2,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param3 = &$data.args[2] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type3,
                 &$data.args[2].get_type(),
                 3,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param4 = &$data.args[3] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type4,
                 &$data.args[3].get_type(),
                 4,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param5 = &$data.args[4] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type5,
                 &$data.args[4].get_type(),
                 5,
                 &mut $state.heap,
-            ));
+            )));
         };
         let $param6 = &$data.args[5] else {
-            return Err(type_err_obj(
+            return Err(CallError::Panic(type_err_obj(
                 &$type6,
                 &$data.args[5].get_type(),
                 6,
                 &mut $state.heap,
-            ));
+            )));
         };
     };
 }
@@ -569,4 +573,28 @@ fn get_error_obj<'a>(val: &Value, heap: &'a mut SlotMap<RefKey, Value>) -> Optio
         return None;
     }
     return Some(obj);
+}
+pub fn deref_val(val: Value, heap: &SlotMap<RefKey, Value>) -> Value {
+    if let Value::Ref(id) = val {
+        return heap[id].clone();
+    }
+    val
+}
+///ONLY USE IT IN METHODS!
+pub fn get_args(data: FuncData, state: &mut Interpreter) -> FuncResult {
+    let args = match &data.args[0] {
+        Value::Function(func) => &func.args,
+        Value::Closure(cl) => &cl.args,
+        _ => unimplemented!(),
+    };
+    let list: Vec<Value> = args.iter().map(|s| Value::Str(s.to_owned())).collect();
+    return Ok(Value::Ref(state.heap.insert(Value::List(list))));
+}
+///ONLY USE IT IN METHODS!
+pub fn count_args(data: FuncData, _: &mut Interpreter) -> FuncResult {
+    match &data.args[0] {
+        Value::Function(func) => Ok(Value::Num(func.args.len() as f64)),
+        Value::Closure(cl) => Ok(Value::Num(cl.args.len() as f64)),
+        _ => unimplemented!(),
+    }
 }

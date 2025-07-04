@@ -7,9 +7,9 @@ Ok(
         kind: Add,
         left: BinaryNode {
             kind: Add,
-            left: Number(1) at 1:2,
-            right: Number(2) at 3:4,
-        } at 1:4,
-        right: Var(b) at 5:6,
-    } at 1:6,
+            left: Number(1)[1,2],
+            right: Number(2)[3,4],
+        }[1,4],
+        right: Var(b)[5,6],
+    }[1,6],
 )

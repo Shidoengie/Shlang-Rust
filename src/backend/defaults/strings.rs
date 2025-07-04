@@ -1,7 +1,7 @@
 use super::*;
 use crate::backend::scope::*;
 use crate::frontend::nodes::*;
-use crate::{get_params, Interpreter};
+use crate::{Interpreter, get_params};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -53,7 +53,7 @@ fn remove(data: FuncData, state: &mut Interpreter) -> FuncResult {
             value.remove(*index as usize);
             return Ok(Value::Str(value.to_string()));
         }
-        Value::Str(ref pattern) => return Ok(Value::Str(value.replace(pattern, ""))),
+        Value::Str(pattern) => return Ok(Value::Str(value.replace(pattern, ""))),
         _ => NULL,
     }
 }

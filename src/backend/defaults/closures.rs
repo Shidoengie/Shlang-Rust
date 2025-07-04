@@ -1,4 +1,4 @@
-use crate::{catch, get_params, lang_errors::LangError, Interpreter};
+use crate::{Interpreter, catch, get_params, lang_errors::LangError};
 
 use super::*;
 

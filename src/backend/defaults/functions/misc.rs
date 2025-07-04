@@ -228,9 +228,9 @@ pub fn range(data: FuncData, state: &mut Interpreter) -> FuncResult {
         }
         _ => {
             get_params!(
-                    Value::Num(mut from) = Type::Num,
-                    Value::Num(mut to) = Type::Num,
-                    Value::Num(mut inc) = Type::Num
+                    &Value::Num(from) = Type::Num,
+                    &Value::Num(to) = Type::Num,
+                    &Value::Num(inc) = Type::Num
                 ;data,state);
 
             if inc == 0.0 {

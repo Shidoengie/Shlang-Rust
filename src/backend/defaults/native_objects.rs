@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Display};
 
 type Ce = NativeCallError;
-use crate::{backend::values::*, hashmap, spans::Span, Interpreter};
+use crate::{Interpreter, backend::values::*, hashmap, spans::Span};
 /// The result of the Native Constructor
 ///
 /// - Ok(NativeObject) Object was constructed correctly
@@ -13,18 +13,6 @@ pub type NativeConstructor = fn(NativeConstructorData, &mut Interpreter) -> Nati
 pub fn native_constructors() -> HashMap<String, NativeConstructor> {
     let map = hashmap![];
     map
-}
-
-impl NativeTrait for i64 {
-    fn lang_call(&mut self, name: &str, ctx: &mut Interpreter, data: FuncData) -> NativeFuncResult {
-        match name {
-            "as_num" => {
-                check_args(Some((0, 0)), data.args.len())?;
-                return Ok(Value::Num(*self as f64));
-            }
-            _ => return Err(Ce::MethodNotFound),
-        }
-    }
 }
 fn check_args(arg_range: Option<(u8, u8)>, given_size: usize) -> NativeFuncResult<()> {
     let Some(range) = arg_range else {

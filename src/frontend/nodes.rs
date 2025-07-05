@@ -1,7 +1,7 @@
 use crate::backend::scope::Scope;
 
 use crate::frontend::tokens::TokenType;
-use crate::{spans::*, Interpreter};
+use crate::{Interpreter, spans::*};
 
 use std::collections::*;
 use std::fmt::{Debug, Display};
@@ -76,9 +76,10 @@ impl From<TokenType> for BinaryOp {
     }
 }
 #[derive(Clone, Debug, PartialEq)]
-pub struct ClosureDef {
+pub struct FuncDef {
     pub block: NodeStream,
     pub args: Vec<String>,
+    pub captures: bool,
 }
 
 #[derive(Clone, PartialEq)]
@@ -88,10 +89,6 @@ pub enum Node {
     Null,
     Bool(bool),
     Str(String),
-    Func {
-        block: NodeStream,
-        args: Vec<String>,
-    },
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
     ResultNode(Box<NodeSpan>),
@@ -105,7 +102,7 @@ pub enum Node {
         target: Box<NodeSpan>,
         index: Box<NodeSpan>,
     },
-
+    FuncDef(FuncDef),
     ListLit(Vec<NodeSpan>),
     Call(Call),
 
@@ -115,7 +112,6 @@ pub enum Node {
     ForLoop(ForLoop),
     DoBlock(NodeStream),
     Constructor(Constructor),
-    ClosureDef(ClosureDef),
     StructDef(StructDef),
     FieldAccess(FieldAccess),
     DontResult,
@@ -192,31 +188,23 @@ impl Debug for Node {
             Node::Call(node) => write!(f, "{node:#?}"),
 
             Node::DontResult => f.write_str("DontResult"),
-            Node::Func { block, args } => {
-                write!(f, "Function(")?;
 
-                for (index, name) in args.iter().enumerate() {
+            Node::FuncDef(func) => {
+                if func.captures {
+                    write!(f, "Closure(")?;
+                } else {
+                    write!(f, "Function(")?;
+                }
+
+                for (index, name) in func.args.iter().enumerate() {
                     f.write_str(&name)?;
-                    if index + 1 != args.len() {
+                    if index + 1 != func.args.len() {
                         write!(f, ", ")?;
                     }
                 }
                 write!(f, ")")?;
 
-                f.debug_set().entries(block).finish()
-            }
-            Node::ClosureDef(closure) => {
-                write!(f, "Closure(")?;
-
-                for (index, name) in closure.args.iter().enumerate() {
-                    f.write_str(&name)?;
-                    if index + 1 != closure.args.len() {
-                        write!(f, ", ")?;
-                    }
-                }
-                write!(f, ")")?;
-
-                f.debug_set().entries(&closure.block).finish()
+                f.debug_set().entries(&func.block).finish()
             }
         }
     }
@@ -252,7 +240,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { ClosureDef UnaryNode Constructor StructDef  FieldAccess BinaryNode Call Assignment Declaration Branch While ForLoop}
+nodes_from! { FuncDef UnaryNode Constructor StructDef  FieldAccess BinaryNode Call Assignment Declaration Branch While ForLoop}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {

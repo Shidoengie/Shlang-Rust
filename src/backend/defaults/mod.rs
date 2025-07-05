@@ -7,13 +7,14 @@ mod lists;
 pub mod native_objects;
 mod numbers;
 mod strings;
+use crate::arg_range;
 use crate::backend::scope::Scope;
 use crate::frontend::nodes::*;
 use crate::vars;
 use crate::vars_internal;
 
-use crate::backend::values::*;
 use crate::Interpreter;
+use crate::backend::values::*;
 
 use functions::*;
 
@@ -31,12 +32,14 @@ use std::fmt::Display;
 const NULL: FuncResult = Ok(Value::Null);
 
 pub fn default_scope() -> Scope {
+    let mut file_obj = Struct::default();
+    file_obj.set_props(vars!(open()));
     let vars = vars![
         noice => Value::Num(69.0),
         PI => Value::Num(PI),
         E => Value::Num(E),
         TAU => Value::Num(TAU),
-
+        File => Value::Struct(file_obj),
         print_err(print_err,1),
         wait(wait_builtin,1),
         time(unix_time),

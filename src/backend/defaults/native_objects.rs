@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::{collections::HashMap, fmt::Display, fs::File};
 
 type Ce = NativeCallError;
 use crate::{Interpreter, backend::values::*, hashmap, spans::Span};
@@ -11,9 +11,9 @@ pub type NativeConstructorResult = Result<NativeObject, String>;
 pub type NativeConstructor = fn(NativeConstructorData, &mut Interpreter) -> NativeConstructorResult;
 
 pub fn native_constructors() -> HashMap<String, NativeConstructor> {
-    let map = hashmap![];
-    map
+    hashmap![]
 }
+
 fn check_args(arg_range: Option<(u8, u8)>, given_size: usize) -> NativeFuncResult<()> {
     let Some(range) = arg_range else {
         return Ok(());

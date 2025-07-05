@@ -180,19 +180,19 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
         match op_token.kind {
             TokenType::PlusEqual => {
-                return self.compound_assignment(BinaryOp::Add, target, value, span)
+                return self.compound_assignment(BinaryOp::Add, target, value, span);
             }
             TokenType::MinusEqual => {
-                return self.compound_assignment(BinaryOp::Subtract, target, value, span)
+                return self.compound_assignment(BinaryOp::Subtract, target, value, span);
             }
             TokenType::SlashEqual => {
-                return self.compound_assignment(BinaryOp::Divide, target, value, span)
+                return self.compound_assignment(BinaryOp::Divide, target, value, span);
             }
             TokenType::QuestionEqual => {
                 return self.compound_assignment(BinaryOp::NullCoalescing, target, value, span);
             }
             TokenType::StarEqual => {
-                return self.compound_assignment(BinaryOp::Multiply, target, value, span)
+                return self.compound_assignment(BinaryOp::Multiply, target, value, span);
             }
             TokenType::Equal => Ok(Assignment {
                 target: bx!(target),
@@ -229,12 +229,22 @@ impl<'input> Parser<'input, Lexer<'input>> {
             let block = self.parse_block()?;
             let last_span = self.expect_next()?.span;
 
-            return Ok(ClosureDef { args, block }.to_nodespan(first_span + last_span));
+            return Ok(FuncDef {
+                args,
+                block,
+                captures: true,
+            }
+            .to_nodespan(first_span + last_span));
         }
         let last_span = self.peek_some()?.span;
         let expr = self.parse_expr(false)?;
         let block = vec![Node::ResultNode(bx!(expr.clone())).to_spanned(expr.span)];
-        return Ok(ClosureDef { args, block }.to_nodespan(first_span + last_span));
+        return Ok(FuncDef {
+            args,
+            block,
+            captures: true,
+        }
+        .to_nodespan(first_span + last_span));
     }
     /// This function parses the parameters of function definitions aka: func >(one,two)<
     fn parse_func_params(&mut self) -> ParseRes<Vec<String>> {
@@ -276,11 +286,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let func_span = name_ident.span + last.span;
         Ok(Declaration {
             var_name: func_name,
-            value: bx!(Node::Func {
+            value: bx!(FuncDef {
                 block,
-                args: params
+                args: params,
+                captures: false
             }
-            .to_spanned(func_span)),
+            .to_nodespan(func_span)),
         }
         .to_nodespan(func_span))
     }
@@ -288,7 +299,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn build_func(&mut self) -> ParseRes<Node> {
         let args = self.parse_func_params()?;
         let block = self.parse_block()?;
-        Ok(Node::Func { args, block })
+        Ok(FuncDef {
+            args,
+            block,
+            captures: false,
+        }
+        .into())
     }
     /// This uses build_func to create the function and then converts it into a nodespan
     /// this is so it can be used in a block
@@ -627,7 +643,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn node_to_feildspan(&mut self, node: NodeSpan) -> ParseRes<Spanned<Field>> {
         match node.item {
             Node::Declaration(decl) => {
-                return Ok(Spanned::new(Field::Declaration(decl), node.span))
+                return Ok(Spanned::new(Field::Declaration(decl), node.span));
             }
             Node::StructDef(def) => return Ok(Spanned::new(Field::StructDef(def), node.span)),
             _ => {}
@@ -798,7 +814,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 body.push(expr.clone());
                 continue;
             };
-            let Node::Func { args: _, block: _ } = &(var.value).item else {
+            let Node::FuncDef(_) = &(var.value).item else {
                 body.push(expr.clone());
                 continue;
             };

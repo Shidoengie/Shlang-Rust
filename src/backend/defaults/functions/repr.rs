@@ -60,7 +60,7 @@ pub fn get_print_repr(
     let derefed = &state.heap[key];
     match derefed.to_owned() {
         Value::Struct(obj) => match obj.call_method(
-            "__print",
+            "__repr",
             FuncData {
                 args: vec![],
                 span,

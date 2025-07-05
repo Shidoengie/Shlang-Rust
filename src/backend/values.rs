@@ -1,6 +1,6 @@
 use dyn_clone::DynClone;
 use rayon::prelude::*;
-use slotmap::{new_key_type, SlotMap};
+use slotmap::{SlotMap, new_key_type};
 use std::{
     any::Any,
     collections::HashMap,
@@ -10,6 +10,7 @@ use std::{
 };
 
 use crate::{
+    Interpreter,
     backend::{
         interpreter::{EvalRes, IError},
         scope::Scope,
@@ -17,7 +18,6 @@ use crate::{
     frontend::nodes::NodeStream,
     lang_errors::InterpreterError,
     spans::{IntoSpanned, Span},
-    Interpreter,
 };
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
@@ -117,6 +117,21 @@ impl Control {
         }
     }
 }
+#[macro_export]
+macro_rules! arg_range {
+    () => {
+        Some((0, 0))
+    };
+    (Inf) => {
+        None
+    };
+    ($size:expr) => {
+        Some(($size, $size))
+    };
+    ($start:expr => $stop:expr) => {
+        Some(($start, $stop))
+    };
+}
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Struct {
     pub id: Option<String>,
@@ -213,6 +228,7 @@ impl Display for Struct {
         write!(f, "{buffer}")
     }
 }
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Closure {
     pub block: NodeStream,
@@ -352,6 +368,9 @@ pub enum NativeCallError {
 }
 pub trait NativeTrait: Debug + Any + DynClone {
     fn lang_call(&mut self, name: &str, ctx: &mut Interpreter, data: FuncData) -> NativeFuncResult;
+    fn lang_get(&mut self, name: &str, ctx: &mut Interpreter) -> Option<Value> {
+        return None;
+    }
 }
 dyn_clone::clone_trait_object!(NativeTrait);
 

@@ -18,7 +18,7 @@ pub fn try_eval(data: FuncData, state: &mut Interpreter) -> FuncResult {
     let Some(obj) = get_error_obj(val, &mut state.heap) else {
         return Ok(val.clone());
     };
-    let msg = obj.env.get_var("msg").unwrap();
+    let msg = obj.get_prop("msg").unwrap();
     return Err(CallError::Panic(msg));
 }
 pub fn assert_type(data: FuncData, state: &mut Interpreter) -> FuncResult {

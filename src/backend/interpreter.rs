@@ -26,11 +26,11 @@ macro_rules! unwrap_val {
     };
 }
 
-const VOID: EvalRes<Control> = Ok(Control::Value(Value::Void));
-const NULL: EvalRes<Control> = Ok(Control::Value(Value::Null));
+const VOID: EvalRes = Ok(Control::Value(Value::Void));
+const NULL: EvalRes = Ok(Control::Value(Value::Null));
 
 pub(super) type IError = InterpreterError;
-pub(super) type EvalRes<T> = Result<T, Spanned<InterpreterError>>;
+pub(super) type EvalRes<T = Control> = Result<T, Spanned<InterpreterError>>;
 #[derive(Debug)]
 pub struct Interpreter {
     program: NodeStream,
@@ -101,12 +101,9 @@ impl Interpreter {
         Ok(parent)
     }
 
-    fn eval_node(&mut self, node: &NodeSpan, parent: &mut Scope) -> EvalRes<Control> {
+    fn eval_node(&mut self, node: &NodeSpan, parent: &mut Scope) -> EvalRes {
         let (span, expr) = (node.span, node.item.clone());
         match expr {
-            Node::Func { block, args } => {
-                Ok(Control::Value(Value::Function(Function { block, args })))
-            }
             Node::Bool(val) => Ok(Control::Value(Value::Bool(val))),
             Node::Str(val) => Ok(Control::Value(Value::Str(val))),
             Node::Number(val) => Ok(Control::Value(Value::Num(val))),
@@ -143,7 +140,7 @@ impl Interpreter {
 
             Node::Index { target, index } => self.eval_index(*target, *index, parent),
             Node::ListLit(lit) => self.eval_list(lit, parent),
-            Node::ClosureDef(cl) => self.eval_closuredef(cl, parent),
+            Node::FuncDef(func) => self.eval_funcdef(func, parent),
             _ => {
                 todo!()
             }
@@ -153,7 +150,7 @@ impl Interpreter {
 
 ///Block execution
 impl Interpreter {
-    fn eval_block(&mut self, block: NodeStream, parent: &mut Scope) -> EvalRes<Control> {
+    fn eval_block(&mut self, block: NodeStream, parent: &mut Scope) -> EvalRes {
         self.eval_block_with(block, parent, Scope::default())
     }
     fn eval_block_with(
@@ -161,7 +158,7 @@ impl Interpreter {
         block: NodeStream,
         parent: &mut Scope,
         mut base: Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         base.parent = Some(Box::new(parent.clone()));
         if block.is_empty() {
             return NULL;
@@ -206,7 +203,7 @@ impl Interpreter {
 
 ///Binary and unary operators
 impl Interpreter {
-    fn unary_calc(&self, node: UnaryNode, target: Value) -> EvalRes<Control> {
+    fn unary_calc(&self, node: UnaryNode, target: Value) -> EvalRes {
         let span = node.object.span;
         match node.kind {
             UnaryOp::NEGATIVE => {
@@ -223,7 +220,7 @@ impl Interpreter {
             }
         }
     }
-    fn num_calc(&self, node: BinaryNode, left: f64, right: f64) -> EvalRes<Control> {
+    fn num_calc(&self, node: BinaryNode, left: f64, right: f64) -> EvalRes {
         let res = match node.kind {
             BinaryOp::Add => Value::Num(left + right),
             BinaryOp::Subtract => Value::Num(left - right),
@@ -238,12 +235,12 @@ impl Interpreter {
             BinaryOp::IsDifferent => Value::Bool(left != right),
             op => {
                 return Err(IError::InvalidOp(op, Type::Num)
-                    .to_spanned(Span(node.left.span.1, node.right.span.0)))
+                    .to_spanned(Span(node.left.span.1, node.right.span.0)));
             }
         };
         Ok(Control::Value(res))
     }
-    fn str_calc(&self, node: BinaryNode, left: String, right: String) -> EvalRes<Control> {
+    fn str_calc(&self, node: BinaryNode, left: String, right: String) -> EvalRes {
         let res = match node.kind {
             BinaryOp::Add => Value::Str(left + &right),
             BinaryOp::Greater => Value::Bool(left > right),
@@ -254,12 +251,12 @@ impl Interpreter {
             BinaryOp::IsDifferent => Value::Bool(left != right),
             op => {
                 return Err(IError::InvalidOp(op, Type::Str)
-                    .to_spanned(Span(node.left.span.1, node.right.span.0)))
+                    .to_spanned(Span(node.left.span.1, node.right.span.0)));
             }
         };
         Ok(Control::Value(res))
     }
-    fn bool_calc(&mut self, node: BinaryNode, left: bool, parent: &mut Scope) -> EvalRes<Control> {
+    fn bool_calc(&mut self, node: BinaryNode, left: bool, parent: &mut Scope) -> EvalRes {
         match node.kind {
             BinaryOp::And => {
                 if !left {
@@ -275,22 +272,17 @@ impl Interpreter {
             }
             op => {
                 return Err(IError::InvalidOp(op, Type::Bool)
-                    .to_spanned(Span(node.left.span.1, node.right.span.0)))
+                    .to_spanned(Span(node.left.span.1, node.right.span.0)));
             }
         };
     }
-    fn null_coalescing(
-        &mut self,
-        left: Value,
-        node: BinaryNode,
-        parent: &mut Scope,
-    ) -> EvalRes<Control> {
+    fn null_coalescing(&mut self, left: Value, node: BinaryNode, parent: &mut Scope) -> EvalRes {
         if left != Value::Null {
             return Ok(Control::Value(left));
         }
         return self.eval_node(&node.right, parent);
     }
-    fn eval_binary_node(&mut self, bin_op: BinaryNode, parent: &mut Scope) -> EvalRes<Control> {
+    fn eval_binary_node(&mut self, bin_op: BinaryNode, parent: &mut Scope) -> EvalRes {
         let left = unwrap_val!(self.eval_node(&bin_op.left, parent)?);
         if bin_op.kind == BinaryOp::NullCoalescing {
             return self.null_coalescing(left, bin_op, parent);
@@ -327,7 +319,7 @@ impl Interpreter {
 
 ///Control flow expression handling
 impl Interpreter {
-    fn branch(&mut self, branch: Branch, parent: &mut Scope) -> EvalRes<Control> {
+    fn branch(&mut self, branch: Branch, parent: &mut Scope) -> EvalRes {
         let condition = unwrap_val!(self.eval_node(&branch.condition, parent)?);
         let Value::Bool(cond_val) = condition else {
             return type_err(Type::Bool, condition.get_type(), branch.condition.span);
@@ -340,7 +332,7 @@ impl Interpreter {
         };
         self.eval_block(else_block, parent)
     }
-    fn eval_loop(&mut self, loop_block: NodeStream, parent: &mut Scope) -> EvalRes<Control> {
+    fn eval_loop(&mut self, loop_block: NodeStream, parent: &mut Scope) -> EvalRes {
         loop {
             let result = self.eval_block(loop_block.clone(), parent)?;
             match result {
@@ -350,7 +342,7 @@ impl Interpreter {
             }
         }
     }
-    fn eval_while_loop(&mut self, loop_node: While, parent: &mut Scope) -> EvalRes<Control> {
+    fn eval_while_loop(&mut self, loop_node: While, parent: &mut Scope) -> EvalRes {
         loop {
             let condition = unwrap_val!(self.eval_node(&loop_node.condition, parent)?);
 
@@ -368,7 +360,7 @@ impl Interpreter {
             }
         }
     }
-    fn eval_for_loop(&mut self, for_loop: ForLoop, parent: &mut Scope) -> EvalRes<Control> {
+    fn eval_for_loop(&mut self, for_loop: ForLoop, parent: &mut Scope) -> EvalRes {
         let list_span = for_loop.list.span;
         let list_ref = match unwrap_val!(self.eval_node(&for_loop.list, parent)?) {
             Value::Ref(id) => id,
@@ -410,12 +402,7 @@ impl Interpreter {
 
 ///Variable declaration and execution
 impl Interpreter {
-    fn declare(
-        &mut self,
-        request: &Declaration,
-        parent: &mut Scope,
-        in_struct: bool,
-    ) -> EvalRes<Control> {
+    fn declare(&mut self, request: &Declaration, parent: &mut Scope, in_struct: bool) -> EvalRes {
         let value = match unwrap_val!(self.eval_node(&request.value, parent)?) {
             Value::Closure(cl) => {
                 let scope = &mut self.envs[cl.env];
@@ -439,14 +426,14 @@ impl Interpreter {
 
         VOID
     }
-    fn eval_var(&self, name: String, span: Span, env: &Scope) -> EvalRes<Control> {
+    fn eval_var(&self, name: String, span: Span, env: &Scope) -> EvalRes {
         let maybe_result = env.get_var(&name);
         let Some(result) = maybe_result else {
             return self.default_scope(name, span);
         };
         Ok(Control::Value(result))
     }
-    fn default_scope(&self, name: String, span: Span) -> EvalRes<Control> {
+    fn default_scope(&self, name: String, span: Span) -> EvalRes {
         let maybe_result = default_scope().get_var(&name);
         let Some(result) = maybe_result else {
             if let Some(func) = self.functions.get(&name) {
@@ -465,7 +452,7 @@ impl Interpreter {
         request: FieldAccess,
         base_env: &mut Scope,
         parent: &mut Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         let target = unwrap_val!(self.eval_node(&request.target, parent)?);
 
         self.eval_access(target, *request.requested, base_env, parent)
@@ -476,7 +463,7 @@ impl Interpreter {
         requested: NodeSpan,
         base_env: &mut Scope,
         parent: &mut Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         match target {
             Value::Ref(id) => self.access_ref(id, requested, base_env, parent),
 
@@ -517,7 +504,7 @@ impl Interpreter {
         requested: NodeSpan,
         base_env: &mut Scope,
         parent: &mut Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         match &self.heap[id] {
             Value::Struct(obj) => self.access_struct(id, requested, base_env, obj.clone()),
             Value::List(_) => self.eval_access_request(
@@ -538,10 +525,12 @@ impl Interpreter {
         obj: NativeObject,
         requested: NodeSpan,
         base_env: &mut Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         match requested.item.clone() {
             Node::Call(request) => self.eval_native_method(request, id, obj, base_env),
-            Node::Variable(name) => todo!(),
+            Node::Variable(name) => {
+                self.native_object_get(&name, id, obj, base_env, requested.span)
+            }
             _ => unimplemented!(),
         }
     }
@@ -551,7 +540,7 @@ impl Interpreter {
         requested: NodeSpan,
         base_env: &mut Scope,
         mut obj: Struct,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         let result = self.eval_access_request(requested, base_env, &mut obj.env, Value::Ref(id))?;
         Ok(result)
     }
@@ -561,7 +550,7 @@ impl Interpreter {
         base_env: &mut Scope,
         obj_env: &mut Scope,
         obj: Value,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         match requested.item.clone() {
             Node::Call(request) => self.eval_method(request, base_env, obj_env, obj),
             Node::Variable(name) => {
@@ -579,7 +568,7 @@ impl Interpreter {
         request: FieldAccess,
         value: Value,
         parent: &mut Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         let target = unwrap_val!(self.eval_node(&request.target, parent)?);
         let Value::Ref(id) = target else {
             return unspec_err("Expected Reference", request.target.span);
@@ -610,7 +599,7 @@ impl Interpreter {
         target_node: NodeSpan,
         index_node: NodeSpan,
         parent: &mut Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         let target = unwrap_val!(self.eval_node(&target_node, parent)?);
         let index = unwrap_val!(self.eval_node(&index_node, parent)?);
         let (Value::Ref(id), Value::Num(og_idx)) = (target.clone(), index) else {
@@ -630,7 +619,7 @@ impl Interpreter {
         VOID
     }
 
-    fn assign(&mut self, request: Assignment, parent: &mut Scope) -> EvalRes<Control> {
+    fn assign(&mut self, request: Assignment, parent: &mut Scope) -> EvalRes {
         let init_val = unwrap_val!(self.eval_node(&request.value, parent)?);
         let span = request.target.span;
         match request.target.item {
@@ -649,15 +638,24 @@ impl Interpreter {
     }
 }
 
-///Closure handling
+///Function and function call handling
 impl Interpreter {
-    fn eval_closuredef(&mut self, cl: ClosureDef, parent: &mut Scope) -> EvalRes<Control> {
+    fn eval_funcdef(&mut self, func: FuncDef, parent: &mut Scope) -> EvalRes {
+        if !func.captures {
+            return Ok(Control::Value(
+                Function {
+                    args: func.args,
+                    block: func.block,
+                }
+                .into(),
+            ));
+        }
         let key = self.envs.insert(parent.clone());
 
         return Ok(Control::Value(
             Closure {
-                args: cl.args,
-                block: cl.block,
+                args: func.args,
+                block: func.block,
                 env: key,
             }
             .into(),
@@ -668,7 +666,7 @@ impl Interpreter {
         closure: Closure,
         arg_values: Vec<Value>,
         span: Span,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         let id = closure.env;
         let mut env = self.envs[id].clone();
         let result = self.call_func(closure.into(), arg_values, span, &mut env)?;
@@ -677,10 +675,7 @@ impl Interpreter {
 
         return Ok(result.into());
     }
-}
 
-///Function and function call handling
-impl Interpreter {
     fn capture_fn(&mut self, val: Value, parent: &mut Scope) -> Value {
         if let Value::Function(func) = val {
             return Closure {
@@ -692,12 +687,7 @@ impl Interpreter {
         }
         return val;
     }
-    fn eval_call(
-        &mut self,
-        request: Call,
-        base_env: &mut Scope,
-        parent: &mut Scope,
-    ) -> EvalRes<Control> {
+    fn eval_call(&mut self, request: Call, base_env: &mut Scope, parent: &mut Scope) -> EvalRes {
         let func_val = unwrap_val!(self.eval_node(&request.callee, parent)?);
         let call_args = request.args;
         let mut arg_values: Vec<Value> = vec![];
@@ -740,7 +730,7 @@ impl Interpreter {
         let result = self.eval_block_with(called.block, parent, arg_scope)?;
         match result {
             Control::Continue | Control::Break => {
-                return Err(IError::InvalidControl.to_spanned(span))
+                return Err(IError::InvalidControl.to_spanned(span));
             }
             Control::Result(val) | Control::Return(val) | Control::Value(val) => {
                 if val.is_void() {
@@ -796,7 +786,7 @@ impl Interpreter {
         arg_values: Vec<Value>,
         span: Span,
         parent: &mut Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         check_args(called.arg_range, arg_values.len(), span)?;
         let data = FuncData {
             args: arg_values,
@@ -815,7 +805,7 @@ impl Interpreter {
 
         parent: &mut Scope,
         span: Span,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         if !self.native_constructors.contains_key(&constructor.name) {
             return unspec_err("Attempted to get a non existent struct", span);
         }
@@ -843,7 +833,7 @@ impl Interpreter {
         constructor: Constructor,
         parent: &mut Scope,
         span: Span,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         let Ok(request) = self.get_struct(&constructor.name, span, parent) else {
             return self.construct_native_object(constructor, parent, span);
         };
@@ -872,13 +862,27 @@ impl Interpreter {
             } in result
         })
     }
+    fn native_object_get(
+        &mut self,
+        name: &str,
+        id: RefKey,
+        mut obj: NativeObject,
+        base_env: &mut Scope,
+        span: Span,
+    ) -> EvalRes {
+        let Some(val) = obj.inner.lang_get(&name, self) else {
+            return Err(IError::NonExistentVar(name.to_owned()).to_spanned(span));
+        };
+        self.heap[id] = Value::NativeObject(obj);
+        return Ok(val.into());
+    }
     fn eval_native_method(
         &mut self,
         request: Call,
         id: RefKey,
         mut obj: NativeObject,
         base_env: &mut Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         let Node::Variable(method) = &request.callee.item else {
             unimplemented!()
         };
@@ -913,7 +917,7 @@ impl Interpreter {
         base_env: &mut Scope,
         obj_env: &mut Scope,
         obj: Value,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         let Node::Variable(method) = &request.callee.item else {
             unimplemented!()
         };
@@ -986,7 +990,7 @@ impl Interpreter {
         target: Struct,
         params: HashMap<String, NodeSpan>,
         parent: &mut Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         let mut obj = target;
         for (k, v) in params {
             if !obj.env.vars.contains_key(&k) {
@@ -998,7 +1002,7 @@ impl Interpreter {
         Ok(Control::Value(Value::Struct(obj.clone())))
     }
 
-    fn eval_structdef(&mut self, def: StructDef, parent: &mut Scope) -> EvalRes<Control> {
+    fn eval_structdef(&mut self, def: StructDef, parent: &mut Scope) -> EvalRes {
         let mut struct_env = Scope::default();
         for field in def.fields {
             if let Field::Declaration(decl) = &field.item {
@@ -1032,7 +1036,7 @@ impl Interpreter {
         target_node: NodeSpan,
         index_node: NodeSpan,
         parent: &mut Scope,
-    ) -> EvalRes<Control> {
+    ) -> EvalRes {
         let target = unwrap_val!(self.eval_node(&target_node, parent)?);
         let index = unwrap_val!(self.eval_node(&index_node, parent)?);
         match (target, index) {
@@ -1062,7 +1066,7 @@ impl Interpreter {
             ),
         }
     }
-    fn eval_list(&mut self, lit: Vec<NodeSpan>, parent: &mut Scope) -> EvalRes<Control> {
+    fn eval_list(&mut self, lit: Vec<NodeSpan>, parent: &mut Scope) -> EvalRes {
         let mut list: Vec<Value> = vec![];
         for node in lit {
             let val = unwrap_val!(self.eval_node(&node, parent)?);
@@ -1092,10 +1096,22 @@ fn check_args(arg_range: Option<(u8, u8)>, given_size: usize, mut span: Span) ->
     }
 
     if given_size > range.1.into() {
-        return unspec_err(format!("Given arguments are greater then expected; Expected atmost {max} but got {given_size}",max=range.1), span);
+        return unspec_err(
+            format!(
+                "Given arguments are greater then expected; Expected atmost {max} but got {given_size}",
+                max = range.1
+            ),
+            span,
+        );
     }
     if given_size < range.0.into() {
-        return unspec_err(format!("Given arguments are lesser then expected; Expected atleast {min} but got {given_size}",min=range.0), span);
+        return unspec_err(
+            format!(
+                "Given arguments are lesser then expected; Expected atleast {min} but got {given_size}",
+                min = range.0
+            ),
+            span,
+        );
     }
     return Ok(());
 }

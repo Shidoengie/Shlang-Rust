@@ -4,5 +4,7 @@
 /.idea
 var.shl
 *.shl
+*.shlang
 a.txt
 !/examples/*.shl
+!/examples/*.shlang

@@ -1,40 +1,8 @@
 use super::*;
-use crate::{backend::values::Control, catch, get_params, lang_errors::LangError, Interpreter};
-macro_rules! get_list {
-    ($key:expr, $state:expr) => {{
-        let Value::List(list) = $state.heap.get(*$key).unwrap().clone() else {
-            return Ok(type_err_obj(
-                &Type::List,
-                &$state.heap.get(*$key).unwrap().get_type(),
-                1,
-                &mut $state.heap,
-            ));
-        };
-        list
-    }};
-    ($key:expr, ref $state:expr) => {{
-        let Value::List(list) = $state.heap.get(*$key).unwrap() else {
-            return Ok(type_err_obj(
-                &Type::List,
-                &$state.heap.get(*$key).unwrap().get_type(),
-                1,
-                &mut $state.heap,
-            ));
-        };
-        list
-    }};
-    (ref $key:expr, $state:expr) => {{
-        let Value::List(list) = $state.heap.get(*$key).unwrap() else {
-            return Ok(type_err_obj(
-                &Type::List,
-                &$state.heap.get(*$key).unwrap().get_type(),
-                1,
-                &mut $state.heap,
-            ));
-        };
-        list
-    }};
-}
+use crate::{
+    Interpreter, backend::values::Control, catch, get_list, get_params, lang_errors::LangError,
+};
+
 pub fn list_struct() -> Struct {
     let env = vars![
         len(list_len, 1),
@@ -140,12 +108,37 @@ fn list_map(data: FuncData, state: &mut Interpreter) -> FuncResult {
     let mut buffer: Vec<Value> = vec![];
     for v in list {
         let mapped = catch!(err {
-            return Ok(create_err(err.msg(), &mut state.heap));
+            return Err(CallError::Major(err.item));
         } in state.call_closure(cl.clone(), vec![v.clone()], data.span));
-        let Control::Value(val) = mapped else {
-            unimplemented!()
+
+        buffer.push(mapped);
+    }
+    return Ok(Value::Ref(state.heap.insert(Value::List(buffer))));
+}
+fn list_filter(data: FuncData, state: &mut Interpreter) -> FuncResult {
+    get_params!(
+        Value::Ref(key) = Type::Ref,
+        Value::Closure(cl) = Type::Closure
+    ;data,state);
+    let list = get_list!(key, state);
+    let mut buffer: Vec<Value> = vec![];
+    for v in list {
+        let mapped = catch!(err {
+            return Err(CallError::Major(err.item));
+        } in state.call_closure(cl.clone(), vec![v.clone()], data.span));
+
+        let Value::Bool(skip) = mapped else {
+            return Ok(create_err(
+                format!(
+                    "Expected return type to be bool but got {}",
+                    mapped.get_type()
+                ),
+                &mut state.heap,
+            ));
         };
-        buffer.push(val);
+        if !skip {
+            buffer.push(v);
+        }
     }
     return Ok(Value::Ref(state.heap.insert(Value::List(buffer))));
 }

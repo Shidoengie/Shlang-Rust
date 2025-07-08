@@ -666,14 +666,14 @@ impl Interpreter {
         closure: Closure,
         arg_values: Vec<Value>,
         span: Span,
-    ) -> EvalRes {
+    ) -> EvalRes<Value> {
         let id = closure.env;
         let mut env = self.envs[id].clone();
         let result = self.call_func(closure.into(), arg_values, span, &mut env)?;
 
         self.envs[id] = env;
 
-        return Ok(result.into());
+        return Ok(result);
     }
 
     fn capture_fn(&mut self, val: Value, parent: &mut Scope) -> Value {
@@ -707,7 +707,10 @@ impl Interpreter {
                 let res = self.call_func(called, arg_values, request.callee.span, parent)?;
                 Ok(res.into())
             }
-            Value::Closure(id) => self.call_closure(id, arg_values, request.callee.span),
+            Value::Closure(id) => {
+                let res = self.call_closure(id, arg_values, request.callee.span)?;
+                Ok(res.into())
+            }
             _ => return type_err(Type::Function, func_val.get_type(), request.callee.span),
         }
     }
@@ -971,7 +974,10 @@ impl Interpreter {
                 let res = self.call_func(called, arg_values, request.callee.span, obj_env)?;
                 Ok(res.into())
             }
-            Value::Closure(called) => self.call_closure(called, arg_values, request.callee.span),
+            Value::Closure(called) => {
+                let res = self.call_closure(called, arg_values, request.callee.span)?;
+                Ok(res.into())
+            }
             _ => type_err(Type::Function, func_val.get_type(), request.callee.span),
         }
     }

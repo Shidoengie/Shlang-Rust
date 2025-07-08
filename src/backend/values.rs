@@ -347,6 +347,7 @@ impl From<BuiltinFunc> for Value {
         Value::BuiltinFunc(x)
     }
 }
+#[derive(Debug)]
 pub struct NativeConstructorData<'a> {
     pub arguments: VarMap,
     pub span: Span,

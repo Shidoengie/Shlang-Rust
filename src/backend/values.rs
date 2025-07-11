@@ -64,6 +64,7 @@ impl Value {
 }
 
 pub type TypedValue = (Value, Type);
+
 pub fn list_join(list: &[Value], seperator: &str) -> String {
     if list.is_empty() {
         return "[]".to_owned();
@@ -88,7 +89,14 @@ impl Display for Value {
             Self::Struct(obj) => obj.to_string(),
             Self::Function(func) => func.to_string(),
             Self::Closure(cl) => cl.to_string(),
-            Self::NativeObject(obj) => format!("{id}{{native}}", id = obj.id),
+            Self::NativeObject(obj) => {
+                let repr = obj.inner.lang_repr();
+                if repr.is_empty() {
+                    format!("{}{{native}}", obj.id)
+                } else {
+                    repr
+                }
+            }
             Self::Ref(id) => format!("ref {:?}", id),
             _ => "unnamed".to_string(),
         };
@@ -131,6 +139,61 @@ macro_rules! arg_range {
     ($start:expr => $stop:expr) => {
         Some(($start, $stop))
     };
+}
+#[derive(Debug)]
+pub struct NativeConstructorData<'a> {
+    pub arguments: VarMap,
+    pub span: Span,
+    pub parent: &'a mut Scope,
+}
+/// The result of the Native Constructor
+///
+/// - Ok(NativeObject) Object was constructed correctly
+/// - Err(String) Object was not constructed correctly,
+pub type NativeConstructorResult = Result<NativeObject, String>;
+
+pub type NativeConstructor = fn(NativeConstructorData, &mut Interpreter) -> NativeConstructorResult;
+pub type NativeFuncResult<T = Value> = Result<T, NativeCallError>;
+#[derive(Debug)]
+pub enum NativeCallError {
+    MethodNotFound,
+    Unspecified(String),
+    Panic(Value),
+}
+
+pub trait NativeTrait: Debug + Any + DynClone {
+    fn call_native_method(
+        &mut self,
+        name: &str,
+        ctx: &mut Interpreter,
+        data: FuncData,
+    ) -> NativeFuncResult;
+    fn lang_get(&mut self, name: &str, ctx: &mut Interpreter) -> Option<Value> {
+        return None;
+    }
+    fn lang_repr(&self) -> String {
+        return String::new();
+    }
+}
+dyn_clone::clone_trait_object!(NativeTrait);
+
+#[derive(Clone, Debug)]
+pub struct NativeObject {
+    pub id: String,
+    pub inner: Box<dyn NativeTrait>,
+}
+impl NativeObject {
+    pub fn new(id: impl Display, inner: impl NativeTrait) -> Self {
+        return Self {
+            id: id.to_string(),
+            inner: Box::new(inner),
+        };
+    }
+}
+impl PartialEq for NativeObject {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
 }
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Struct {
@@ -347,52 +410,7 @@ impl From<BuiltinFunc> for Value {
         Value::BuiltinFunc(x)
     }
 }
-#[derive(Debug)]
-pub struct NativeConstructorData<'a> {
-    pub arguments: VarMap,
-    pub span: Span,
-    pub parent: &'a mut Scope,
-}
-/// The result of the Native Constructor
-///
-/// - Ok(NativeObject) Object was constructed correctly
-/// - Err(String) Object was not constructed correctly,
-pub type NativeConstructorResult = Result<NativeObject, String>;
 
-pub type NativeConstructor = fn(NativeConstructorData, &mut Interpreter) -> NativeConstructorResult;
-pub type NativeFuncResult<T = Value> = Result<T, NativeCallError>;
-#[derive(Debug)]
-pub enum NativeCallError {
-    MethodNotFound,
-    Unspecified(String),
-    Panic(Value),
-}
-pub trait NativeTrait: Debug + Any + DynClone {
-    fn lang_call(&mut self, name: &str, ctx: &mut Interpreter, data: FuncData) -> NativeFuncResult;
-    fn lang_get(&mut self, name: &str, ctx: &mut Interpreter) -> Option<Value> {
-        return None;
-    }
-}
-dyn_clone::clone_trait_object!(NativeTrait);
-
-#[derive(Clone, Debug)]
-pub struct NativeObject {
-    pub id: String,
-    pub inner: Box<dyn NativeTrait>,
-}
-impl NativeObject {
-    pub fn new(id: impl Display, inner: impl NativeTrait) -> Self {
-        return Self {
-            id: id.to_string(),
-            inner: Box::new(inner),
-        };
-    }
-}
-impl PartialEq for NativeObject {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Type {
     Null,

@@ -1,7 +1,7 @@
 use super::scope::Scope;
 use super::values::*;
 use crate::backend::{
-    defaults::{self, default_scope, global_methods, native_objects},
+    defaults::{self, default_scope, global_methods, natives},
     values::Value,
 };
 
@@ -46,7 +46,7 @@ impl Interpreter {
         Self {
             program,
             functions,
-            native_constructors: native_objects::native_constructors(),
+            native_constructors: natives::native_constructors(),
             heap: SlotMap::with_key(),
             envs: SlotMap::with_key(),
         }
@@ -467,12 +467,7 @@ impl Interpreter {
         match target {
             Value::Ref(id) => self.access_ref(id, requested, base_env, parent),
 
-            Value::Str(_) => self.eval_access_request(
-                requested,
-                base_env,
-                &mut defaults::str_struct().env,
-                target,
-            ),
+            Value::Str(str) => self.access_primitive("String".to_owned(), str, requested, base_env),
             Value::Num(_) => self.eval_access_request(
                 requested,
                 base_env,
@@ -517,6 +512,24 @@ impl Interpreter {
                 self.access_native_object(id, obj.clone(), requested, base_env)
             }
             val => self.eval_access(val.clone(), requested, base_env, parent),
+        }
+    }
+    fn access_primitive(
+        &mut self,
+        id: String,
+        mut obj: impl NativeTrait + Clone,
+        requested: NodeSpan,
+        base_env: &mut Scope,
+    ) -> EvalRes {
+        match requested.item.clone() {
+            Node::Call(request) => self.eval_primitive_method(&id, request, &mut obj, base_env),
+            Node::Variable(name) => {
+                let Some(val) = obj.lang_get(&name, self) else {
+                    return Err(IError::NonExistentVar(name.to_owned()).to_spanned(requested.span));
+                };
+                return Ok(Control::Value(val));
+            }
+            _ => unimplemented!(),
         }
     }
     fn access_native_object(
@@ -879,11 +892,11 @@ impl Interpreter {
         self.heap[id] = Value::NativeObject(obj);
         return Ok(val.into());
     }
-    fn eval_native_method(
+    fn eval_primitive_method(
         &mut self,
+        id: &str,
         request: Call,
-        id: RefKey,
-        mut obj: NativeObject,
+        obj: &mut dyn NativeTrait,
         base_env: &mut Scope,
     ) -> EvalRes {
         let Node::Variable(method) = &request.callee.item else {
@@ -906,10 +919,21 @@ impl Interpreter {
             span: arg_span,
             parent: base_env,
         };
-        let res = obj.inner.lang_call(&method, self, data);
-        let val = self.native_method_results(res, &method, &obj.id, arg_span)?;
+        let res = obj.call_native_method(&method, self, data);
+        let val = self.native_method_results(res, &method, &id, arg_span)?;
+        Ok(Control::Value(val))
+    }
+    fn eval_native_method(
+        &mut self,
+        request: Call,
+        id: RefKey,
+        mut obj: NativeObject,
+        base_env: &mut Scope,
+    ) -> EvalRes {
+        let res = self.eval_primitive_method(&obj.id, request, &mut *obj.inner, base_env)?;
+
         self.heap[id] = Value::NativeObject(obj);
-        return Ok(Control::Value(val));
+        return Ok(res);
     }
 }
 ///Struct handling

@@ -62,6 +62,7 @@ fn main() {
         repl();
         return;
     };
+
     match mode {
         Mode::Ast { path } => ast_mode(path),
         Mode::Lexer { path } => lex_mode(path),

@@ -4,12 +4,12 @@ mod functions;
 
 mod global_methods;
 mod lists;
-pub mod native_objects;
+
+pub mod natives;
 mod numbers;
-mod strings;
-use crate::arg_range;
+
 use crate::backend::scope::Scope;
-use crate::frontend::nodes::*;
+
 use crate::vars;
 use crate::vars_internal;
 
@@ -23,7 +23,6 @@ pub use func_methods::*;
 pub use global_methods::*;
 pub use lists::*;
 pub use numbers::*;
-pub use strings::*;
 
 use slotmap::SlotMap;
 use std::collections::HashMap;

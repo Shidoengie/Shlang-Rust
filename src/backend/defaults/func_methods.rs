@@ -2,7 +2,7 @@ use super::*;
 
 use crate::catch;
 use crate::lang_errors::LangError;
-use crate::{get_params, Interpreter};
+use crate::{Interpreter, get_params};
 
 pub fn func_struct() -> Struct {
     let mut fnstr = Struct::default();
@@ -43,6 +43,6 @@ fn call_func_with(data: FuncData, state: &mut Interpreter) -> FuncResult {
     };
     let res = catch!( err {
         return Ok(create_err(err.msg(), &mut state.heap));
-    } in state.call_func(func.clone(),args,data.span ,&mut env_obj.env));
+    } in state.call_func(func.clone(),&args,data.span ,&mut env_obj.env));
     return Ok(res);
 }

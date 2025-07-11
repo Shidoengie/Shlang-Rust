@@ -502,11 +502,11 @@ impl Interpreter {
     ) -> EvalRes {
         match &self.heap[id] {
             Value::Struct(obj) => self.access_struct(id, requested, base_env, obj.clone()),
-            Value::List(_) => self.eval_access_request(
+            Value::List(list) => self.access_native_object(
+                id,
+                NativeObject::new("List", list.clone()),
                 requested,
                 base_env,
-                &mut defaults::list_struct().env,
-                Value::Ref(id),
             ),
             Value::NativeObject(obj) => {
                 self.access_native_object(id, obj.clone(), requested, base_env)
@@ -677,7 +677,7 @@ impl Interpreter {
     pub(crate) fn call_closure(
         &mut self,
         closure: Closure,
-        arg_values: Vec<Value>,
+        arg_values: &[Value],
         span: Span,
     ) -> EvalRes<Value> {
         let id = closure.env;
@@ -717,11 +717,11 @@ impl Interpreter {
         match func_val {
             Value::BuiltinFunc(func) => self.call_builtin(func, arg_values, arg_span, parent),
             Value::Function(called) => {
-                let res = self.call_func(called, arg_values, request.callee.span, parent)?;
+                let res = self.call_func(called, &arg_values, request.callee.span, parent)?;
                 Ok(res.into())
             }
             Value::Closure(id) => {
-                let res = self.call_closure(id, arg_values, request.callee.span)?;
+                let res = self.call_closure(id, &arg_values, request.callee.span)?;
                 Ok(res.into())
             }
             _ => return type_err(Type::Function, func_val.get_type(), request.callee.span),
@@ -731,7 +731,7 @@ impl Interpreter {
     pub(crate) fn call_func(
         &mut self,
         called: Function,
-        args: Vec<Value>,
+        args: &[Value],
         span: Span,
         parent: &mut Scope,
     ) -> EvalRes<Value> {
@@ -756,7 +756,7 @@ impl Interpreter {
             }
         }
     }
-    fn build_args(&self, func: &Function, arg_values: Vec<Value>) -> HashMap<String, Value> {
+    fn build_args(&self, func: &Function, arg_values: &[Value]) -> HashMap<String, Value> {
         let mut arg_map = HashMap::<String, Value>::new();
         for (idx, val) in arg_values.iter().enumerate() {
             arg_map.insert(func.args[idx].clone(), val.clone());
@@ -868,6 +868,7 @@ impl Interpreter {
             use NativeCallError as Ce;
 
             match err {
+                                Ce::Major(val) => return Err(val.to_spanned(span)),
                 Ce::MethodNotFound => return IError::MethodNotFound(
                     requested.to_owned(),Some(target.to_owned())
                 ).to_spanned(span).err(),
@@ -995,11 +996,11 @@ impl Interpreter {
         match func_val {
             Value::BuiltinFunc(func) => self.call_builtin(func, arg_values, arg_span, obj_env),
             Value::Function(called) => {
-                let res = self.call_func(called, arg_values, request.callee.span, obj_env)?;
+                let res = self.call_func(called, &arg_values, request.callee.span, obj_env)?;
                 Ok(res.into())
             }
             Value::Closure(called) => {
-                let res = self.call_closure(called, arg_values, request.callee.span)?;
+                let res = self.call_closure(called, &arg_values, request.callee.span)?;
                 Ok(res.into())
             }
             _ => type_err(Type::Function, func_val.get_type(), request.callee.span),

@@ -36,7 +36,7 @@ fn catch_err(data: FuncData, state: &mut Interpreter) -> FuncResult {
     let res = catch!(
         err {
             return Err(CallError::Panic(create_err(err.msg(), &mut state.heap)));
-        } in state.call_closure(func.to_owned(), vec![val.clone()], data.span)
+        } in state.call_closure(func.to_owned(), &[val.clone()], data.span)
     );
     return Ok(res);
 }

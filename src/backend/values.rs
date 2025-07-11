@@ -159,6 +159,7 @@ pub enum NativeCallError {
     MethodNotFound,
     Unspecified(String),
     Panic(Value),
+    Major(InterpreterError),
 }
 
 pub trait NativeTrait: Debug + Any + DynClone {
@@ -256,7 +257,7 @@ impl Struct {
         };
         let mut args = vec![Value::Ref(key)];
         args.extend_from_slice(&data.args);
-        ctx.call_func(method, args, data.span, data.parent)
+        ctx.call_func(method, &args, data.span, data.parent)
     }
     pub fn insert(&self, heap: &mut SlotMap<RefKey, Value>) -> Value {
         let id = heap.insert(Value::Struct(self.clone()));

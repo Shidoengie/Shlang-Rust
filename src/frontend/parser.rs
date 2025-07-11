@@ -534,7 +534,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 self.next();
                 Ok(func)
             }
-            TokenType::At => self.parse_closure(),
+            TokenType::Dollar => self.parse_closure(),
             TokenType::LBracket => {
                 let literal = self.parse_expr_list(token, TokenType::RBracket)?;
                 let span = token.span + self.peek_some()?.span;

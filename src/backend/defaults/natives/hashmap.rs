@@ -6,7 +6,7 @@ use crate::{
         defaults::{create_err, natives::check_args, type_err_obj},
         values::*,
     },
-    get_list, get_params,
+    check_args, get_list, get_params,
 };
 pub fn make_hashmap(data: NativeConstructorData, ctx: &mut Interpreter) -> NativeConstructorResult {
     if !data.arguments.is_empty() {
@@ -25,7 +25,8 @@ impl NativeTrait for HashMap<String, Value> {
     ) -> NativeFuncResult {
         match name {
             "from" => {
-                check_args(arg_range!(1), data.args.len())?;
+                check_args!(1, data.args.len())?;
+
                 get_params!(
                     Value::Ref(key) = Type::Ref
                 ;data,ctx);
@@ -57,7 +58,7 @@ impl NativeTrait for HashMap<String, Value> {
                 Ok(Value::Null)
             }
             "get" => {
-                check_args(arg_range!(1), data.args.len())?;
+                check_args!(1, data.args.len())?;
                 get_params!(
                     Value::Str(key) = Type::Str
                 ;data,ctx);
@@ -65,7 +66,7 @@ impl NativeTrait for HashMap<String, Value> {
                 Ok(val)
             }
             "set" => {
-                check_args(arg_range!(2), data.args.len())?;
+                check_args!(1, data.args.len())?;
                 get_params!(
                     Value::Str(key) = Type::Str
                 ;data,ctx);
@@ -73,23 +74,23 @@ impl NativeTrait for HashMap<String, Value> {
                 return Ok(Value::Null);
             }
             "values" => {
-                check_args(arg_range!(0), data.args.len())?;
+                check_args!(data.args.len())?;
                 let values: Vec<Value> = self.values().cloned().collect();
                 let key = ctx.heap.insert(Value::List(values));
                 return Ok(Value::Ref(key));
             }
             "keys" => {
-                check_args(arg_range!(0), data.args.len())?;
+                check_args!(data.args.len())?;
                 let values: Vec<Value> = self.keys().cloned().map(|key| Value::Str(key)).collect();
                 let key = ctx.heap.insert(Value::List(values));
                 return Ok(Value::Ref(key));
             }
             "len" => {
-                check_args(arg_range!(0), data.args.len())?;
+                check_args!(data.args.len())?;
                 return Ok(Value::Num(self.len() as f64));
             }
             "remove" => {
-                check_args(arg_range!(1), data.args.len())?;
+                check_args!(1, data.args.len())?;
                 get_params!(
                     Value::Str(key) = Type::Str
                 ;data,ctx);
@@ -100,7 +101,7 @@ impl NativeTrait for HashMap<String, Value> {
                 return Ok(Value::Null);
             }
             "has_key" => {
-                check_args(arg_range!(1), data.args.len())?;
+                check_args!(1, data.args.len())?;
                 get_params!(
                     Value::Str(key) = Type::Str
                 ;data,ctx);

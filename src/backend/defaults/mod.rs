@@ -3,7 +3,6 @@ mod func_methods;
 mod functions;
 
 mod global_methods;
-mod lists;
 
 pub mod natives;
 mod numbers;
@@ -21,7 +20,7 @@ use functions::*;
 pub use closures::*;
 pub use func_methods::*;
 pub use global_methods::*;
-pub use lists::*;
+
 pub use numbers::*;
 
 use slotmap::SlotMap;

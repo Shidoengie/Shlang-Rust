@@ -59,6 +59,6 @@ fn call_closure(data: FuncData, state: &mut Interpreter) -> FuncResult {
     };
     let res = catch!( err {
         return Err(CallError::Major(err.item));
-    } in state.call_closure(closure.to_owned().into(), list.to_vec(),data.span));
+    } in state.call_closure(closure.to_owned().into(),&list.clone(),data.span));
     return Ok(res);
 }

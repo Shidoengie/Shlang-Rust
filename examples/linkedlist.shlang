@@ -8,7 +8,7 @@ struct Node {
             return;
         }
         if self.next == null{
-            var new_node = new Self {
+            var new_node = Self {
                 next:null,
                 data:new_data,
             }
@@ -47,7 +47,7 @@ struct Node {
 }
 
 func main(){
-    var linked = new Node{};
+    var linked = Node{};
     linked.push(1);
     linked.push(10);
      

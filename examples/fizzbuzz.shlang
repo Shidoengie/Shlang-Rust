@@ -1,8 +1,6 @@
 func main(){
     for i in range(1,100){
         var buffer = "";
-        var met_handle = false;
-        
         if i % 3 == 0{
             buffer += "Fizz";
         }

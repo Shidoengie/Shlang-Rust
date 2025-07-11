@@ -1,7 +1,4 @@
-/**
- * @param prompt {str}
- * @returns {any}
- */
+
 func get_num(prompt){
     var num1 = input(prompt).parse_num();
     if typeof(num1) != "Error"{

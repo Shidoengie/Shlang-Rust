@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     Interpreter, arg_range,
     backend::{
@@ -8,6 +6,9 @@ use crate::{
     },
     check_args, get_list, get_params,
 };
+use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Display;
 pub fn make_hashmap(data: NativeConstructorData, ctx: &mut Interpreter) -> NativeConstructorResult {
     if !data.arguments.is_empty() {
         return Err(format!("This struct doesnt accept any arguments"));
@@ -111,6 +112,17 @@ impl NativeTrait for HashMap<String, Value> {
         }
     }
     fn lang_repr(&self) -> String {
-        return "hi".to_owned();
+        let mut buffer = String::new();
+        buffer += "{";
+        for (index, (k, v)) in self.iter().enumerate() {
+            buffer += k;
+            buffer += ":";
+            buffer += &v.to_string();
+            if index < self.len() - 1 {
+                buffer += ", "
+            }
+        }
+        buffer += "}";
+        buffer
     }
 }

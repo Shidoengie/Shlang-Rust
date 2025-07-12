@@ -106,7 +106,9 @@ pub fn input_builtin(data: FuncData, state: &mut Interpreter) -> FuncResult {
     return Ok(Value::Str(String::from(result.trim())));
 }
 pub fn to_str(data: FuncData, state: &mut Interpreter) -> FuncResult {
-    Ok(Value::Str(data.args[0].to_string()))
+    Ok(Value::Str(
+        deref_val(data.args[0].clone(), &mut state.heap).to_string(),
+    ))
 }
 pub fn stringify_vals(data: FuncData, state: &mut Interpreter) -> FuncResult {
     let out = stringfy_args(&data.args, data.span, data.parent, state)?;

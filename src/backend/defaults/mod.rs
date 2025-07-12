@@ -2,8 +2,6 @@ mod closures;
 mod func_methods;
 mod functions;
 
-mod global_methods;
-
 pub mod natives;
 mod numbers;
 
@@ -19,7 +17,6 @@ use functions::*;
 
 pub use closures::*;
 pub use func_methods::*;
-pub use global_methods::*;
 
 pub use numbers::*;
 
@@ -104,7 +101,7 @@ fn create_err(msg: impl Display, heap: &mut SlotMap<RefKey, Value>) -> Value {
 
     return err_obg.insert(heap);
 }
-fn type_err_obj(
+pub(crate) fn type_err_obj(
     expected: &Type,
     got: &Type,
     at: usize,
@@ -118,6 +115,7 @@ fn type_err_obj(
 #[macro_export]
 macro_rules! get_params {
     ($($param:pat = $type:expr),+ ; $data:expr, $state:expr) => {
+        use crate::backend::defaults::type_err_obj;
         let mut _idx = 0;
         $(
             let $param = &$data.args[_idx] else {
@@ -136,6 +134,7 @@ macro_rules! get_params {
 #[macro_export]
 macro_rules! assert_params {
     ($($param:pat = $type:expr),+ ; $data:expr, $state:expr) => {
+        use crate::backend::defaults::type_err_obj;
         let mut _assert_idx = 0;
         $(
     let $param = &$data.args[_assert_idx] else {

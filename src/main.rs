@@ -37,11 +37,14 @@ enum Mode {
     Ast {
         path: Option<PathBuf>,
     },
-
+    Input {
+        input: String,
+    },
     /// Reports the input as tokens
     Lexer {
         path: Option<PathBuf>,
     },
+    /// Runs the file
     Run {
         path: PathBuf,
     },
@@ -64,6 +67,7 @@ fn main() {
     };
 
     match mode {
+        Mode::Input { input } => execute_source(input),
         Mode::Ast { path } => ast_mode(path),
         Mode::Lexer { path } => lex_mode(path),
         Mode::Run { path } => execute_file(&path),
@@ -88,11 +92,34 @@ fn ast_mode(maybe_path: Option<PathBuf>) {
     let ast = parser.parse();
     println!("{ast:#?}");
 }
+fn execute_source(source: String) {
+    let err_out = ErrorBuilder::new(source.clone());
+    let mut parser = LangParser::new(&source);
+    let (ast, functions) = catch!(err {
+        err.print_msg(err_out);
 
+        return;
+    } in parser.parse());
+    let parsed_funcs = HashMap::from_iter(functions.iter().map(|(name, value)| {
+        let Node::FuncDef(func) = value else {
+            unimplemented!("All Nodes should be the variant func, please check the parser.");
+        };
+        (
+            name.clone(),
+            Function::new(func.block.clone(), func.args.clone()).into(),
+        )
+    }));
+    let mut interpreter = Interpreter::new(ast, parsed_funcs);
+    catch!(err {
+        err.print_msg(err_out);
+        
+        return;
+    } in interpreter.execute());
+}
 fn execute_file(path: &path::Path) {
     let source = fs::read_to_string(path).expect("Should have been able to read the file");
     let err_out = ErrorBuilder::new(source.clone());
-    let mut parser = LangParser::new(source.as_str());
+    let mut parser = LangParser::new(&source);
     let (ast, functions) = catch!(err {
         err.print_msg(err_out);
         eprintln!("At file: {}",path.display());

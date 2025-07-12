@@ -6,6 +6,8 @@ use crate::backend::values::NativeCallError;
 use crate::backend::values::NativeConstructor;
 use crate::backend::values::NativeFuncResult;
 use crate::hashmap;
+mod global_methods;
+pub use global_methods::GlobalMethods;
 mod hashmap;
 mod lists;
 mod strings;

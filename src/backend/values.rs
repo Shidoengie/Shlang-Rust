@@ -175,6 +175,9 @@ pub trait NativeTrait: Debug + Any + DynClone {
     fn lang_repr(&self) -> String {
         return String::new();
     }
+    fn get_type_id(&self) -> std::any::TypeId {
+        return self.type_id();
+    }
 }
 dyn_clone::clone_trait_object!(NativeTrait);
 

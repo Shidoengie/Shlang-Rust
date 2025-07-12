@@ -1,7 +1,10 @@
 use super::scope::Scope;
 use super::values::*;
 use crate::backend::{
-    defaults::{self, default_scope, global_methods, natives},
+    defaults::{
+        self, default_scope,
+        natives::{self, GlobalMethods},
+    },
     values::Value,
 };
 
@@ -14,7 +17,7 @@ use crate::spans::*;
 use fmt::Display;
 use slotmap::SlotMap;
 use std::collections::HashMap;
-use std::*;
+use std::{any::TypeId, *};
 
 macro_rules! unwrap_val {
     ($val:expr) => {
@@ -464,10 +467,13 @@ impl Interpreter {
         base_env: &mut Scope,
         parent: &mut Scope,
     ) -> EvalRes {
+        let val = target.clone();
         match target {
             Value::Ref(id) => self.access_ref(id, requested, base_env, parent),
 
-            Value::Str(str) => self.access_primitive("String".to_owned(), str, requested, base_env),
+            Value::Str(str) => {
+                self.access_primitive(val, NativeObject::new("String", str), requested, base_env)
+            }
             Value::Num(_) => self.eval_access_request(
                 requested,
                 base_env,
@@ -516,15 +522,32 @@ impl Interpreter {
     }
     fn access_primitive(
         &mut self,
-        id: String,
-        mut obj: impl NativeTrait + Clone,
+        val: Value,
+        mut obj: NativeObject,
         requested: NodeSpan,
         base_env: &mut Scope,
     ) -> EvalRes {
         match requested.item.clone() {
-            Node::Call(request) => self.eval_primitive_method(&id, request, &mut obj, base_env),
+            Node::Call(request) => {
+                let res = self.eval_primitive_method(&mut obj, request.clone(), base_env);
+                let res = match res {
+                    Ok(res) => res,
+                    Err(err) => {
+                        if obj.inner.get_type_id() == TypeId::of::<GlobalMethods>() {
+                            return Err(err);
+                        };
+                        if !matches!(err.item, IError::MethodNotFound(_, _)) {
+                            return Err(err);
+                        }
+                        let mut methods_obj =
+                            NativeObject::new("GlobalMethods", GlobalMethods(val));
+                        self.eval_primitive_method(&mut methods_obj, request, base_env)?
+                    }
+                };
+                Ok(res)
+            }
             Node::Variable(name) => {
-                let Some(val) = obj.lang_get(&name, self) else {
+                let Some(val) = obj.inner.lang_get(&name, self) else {
                     return Err(IError::NonExistentVar(name.to_owned()).to_spanned(requested.span));
                 };
                 return Ok(Control::Value(val));
@@ -868,10 +891,12 @@ impl Interpreter {
             use NativeCallError as Ce;
 
             match err {
-                                Ce::Major(val) => return Err(val.to_spanned(span)),
-                Ce::MethodNotFound => return IError::MethodNotFound(
-                    requested.to_owned(),Some(target.to_owned())
-                ).to_spanned(span).err(),
+                Ce::Major(val) => return Err(val.to_spanned(span)),
+                Ce::MethodNotFound => {
+                        return IError::MethodNotFound(
+                            requested.to_owned(),Some(target.to_owned())
+                        ).to_spanned(span).err()
+                },
                 Ce::Unspecified(msg) => return Err(IError::Unspecified(msg).to_spanned(span)),
                 Ce::Panic(val) => return self.handle_panic(val, span),
             }
@@ -895,9 +920,8 @@ impl Interpreter {
     }
     fn eval_primitive_method(
         &mut self,
-        id: &str,
+        obj: &mut NativeObject,
         request: Call,
-        obj: &mut dyn NativeTrait,
         base_env: &mut Scope,
     ) -> EvalRes {
         let Node::Variable(method) = &request.callee.item else {
@@ -913,16 +937,17 @@ impl Interpreter {
         let arg_span = if !call_args.is_empty() {
             Span(request.callee.span.1 + 1, call_args.last().unwrap().span.1)
         } else {
-            Span(request.callee.span.1 + 1, request.callee.span.1 + 2)
+            Span(request.callee.span.1, request.callee.span.1 + 2)
         };
         let data = FuncData {
             args,
             span: arg_span,
             parent: base_env,
         };
-        let res = obj.call_native_method(&method, self, data);
-        let val = self.native_method_results(res, &method, &id, arg_span)?;
-        Ok(Control::Value(val))
+        let raw_res = obj.inner.call_native_method(&method, self, data);
+        let res =
+            self.native_method_results(raw_res, &method, &obj.id, request.callee.span + arg_span)?;
+        return Ok(Control::Value(res));
     }
     fn eval_native_method(
         &mut self,
@@ -931,8 +956,23 @@ impl Interpreter {
         mut obj: NativeObject,
         base_env: &mut Scope,
     ) -> EvalRes {
-        let res = self.eval_primitive_method(&obj.id, request, &mut *obj.inner, base_env)?;
-
+        let res = self.eval_primitive_method(&mut obj, request.clone(), base_env);
+        let res = match res {
+            Ok(res) => res,
+            Err(err) => {
+                if obj.inner.get_type_id() == TypeId::of::<GlobalMethods>() {
+                    return Err(err);
+                };
+                if !matches!(err.item, IError::MethodNotFound(_, _)) {
+                    return Err(err);
+                }
+                let mut methods_obj = NativeObject::new(
+                    "GlobalMethods",
+                    GlobalMethods(Value::NativeObject(obj.clone())),
+                );
+                self.eval_primitive_method(&mut methods_obj, request, base_env)?
+            }
+        };
         self.heap[id] = Value::NativeObject(obj);
         return Ok(res);
     }
@@ -949,16 +989,12 @@ impl Interpreter {
         let Node::Variable(method) = &request.callee.item else {
             unimplemented!()
         };
-
-        let func_val = match obj_env.get_var(method) {
-            None => {
-                let Some(global) = global_methods().get_var(method) else {
-                    return Err(IError::MethodNotFound(method.to_owned(), None)
-                        .to_spanned(request.callee.span));
-                };
-                global
-            }
-            Some(v) => v,
+        let Some(func_val) = obj_env.get_var(method) else {
+            return self.eval_primitive_method(
+                &mut NativeObject::new("GlobalMethods", natives::GlobalMethods(obj)),
+                request,
+                base_env,
+            );
         };
 
         let call_args = request.args;
@@ -991,7 +1027,7 @@ impl Interpreter {
         let arg_span = if !call_args.is_empty() {
             Span(request.callee.span.1 + 1, call_args.last().unwrap().span.1)
         } else {
-            Span(request.callee.span.1 + 1, request.callee.span.1 + 2)
+            Span(request.callee.span.1, request.callee.span.1 + 2)
         };
         match func_val {
             Value::BuiltinFunc(func) => self.call_builtin(func, arg_values, arg_span, obj_env),

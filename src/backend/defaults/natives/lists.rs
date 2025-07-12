@@ -101,6 +101,7 @@ impl NativeTrait for Vec<Value> {
                 }
                 return Ok(Value::Ref(ctx.heap.insert(Value::List(buffer))));
             }
+            
             "filter" => {
                 check_args!(1,given_size)?;
                 get_params!(

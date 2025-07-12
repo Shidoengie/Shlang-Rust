@@ -2,7 +2,6 @@ use super::*;
 
 pub fn num_struct() -> Struct {
     let env = vars![
-        to_str(1),
         max(2),
         min(2),
         sqrt(1),

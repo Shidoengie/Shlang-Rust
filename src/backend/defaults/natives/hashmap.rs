@@ -115,7 +115,7 @@ impl NativeTrait for HashMap<String, Value> {
         let mut buffer = String::new();
         buffer += "{";
         for (index, (k, v)) in self.iter().enumerate() {
-            buffer += k;
+            buffer += &format!("\"{k}\"");
             buffer += ":";
             buffer += &v.to_string();
             if index < self.len() - 1 {

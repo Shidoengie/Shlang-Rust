@@ -121,6 +121,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let mut body: NodeStream = vec![];
         self.next();
         let token = self.peek_some()?;
+
         if token.is(&TokenType::RBrace) {
             return Ok(body);
         }
@@ -509,11 +510,15 @@ impl<'input> Parser<'input, Lexer<'input>> {
     ) -> ParseRes<NodeSpan> {
         let token = self.expect_next()?;
         let mut left = self.parse_prefix(&token)?;
-        if self.peek_precedence() == Precedence::Constructor && in_conditional {
+
+        if self.peek().is(&TokenType::LBrace) && in_conditional {
             return Ok(left);
         }
         while precedence < self.peek_precedence() {
             let op_token = self.peek_some()?;
+            if self.peek().is(&TokenType::LBrace) && in_conditional {
+                return Ok(left);
+            }
             left = self.parse_infix(left, op_token, in_conditional)?;
         }
         Ok(left)

@@ -242,7 +242,7 @@ impl<'a> Iterator for Lexer<'a> {
                 return Some(Token::new(TokenType::QuestionEqual, range + 2));
             }
             '+' => self.multi_char_token('=', TokenType::Plus, TokenType::PlusEqual, start),
-            '*' => self.multi_char_token('=', TokenType::Start, TokenType::StarEqual, start),
+            '*' => self.multi_char_token('=', TokenType::Star, TokenType::StarEqual, start),
             '/' => {
                 let Some(peeked) = self.peek() else {
                     return Some(Token::new(TokenType::Slash, range));

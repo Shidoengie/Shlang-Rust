@@ -1,6 +1,7 @@
 var i = 0;
 loop {
-    var wave = (i.sin()*100).round();
-    println("#".repeat(wave));
-    i += 0.015;
+    var wave = (i.sin()*100).round()
+    println("#".repeat(wave.abs()))
+    wait(0.015)
+    i += 0.015
 }

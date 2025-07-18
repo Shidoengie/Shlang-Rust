@@ -32,11 +32,10 @@ pub fn default_scope() -> Scope {
         PI => Value::Num(PI),
         E => Value::Num(E),
         TAU => Value::Num(TAU),
-
         print_err(print_err,1),
         wait(wait_builtin,1),
         time(unix_time),
-
+        map(create_map,1),
         input(input_builtin,Inf),
         println(println_builtin,Inf),
         print(print_builtin,Inf),
@@ -53,6 +52,7 @@ pub fn default_scope() -> Scope {
         tan(1),
         pow(2),
         log(2),
+        abs(1),
         import(import_var,1 => 2),
         del(delete_var,1 => 2),
         range(1 => 3),
@@ -86,7 +86,21 @@ pub fn default_scope() -> Scope {
         structs,
     }
 }
-
+fn create_map(data: FuncData, state: &mut Interpreter) -> FuncResult {
+    let mut map = HashMap::<String, Value>::new();
+    let res = map.call_native_method("from", state, data);
+    match res {
+        Ok(ok) => {
+            if ok != Value::Null {
+                return Ok(ok);
+            }
+            let obj = NativeObject::new("Map", map);
+            let key = state.heap.insert(Value::NativeObject(obj));
+            return Ok(Value::Ref(key));
+        }
+        Err(err) => Err(err.into()),
+    }
+}
 fn error_struct(msg: String) -> Struct {
     let mut obj = Struct::new("Error");
     obj.set_props(vars![

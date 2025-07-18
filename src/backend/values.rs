@@ -161,7 +161,15 @@ pub enum NativeCallError {
     Panic(Value),
     Major(InterpreterError),
 }
-
+impl From<CallError> for NativeCallError {
+    fn from(value: CallError) -> Self {
+        match value {
+            CallError::Major(e) => Self::Major(e),
+            CallError::Unspecified(e) => Self::Unspecified(e),
+            CallError::Panic(e) => Self::Panic(e),
+        }
+    }
+}
 pub trait NativeTrait: Debug + Any + DynClone {
     fn call_native_method(
         &mut self,
@@ -374,8 +382,18 @@ pub struct FuncData<'a> {
 pub enum CallError {
     Major(InterpreterError),
     Panic(Value),
+    Unspecified(String),
 }
-
+impl From<NativeCallError> for CallError {
+    fn from(value: NativeCallError) -> Self {
+        match value {
+            NativeCallError::Major(e) => Self::Major(e),
+            NativeCallError::Unspecified(e) => Self::Unspecified(e),
+            NativeCallError::Panic(e) => Self::Panic(e),
+            NativeCallError::MethodNotFound => Self::Unspecified(format!("Non existent method")),
+        }
+    }
+}
 pub type FuncResult<T = Value> = Result<T, CallError>;
 
 type FuncPtr = fn(FuncData, &mut Interpreter) -> FuncResult;

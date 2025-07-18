@@ -2,7 +2,7 @@ use super::*;
 use crate::backend::defaults::{create_err, type_err_obj};
 use crate::backend::values::*;
 
-use crate::{Interpreter, get_params};
+use crate::{Interpreter, check_args, get_params};
 
 use rayon::prelude::*;
 
@@ -23,8 +23,15 @@ impl NativeTrait for String {
                 check_args(arg_range!(), len)?;
                 return Ok(Value::Num(self.len() as f64));
             }
+            "parse_num" => {
+                check_args!(len)?;
+                let Ok(num) = self.parse::<f64>() else {
+                    return Ok(create_err("Failed to parse number", &mut ctx.heap));
+                };
+                return Ok(Value::Num(num));
+            }
             "repeat" => {
-                check_args(NO_ARGS, len)?;
+                check_args!(1, len)?;
                 get_params!(
                     Value::Num(times) = Type::Num
                 ;data,ctx);
@@ -64,6 +71,7 @@ impl NativeTrait for String {
                 Ok(Value::Str(self.replace(target, filler)))
             }
             "byte_substring" => {
+                check_args!(2, len)?;
                 get_params!(
                     Value::Num(start) = Type::Num,
                     Value::Num(end) = Type::Num
@@ -104,6 +112,7 @@ impl NativeTrait for String {
                 return Ok(Value::Str(self[start_index..end_index].to_owned()));
             }
             "substring" => {
+                check_args!(2, len)?;
                 get_params!(
                     Value::Num(start) = Type::Num,
                     Value::Num(end) = Type::Num

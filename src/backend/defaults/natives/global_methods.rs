@@ -1,4 +1,5 @@
 use super::*;
+use crate::backend::defaults::functions::to_str;
 use crate::backend::defaults::{create_err, get_error_obj};
 use crate::backend::values::*;
 use crate::frontend::tokens::map_keyword;
@@ -47,6 +48,18 @@ impl NativeTrait for GlobalMethods {
                     } in ctx.call_closure(func.to_owned(), &[self.0.clone()], data.span)
                 );
                 return Ok(res);
+            }
+            "to_str" => {
+                check_args!(0, arg_len)?;
+                to_str(
+                    FuncData {
+                        args: vec![self.0.clone()],
+                        span: data.span,
+                        parent: data.parent,
+                    },
+                    ctx,
+                )
+                .map_err(|err| err.into())
             }
             _ => return Err(Ce::MethodNotFound),
         }

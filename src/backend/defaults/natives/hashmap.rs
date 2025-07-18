@@ -39,8 +39,10 @@ impl NativeTrait for HashMap<String, Value> {
                 let mut buffer = Vec::new();
                 for item in list.iter() {
                     let Value::Ref(tuple_key) = item else {
-                        let err =
-                            create_err(format!("Unexpected type {item} in rows"), &mut ctx.heap);
+                        let err = create_err(
+                            format!("Unexpected type {v} in rows", v = item.get_type()),
+                            &mut ctx.heap,
+                        );
                         return Ok(err);
                     };
                     let tuple = get_list!(tuple_key, ctx);
@@ -67,7 +69,7 @@ impl NativeTrait for HashMap<String, Value> {
                 Ok(val)
             }
             "set" => {
-                check_args!(1, data.args.len())?;
+                check_args!(2, data.args.len())?;
                 get_params!(
                     Value::Str(key) = Type::Str
                 ;data,ctx);

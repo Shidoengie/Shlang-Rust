@@ -813,6 +813,7 @@ impl Interpreter {
             match err {
                 Ce::Major(val) => return Err(val.to_spanned(span)),
                 Ce::Panic(val) => return self.handle_panic(val, span),
+                Ce::Unspecified(err) =>return Err(IError::Unspecified(err).to_spanned(span))
             }
 
             } in result

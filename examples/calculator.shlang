@@ -1,11 +1,10 @@
-
 func get_num(prompt){
     var num1 = input(prompt).parse_num();
     if typeof(num1) != "Error"{
         return num1
     }
     while typeof(num1) == "Error"{
-        println("Invalid operator try again");
+        println("Invalid input try again");
         num1 = input(prompt).parse_num();
     }
     return num1;

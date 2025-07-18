@@ -1,18 +1,4 @@
 use super::*;
-pub fn math_obj() -> Struct {
-    let mut obj = Struct::new("Math");
-    obj.set_props(vars!(
-        max(2),
-        min(2),
-        sqrt(1),
-        sin(1),
-        cos(1),
-        tan(1),
-        pow(2),
-        log(2),
-    ));
-    obj
-}
 pub fn min(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(
             Value::Num(val1) = Type::Num,
@@ -76,4 +62,10 @@ pub fn log(data: FuncData, state: &mut Interpreter) -> FuncResult {
             Value::Num(val2) = Type::Num
         ;data,state);
     Ok(Value::Num(val1.log(*val2)))
+}
+pub fn abs(data: FuncData, state: &mut Interpreter) -> FuncResult {
+    get_params!(
+            Value::Num(val1) = Type::Num
+        ;data,state);
+    Ok(Value::Num(val1.abs()))
 }

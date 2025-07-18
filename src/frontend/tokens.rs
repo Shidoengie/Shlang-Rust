@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::{charvec::CharVec, spans::*};
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TokenType {
@@ -11,7 +13,7 @@ pub enum TokenType {
     Semicolon,
     Plus,
     Minus,
-    Start,
+    Star,
     Slash,
     LParen,
     RParen,
@@ -61,11 +63,22 @@ pub enum TokenType {
     DualQuestion,
     QuestionEqual,
 }
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Token {
     pub kind: TokenType,
     pub span: Span,
 }
+impl std::fmt::Debug for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Token::{kind:?}[{span:?}]",
+            kind = self.kind,
+            span = self.span
+        )
+    }
+}
+
 pub trait TokenEq {
     fn is(&self, kind: &TokenType) -> bool;
     fn isnt(&self, kind: &TokenType) -> bool;
@@ -117,7 +130,6 @@ pub fn map_keyword(text: String) -> Option<TokenType> {
         "null" => TokenType::Null,
         "struct" => TokenType::Struct,
         "continue" => TokenType::Continue,
-
         "for" => TokenType::For,
         "in" => TokenType::In,
         _ => return None,

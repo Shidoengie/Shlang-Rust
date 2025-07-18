@@ -10,7 +10,8 @@ pub fn num_struct() -> Struct {
         tan(1),
         pow(2),
         floor(1),
-        round(1)
+        round(1),
+        abs(1)
     ];
 
     Struct {

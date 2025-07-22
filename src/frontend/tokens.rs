@@ -56,14 +56,28 @@ pub enum TokenType {
     MinusEqual,
     StarEqual,
     SlashEqual,
-    Class,
-    Static,
-    Let,
     For,
     In,
     Question,
     DualQuestion,
     QuestionEqual,
+
+    Match,
+    Is,
+    Enum,
+    Const,
+    Class,
+    Static,
+    Let,
+    Pub,
+    Priv,
+    Mod,
+    Impl,
+    Case,
+    Type,
+    Interface,
+    Def,
+    As,
 }
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Token {
@@ -113,8 +127,8 @@ impl TokenEq for Option<Token> {
         }
     }
 }
-pub fn map_keyword(text: String) -> Option<TokenType> {
-    let res = match text.as_str() {
+pub fn map_keyword(text: &str) -> Option<TokenType> {
+    let res = match text {
         "true" => TokenType::True,
         "false" => TokenType::False,
         "if" => TokenType::If,
@@ -134,10 +148,24 @@ pub fn map_keyword(text: String) -> Option<TokenType> {
         "continue" => TokenType::Continue,
         "for" => TokenType::For,
         "in" => TokenType::In,
-        //Reserved keywords
+        //Reserved for future use.
         "class" => TokenType::Class,
         "static" => TokenType::Static,
         "let" => TokenType::Let,
+        "const" => TokenType::Const,
+        "match" => TokenType::Match,
+        "case" => TokenType::Case,
+        "is" => TokenType::Is,
+        "enum" => TokenType::Enum,
+        "type" => TokenType::Type,
+        "interface" => TokenType::Interface,
+        "impl" => TokenType::Impl,
+        "def" => TokenType::Def,
+        "pub" => TokenType::Pub,
+        "priv" => TokenType::Priv,
+        "mod" => TokenType::Mod,
+        "as" => TokenType::As,
+
         _ => return None,
     };
     Some(res)

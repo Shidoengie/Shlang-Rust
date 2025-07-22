@@ -9,7 +9,6 @@ use crate::spans::Span;
 pub struct Lexer<'a> {
     chars: Chars<'a>,
     source: String,
-
     index: usize,
 }
 impl<'a> Lexer<'a> {
@@ -78,7 +77,7 @@ impl<'a> Lexer<'a> {
         let Some(span) = self.source.get(start..stop) else {
             panic!("Identifiers can only be ASCII");
         };
-        let Some(keyword) = tokens::map_keyword(span.to_string()) else {
+        let Some(keyword) = tokens::map_keyword(span) else {
             return Token::new(TokenType::Identifier, Span(start, stop));
         };
         Token::new(keyword, Span(start, stop))

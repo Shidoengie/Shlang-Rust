@@ -24,11 +24,26 @@ impl CommandWrapper {
     }
 
     pub fn finish(&self) -> std::io::Result<Output> {
-        Command::new(&self.process).args(&self.arg_stream).output()
+        if cfg!(windows) {
+            return Command::new("powershell")
+                .arg("/C")
+                .arg(self.process.clone())
+                .args(&self.arg_stream)
+                .output();
+        }
+
+        return Command::new("sh")
+            .arg("/C")
+            .arg(self.process.clone())
+            .args(&self.arg_stream)
+            .output();
     }
 }
 
 impl NativeTrait for Output {
+    fn get_id(&self) -> &str {
+        return "Output";
+    }
     fn call_native_method(
         &mut self,
         name: &str,
@@ -40,13 +55,13 @@ impl NativeTrait for Output {
             "stderr" => {
                 check_args!(len)?;
                 let Ok(out) = String::from_utf8(self.stderr.clone()) else {
-                    return Ok(create_err("stderr was not utf8", &mut ctx.heap));
+                    return Ok(create_err("stdout was not utf8", &mut ctx.heap));
                 };
                 Ok(Value::Str(out))
             }
             "stdout" => {
                 check_args!(len)?;
-                let Ok(out) = String::from_utf8(self.stderr.clone()) else {
+                let Ok(out) = String::from_utf8(self.stdout.clone()) else {
                     return Ok(create_err("stderr was not utf8", &mut ctx.heap));
                 };
                 Ok(Value::Str(out))
@@ -78,10 +93,14 @@ pub fn make(data: NativeConstructorData, ctx: &mut Interpreter) -> NativeConstru
     let Some(name) = data.arguments.get("cmd") else {
         return Err(format!("Name argument is required"));
     };
-    let obj = NativeObject::new("Cmd", CommandWrapper::new(name.to_string()));
+
+    let obj = NativeObject::new("Command", CommandWrapper::new(name.to_string()));
     return Ok(obj);
 }
 impl NativeTrait for CommandWrapper {
+    fn get_id(&self) -> &str {
+        return "Cmd";
+    }
     fn call_native_method(
         &mut self,
         name: &str,

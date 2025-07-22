@@ -176,16 +176,19 @@ pub trait NativeTrait: Debug + Any + DynClone {
         name: &str,
         ctx: &mut Interpreter,
         data: FuncData,
-    ) -> NativeFuncResult;
+    ) -> NativeFuncResult {
+        return Err(NativeCallError::MethodNotFound);
+    }
     fn lang_get(&mut self, name: &str, ctx: &mut Interpreter) -> Option<Value> {
         return None;
     }
     fn lang_repr(&self) -> String {
         return String::new();
     }
-    fn get_type_id(&self) -> std::any::TypeId {
+    fn as_type_id(&self) -> std::any::TypeId {
         return self.type_id();
     }
+    fn get_id(&self) -> &str;
 }
 dyn_clone::clone_trait_object!(NativeTrait);
 
@@ -200,6 +203,11 @@ impl NativeObject {
             id: id.to_string(),
             inner: Box::new(inner),
         };
+    }
+}
+impl From<NativeObject> for Value {
+    fn from(value: NativeObject) -> Self {
+        return Self::NativeObject(value);
     }
 }
 impl PartialEq for NativeObject {
@@ -228,7 +236,9 @@ impl Struct {
             }),
         )
     }
-
+    pub fn is_instance_of(&self, name: impl ToString) -> bool {
+        return self.id.as_ref().is_some_and(|id| id == &name.to_string());
+    }
     pub fn get_prop(&self, prop: impl AsRef<str>) -> Option<Value> {
         return self.env.get_var(prop);
     }

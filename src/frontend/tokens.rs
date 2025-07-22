@@ -56,7 +56,9 @@ pub enum TokenType {
     MinusEqual,
     StarEqual,
     SlashEqual,
-
+    Class,
+    Static,
+    Let,
     For,
     In,
     Question,
@@ -132,6 +134,10 @@ pub fn map_keyword(text: String) -> Option<TokenType> {
         "continue" => TokenType::Continue,
         "for" => TokenType::For,
         "in" => TokenType::In,
+        //Reserved keywords
+        "class" => TokenType::Class,
+        "static" => TokenType::Static,
+        "let" => TokenType::Let,
         _ => return None,
     };
     Some(res)

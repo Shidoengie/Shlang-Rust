@@ -8,20 +8,24 @@ use crate::backend::values::NativeFuncResult;
 use crate::hashmap;
 mod global_methods;
 pub use global_methods::GlobalMethods;
+pub(super) mod cmd;
 mod hashmap;
 mod lists;
 mod strings;
 type Ce = NativeCallError;
 pub fn native_constructors() -> HashMap<String, NativeConstructor> {
-    hashmap![Map => hashmap::make_hashmap as NativeConstructor]
+    hashmap![
+        Map => hashmap::make_hashmap as NativeConstructor,
+        Command => cmd::make as NativeConstructor
+    ]
 }
 #[macro_export]
 macro_rules! check_args {
     ($range:tt, $given_size:expr) => {
-        check_args($crate::arg_range!($range), $given_size)
+        crate::backend::defaults::natives::check_args($crate::arg_range!($range), $given_size)
     };
     ($given_size:expr) => {
-        check_args(Some((0, 0)), $given_size)
+        crate::backend::defaults::natives::check_args(Some((0, 0)), $given_size)
     };
 }
 fn check_args(arg_range: Option<(u8, u8)>, given_size: usize) -> NativeFuncResult<()> {

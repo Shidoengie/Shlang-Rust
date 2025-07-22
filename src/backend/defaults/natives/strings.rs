@@ -7,6 +7,9 @@ use crate::{Interpreter, check_args, get_params};
 use rayon::prelude::*;
 
 impl NativeTrait for String {
+    fn get_id(&self) -> &str {
+        return "String";
+    }
     fn call_native_method(
         &mut self,
         name: &str,

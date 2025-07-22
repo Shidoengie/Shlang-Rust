@@ -212,7 +212,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         value: NodeSpan,
         span: Span,
     ) -> ParseRes<NodeSpan> {
-        let value = self.binary_node(kind, var.clone(), value.clone(), var.span + value.span)?;
+        let value = self.binary_node(kind, &var, &value, var.span + value.span)?;
         Ok(Assignment {
             target: bx!(var),
             value: bx!(value),
@@ -558,7 +558,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             TokenType::Continue => Ok(Node::ContinueNode.to_spanned(token.span)),
             TokenType::Not | TokenType::Bang => self.unary_operator(UnaryOp::NOT),
             TokenType::Minus => self.unary_operator(UnaryOp::NEGATIVE),
-            TokenType::LParen => self.parse_paren(token.clone()),
+            TokenType::LParen => self.parse_paren(),
             //TokenType::New => self.parse_constructor(),
             TokenType::Semicolon => Ok(Spanned::new(Node::DontResult, Span(0, 0))),
             _ => unexpected_token(token.clone()),
@@ -598,10 +598,10 @@ impl<'input> Parser<'input, Lexer<'input>> {
             _ => {
                 let precedence = Precedence::from(&op_token.kind);
                 self.next(); // Consume the operator
-                let right = self.parse_pratt_expression(precedence, false)?;
+                let right = self.parse_pratt_expression(precedence, in_conditional)?;
                 let kind = BinaryOp::from(op_token.kind);
                 let span = left.span + right.span;
-                self.binary_node(kind, left, right, span)
+                self.binary_node(kind, &left, &right, span)
             }
         }
     }
@@ -609,16 +609,16 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn binary_node(
         &self,
         kind: BinaryOp,
-        left: NodeSpan,
-        right: NodeSpan,
+        left: &NodeSpan,
+        right: &NodeSpan,
         span: Span,
     ) -> ParseRes<NodeSpan> {
         expect_expr(&left)?;
         expect_expr(&right)?;
         Ok(BinaryNode {
             kind,
-            left: bx!(left),
-            right: bx!(right),
+            left: bx!(left.clone()),
+            right: bx!(right.clone()),
         }
         .to_nodespan(span))
     }
@@ -635,7 +635,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         .to_nodespan(op_span + right_span))
     }
     /// parses parentheses/groupings
-    fn parse_paren(&mut self, _paren: Token) -> ParseRes<NodeSpan> {
+    fn parse_paren(&mut self) -> ParseRes<NodeSpan> {
         let expr = self.parse_expr(false)?;
 
         self.consume(TokenType::RParen)?;
@@ -718,7 +718,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         let def = StructDef {
             fields,
-            name: Some(name.clone()),
+            name: Some(name),
         }
         .to_nodespan(span);
         Ok(def)

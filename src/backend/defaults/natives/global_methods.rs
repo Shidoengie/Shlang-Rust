@@ -10,6 +10,9 @@ type Ce = NativeCallError;
 #[derive(Debug, Clone)]
 pub struct GlobalMethods(pub Value);
 impl NativeTrait for GlobalMethods {
+    fn get_id(&self) -> &str {
+        return "GlobalMethods";
+    }
     fn call_native_method(
         &mut self,
         name: &str,
@@ -17,9 +20,11 @@ impl NativeTrait for GlobalMethods {
         data: FuncData,
     ) -> NativeFuncResult {
         let arg_len = data.args.len();
+
         match name {
             "try" => {
                 check_args!(0, arg_len)?;
+
                 let Some(obj) = get_error_obj(&self.0, &mut ctx.heap) else {
                     return Ok(self.0.clone());
                 };

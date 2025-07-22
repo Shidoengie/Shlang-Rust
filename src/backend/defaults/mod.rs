@@ -32,6 +32,7 @@ pub fn default_scope() -> Scope {
         PI => Value::Num(PI),
         E => Value::Num(E),
         TAU => Value::Num(TAU),
+        __os => Value::Str(std::env::consts::OS.to_owned()),
         print_err(print_err,1),
         wait(wait_builtin,1),
         time(unix_time),
@@ -74,6 +75,7 @@ pub fn default_scope() -> Scope {
         create_file(1),
         create_dir(1),
         write_file(2),
+        cmd(1)
     ];
     let structs = vars! {
         Error => error_struct(String::new()),

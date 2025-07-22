@@ -84,7 +84,6 @@ pub struct FuncDef {
 
 #[derive(Clone, PartialEq)]
 pub enum Node {
-    //Value(Value),
     Number(f64),
     Null,
     Bool(bool),

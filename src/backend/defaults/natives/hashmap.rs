@@ -7,8 +7,7 @@ use crate::{
     check_args, get_list, get_params,
 };
 use std::collections::HashMap;
-use std::fmt;
-use std::fmt::Display;
+
 pub fn make_hashmap(data: NativeConstructorData, ctx: &mut Interpreter) -> NativeConstructorResult {
     if !data.arguments.is_empty() {
         return Err(format!("This struct doesnt accept any arguments"));
@@ -18,6 +17,9 @@ pub fn make_hashmap(data: NativeConstructorData, ctx: &mut Interpreter) -> Nativ
 }
 type Ce = NativeCallError;
 impl NativeTrait for HashMap<String, Value> {
+    fn get_id(&self) -> &str {
+        return "Map";
+    }
     fn call_native_method(
         &mut self,
         name: &str,

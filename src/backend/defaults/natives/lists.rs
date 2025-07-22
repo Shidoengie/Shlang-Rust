@@ -13,6 +13,9 @@ use crate::{
 };
 
 impl NativeTrait for Vec<Value> {
+    fn get_id(&self) -> &str {
+        return "List";
+    }
     fn call_native_method(
         &mut self,
         name: &str,

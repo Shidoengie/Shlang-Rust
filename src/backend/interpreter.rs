@@ -533,7 +533,7 @@ impl Interpreter {
                 let res = match res {
                     Ok(res) => res,
                     Err(err) => {
-                        if obj.inner.get_type_id() == TypeId::of::<GlobalMethods>() {
+                        if obj.inner.as_type_id() == TypeId::of::<GlobalMethods>() {
                             return Err(err);
                         };
                         if !matches!(err.item, IError::MethodNotFound(_, _)) {
@@ -961,16 +961,14 @@ impl Interpreter {
         let res = match res {
             Ok(res) => res,
             Err(err) => {
-                if obj.inner.get_type_id() == TypeId::of::<GlobalMethods>() {
+                if obj.inner.as_type_id() == TypeId::of::<GlobalMethods>() {
                     return Err(err);
                 };
                 if !matches!(err.item, IError::MethodNotFound(_, _)) {
                     return Err(err);
                 }
-                let mut methods_obj = NativeObject::new(
-                    "GlobalMethods",
-                    GlobalMethods(Value::NativeObject(obj.clone())),
-                );
+                let mut methods_obj =
+                    NativeObject::new("GlobalMethods", GlobalMethods(Value::Ref(id)));
                 self.eval_primitive_method(&mut methods_obj, request, base_env)?
             }
         };

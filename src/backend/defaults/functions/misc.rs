@@ -1,7 +1,10 @@
 use rand::Rng;
 
+use crate::backend::defaults::natives::cmd::CommandWrapper;
+
 use super::*;
 use std::{
+    error::Error,
     fs, io,
     process::Command,
     thread,
@@ -286,4 +289,9 @@ pub fn rand_num(data: FuncData, state: &mut Interpreter) -> FuncResult {
 pub fn err_func(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(Value::Str(msg) = Type::Str;data,state);
     return Ok(create_err(msg, &mut state.heap));
+}
+pub fn cmd(data: FuncData, state: &mut Interpreter) -> FuncResult {
+    get_params!(Value::Str(process) = Type::Str;data,state);
+    let obj = NativeObject::new("Command", CommandWrapper::new(process.clone()));
+    return Ok(Value::Ref(state.heap.insert(obj.into())));
 }

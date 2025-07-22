@@ -92,3 +92,13 @@ pub fn write_file(data: FuncData, state: &mut Interpreter) -> FuncResult {
     };
     return NULL;
 }
+pub fn new_file(data: FuncData, state: &mut Interpreter) -> FuncResult {
+    get_params!(
+        Value::Str(path) = Type::Str,
+        Value::Str(contents) = Type::Str
+    ;data,state);
+    let Ok(_) = fs::write(path, contents) else {
+        return Ok(create_err("Failed to write file", &mut state.heap));
+    };
+    return NULL;
+}

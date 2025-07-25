@@ -1,8 +1,4 @@
-use std::{
-    ffi::OsString,
-    fmt::Display,
-    process::{self, Command, Output},
-};
+use std::process::{Command, Output};
 #[derive(Debug, Clone)]
 pub struct CommandWrapper {
     process: String,
@@ -11,7 +7,7 @@ pub struct CommandWrapper {
 impl CommandWrapper {
     pub fn new(process: String) -> Self {
         Self {
-            process: process,
+            process,
             arg_stream: vec![],
         }
     }
@@ -32,16 +28,16 @@ impl CommandWrapper {
                 .output();
         }
 
-        return Command::new("sh")
+        Command::new("sh")
             .arg("/C")
             .arg(self.process.clone())
             .args(&self.arg_stream)
-            .output();
+            .output()
     }
 }
 impl NativeTraitID for Output {
     fn get_obj_id() -> &'static str {
-        return "Output";
+        "Output"
     }
 }
 impl NativeTrait for Output {
@@ -78,7 +74,7 @@ impl NativeTrait for Output {
                 check_args!(len)?;
                 Ok(Value::Bool(self.status.success()))
             }
-            _ => return Err(Ce::MethodNotFound),
+            _ => Err(Ce::MethodNotFound),
         }
     }
 }
@@ -88,19 +84,19 @@ use crate::{
         defaults::create_err,
         values::{NativeCallError as Ce, *},
     },
-    check_args, get_list, get_native_params, get_params,
+    check_args, get_list, get_native_params,
 };
 pub fn make(data: NativeConstructorData, ctx: &mut Interpreter) -> NativeConstructorResult {
     let Some(name) = data.arguments.get("cmd") else {
-        return Err(format!("Name argument is required"));
+        return Err("Name argument is required".to_string());
     };
 
     let obj = CommandWrapper::new(name.to_string());
-    return Ok(obj.into());
+    Ok(obj.into())
 }
 impl NativeTraitID for CommandWrapper {
     fn get_obj_id() -> &'static str {
-        return "Cmd";
+        "Cmd"
     }
 }
 impl NativeTrait for CommandWrapper {
@@ -119,7 +115,7 @@ impl NativeTrait for CommandWrapper {
                     Value::Str(value) = Type::Str
                 ;data,ctx);
                 self.arg(name.clone(), value.clone());
-                return Ok(Value::Null);
+                Ok(Value::Null)
             }
             "args" => {
                 get_native_params!(
@@ -132,19 +128,19 @@ impl NativeTrait for CommandWrapper {
                     buf.push(i.to_string());
                 }
                 self.args(&buf);
-                return Ok(Value::Null);
+                Ok(Value::Null)
             }
             "finish" => {
                 check_args!(len)?;
                 match self.finish() {
                     Ok(ok) => {
                         let key = ctx.heap.insert(ok.into());
-                        return Ok(Value::Ref(key));
+                        Ok(Value::Ref(key))
                     }
                     Err(err) => Ok(create_err(err, &mut ctx.heap)),
                 }
             }
-            _ => return Err(Ce::MethodNotFound),
+            _ => Err(Ce::MethodNotFound),
         }
     }
 }

@@ -96,7 +96,7 @@ impl<'a> Lexer<'a> {
                     }
                     buffer.push(q);
                     let bytecount = q.len_utf8();
-                    self.index += bytecount.checked_sub(1).unwrap_or(0);
+                    self.index += bytecount.saturating_sub(1);
                 }
                 (true, ch) => {
                     let escape_map = match ch {
@@ -187,15 +187,15 @@ impl<'a> Lexer<'a> {
         self.next()
     }
     pub fn new(src: &'a str) -> Self {
-        return Self {
+        Self {
             chars: src.chars(),
             source: String::from(src),
 
             index: 0,
-        };
+        }
     }
 }
-impl<'a> Iterator for Lexer<'a> {
+impl Iterator for Lexer<'_> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -238,7 +238,7 @@ impl<'a> Iterator for Lexer<'a> {
                 if advanced != '=' {
                     return Some(Token::new(TokenType::DualQuestion, range + 1));
                 }
-                return Some(Token::new(TokenType::QuestionEqual, range + 2));
+                Some(Token::new(TokenType::QuestionEqual, range + 2))
             }
             '+' => self.multi_char_token('=', TokenType::Plus, TokenType::PlusEqual, start),
             '*' => self.multi_char_token('=', TokenType::Star, TokenType::StarEqual, start),
@@ -263,7 +263,7 @@ impl<'a> Iterator for Lexer<'a> {
             ' ' | '\t' | '\r' | '\n' => self.next(),
             last => Some(
                 self.ident_or_num(last)
-                    .expect(format!("Unexpected Char {last}").as_str()),
+                    .unwrap_or_else(|| panic!("Unexpected Char {last}")),
             ),
         }
     }

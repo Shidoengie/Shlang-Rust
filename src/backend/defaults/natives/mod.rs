@@ -25,10 +25,10 @@ pub fn native_constructors() -> HashMap<String, NativeConstructor> {
 #[macro_export]
 macro_rules! check_args {
     ($range:tt, $given_size:expr) => {
-        crate::backend::defaults::natives::check_args($crate::arg_range!($range), $given_size)
+        $crate::backend::defaults::natives::check_args($crate::arg_range!($range), $given_size)
     };
     ($given_size:expr) => {
-        crate::backend::defaults::natives::check_args(Some((0, 0)), $given_size)
+        $crate::backend::defaults::natives::check_args(Some((0, 0)), $given_size)
     };
 }
 fn check_args(arg_range: Option<(u8, u8)>, given_size: usize) -> NativeFuncResult<()> {
@@ -52,9 +52,9 @@ fn check_args(arg_range: Option<(u8, u8)>, given_size: usize) -> NativeFuncResul
             min = range.0
         ));
     }
-    return Ok(());
+    Ok(())
 }
 fn unspec_err<T>(msg: impl Display) -> NativeFuncResult<T> {
-    return Err(Ce::Unspecified(msg.to_string()));
+    Err(Ce::Unspecified(msg.to_string()))
 }
 const NO_ARGS: Option<(u8, u8)> = arg_range!();

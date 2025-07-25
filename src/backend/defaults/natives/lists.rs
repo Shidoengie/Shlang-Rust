@@ -2,11 +2,7 @@ use super::Ce;
 use crate::{
     Interpreter,
     backend::{
-        defaults::{
-            NULL, create_err,
-            natives::{NO_ARGS, check_args},
-            type_err_obj,
-        },
+        defaults::create_err,
         values::*,
     },
     catch, check_args, get_list, get_native_params,
@@ -14,7 +10,7 @@ use crate::{
 
 impl NativeTraitID for Vec<Value> {
     fn get_obj_id() -> &'static str {
-        return "List";
+        "List"
     }
 }
 
@@ -32,11 +28,11 @@ impl NativeTrait for Vec<Value> {
                 let Some(value) = self.pop() else {
                     return Ok(Value::Null);
                 };
-                return Ok(value);
+                Ok(value)
             }
             "len" => {
                 check_args!(given_size)?;
-                return Ok(Value::Num(self.len() as f64));
+                Ok(Value::Num(self.len() as f64))
             }
             "remove" => {
                 check_args!(1, given_size)?;
@@ -63,7 +59,7 @@ impl NativeTrait for Vec<Value> {
                 }
                 let index = og_index.floor() as usize;
                 self.remove(index);
-                return Ok(Value::Null);
+                Ok(Value::Null)
             }
             "append" => {
                 get_native_params!(
@@ -71,7 +67,7 @@ impl NativeTrait for Vec<Value> {
                 ;data,ctx);
                 let mut pushed = get_list!(pushed_id, ctx);
                 self.append(&mut pushed);
-                return Ok(Value::Null);
+                Ok(Value::Null)
             }
             "push" => {
                 check_args!(1, given_size)?;
@@ -100,7 +96,7 @@ impl NativeTrait for Vec<Value> {
 
                     buffer.push(mapped);
                 }
-                return Ok(Value::Ref(ctx.heap.insert(Value::List(buffer))));
+                Ok(Value::Ref(ctx.heap.insert(Value::List(buffer))))
             }
 
             "filter" => {
@@ -126,9 +122,9 @@ impl NativeTrait for Vec<Value> {
                         buffer.push(v);
                     }
                 }
-                return Ok(Value::Ref(ctx.heap.insert(Value::List(buffer))));
+                Ok(Value::Ref(ctx.heap.insert(Value::List(buffer))))
             }
-            _ => return Err(Ce::MethodNotFound),
+            _ => Err(Ce::MethodNotFound),
         }
     }
 }

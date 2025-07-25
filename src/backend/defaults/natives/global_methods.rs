@@ -1,17 +1,15 @@
 use super::*;
 use crate::backend::defaults::functions::to_str;
-use crate::backend::defaults::{create_err, get_error_obj};
+use crate::backend::defaults::get_error_obj;
 use crate::backend::values::*;
-use crate::frontend::tokens::map_keyword;
-use crate::lang_errors::LangError;
-use crate::{Interpreter, get_native_params, get_params};
+use crate::{Interpreter, get_native_params};
 use crate::{catch, check_args};
 type Ce = NativeCallError;
 #[derive(Debug, Clone)]
 pub struct GlobalMethods(pub Value);
 impl NativeTraitID for GlobalMethods {
     fn get_obj_id() -> &'static str {
-        return "GlobalMethods";
+        "GlobalMethods"
     }
 }
 impl NativeTrait for GlobalMethods {
@@ -31,7 +29,7 @@ impl NativeTrait for GlobalMethods {
                     return Ok(self.0.clone());
                 };
                 let msg = obj.get_prop("msg").unwrap();
-                return Err(Ce::Panic(msg));
+                Err(Ce::Panic(msg))
             }
             "catch" => {
                 get_native_params!(
@@ -54,7 +52,7 @@ impl NativeTrait for GlobalMethods {
                         return Err(Ce::Major(err.item));
                     } in ctx.call_closure(func.to_owned(), &[self.0.clone()], data.span)
                 );
-                return Ok(res);
+                Ok(res)
             }
             "to_str" => {
                 check_args!(0, arg_len)?;
@@ -68,7 +66,7 @@ impl NativeTrait for GlobalMethods {
                 )
                 .map_err(|err| err.into())
             }
-            _ => return Err(Ce::MethodNotFound),
+            _ => Err(Ce::MethodNotFound),
         }
     }
 }

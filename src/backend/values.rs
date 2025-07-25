@@ -4,9 +4,7 @@ use slotmap::{SlotMap, new_key_type};
 use std::{
     any::Any,
     collections::HashMap,
-    env,
     fmt::{Debug, Display},
-    sync::Arc,
 };
 
 use crate::{
@@ -75,7 +73,7 @@ pub fn list_join(list: &[Value], seperator: &str) -> String {
         }
         v.to_string() + seperator
     }));
-    return format!("[{out}]");
+    format!("[{out}]")
 }
 impl Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -146,12 +144,12 @@ pub struct NativeConstructorData<'a> {
     pub span: Span,
     pub parent: &'a mut Scope,
 }
-impl<'a> NativeConstructorData<'a> {
+impl NativeConstructorData<'_> {
     pub fn validate(&self, params: &[String]) -> Result<(), String> {
         if self.arguments.keys().eq(params) {
-            return Err(format!("Malformed Constructor"));
+            return Err("Malformed Constructor".to_string());
         }
-        return Ok(());
+        Ok(())
     }
 }
 /// The result of the Native Constructor
@@ -181,7 +179,7 @@ impl From<CallError> for NativeCallError {
 pub trait NativeTraitID {
     fn get_obj_id() -> &'static str;
     fn get_obj_id_from_val(&self) -> &'static str {
-        return Self::get_obj_id();
+        Self::get_obj_id()
     }
 }
 pub trait NativeTrait: Debug + Any + DynClone {
@@ -191,16 +189,16 @@ pub trait NativeTrait: Debug + Any + DynClone {
         ctx: &mut Interpreter,
         data: FuncData,
     ) -> NativeFuncResult {
-        return Err(NativeCallError::MethodNotFound);
+        Err(NativeCallError::MethodNotFound)
     }
     fn lang_get(&mut self, name: &str, ctx: &mut Interpreter) -> Option<Value> {
-        return None;
+        None
     }
     fn lang_repr(&self) -> String {
-        return String::new();
+        String::new()
     }
     fn as_type_id(&self) -> std::any::TypeId {
-        return self.type_id();
+        self.type_id()
     }
 }
 
@@ -213,25 +211,25 @@ pub struct NativeObject {
 }
 impl NativeObject {
     pub fn new(id: impl Display, inner: impl NativeTrait) -> Self {
-        return Self {
+        Self {
             id: id.to_string(),
             inner: Box::new(inner),
-        };
+        }
     }
 }
 impl<T: NativeTrait + NativeTraitID> From<T> for NativeObject {
     fn from(value: T) -> Self {
-        return Self::new(value.get_obj_id_from_val(), value);
+        Self::new(value.get_obj_id_from_val(), value)
     }
 }
 impl<T: NativeTrait + NativeTraitID> From<T> for Value {
     fn from(value: T) -> Self {
-        return Value::NativeObject(NativeObject::new(value.get_obj_id_from_val(), value));
+        Value::NativeObject(NativeObject::new(value.get_obj_id_from_val(), value))
     }
 }
 impl From<NativeObject> for Value {
     fn from(value: NativeObject) -> Self {
-        return Self::NativeObject(value);
+        Self::NativeObject(value)
     }
 }
 impl PartialEq for NativeObject {
@@ -261,10 +259,10 @@ impl Struct {
         )
     }
     pub fn is_instance_of(&self, name: impl ToString) -> bool {
-        return self.id.as_ref().is_some_and(|id| id == &name.to_string());
+        self.id.as_ref().is_some_and(|id| id == &name.to_string())
     }
     pub fn get_prop(&self, prop: impl AsRef<str>) -> Option<Value> {
-        return self.env.get_var(prop);
+        self.env.get_var(prop)
     }
     pub fn get_method(&self, prop: impl AsRef<str>) -> Option<Function> {
         match self.env.get_var(prop)? {
@@ -274,18 +272,18 @@ impl Struct {
     }
     pub fn new(name: impl ToString) -> Self {
         let name = name.to_string();
-        return Self {
+        Self {
             id: if name.is_empty() { None } else { Some(name) },
             env: Scope::default(),
-        };
+        }
     }
     pub fn set_props(&mut self, env: VarMap) -> &mut Self {
         self.env = Scope::from_vars(env);
-        return self;
+        self
     }
     pub fn prop(&mut self, name: impl ToString, value: Value) -> &mut Self {
         self.env.define(name.to_string(), value);
-        return self;
+        self
     }
 
     pub fn call_method(
@@ -306,7 +304,7 @@ impl Struct {
     }
     pub fn insert(&self, heap: &mut SlotMap<RefKey, Value>) -> Value {
         let id = heap.insert(Value::Struct(self.clone()));
-        return Value::Ref(id);
+        Value::Ref(id)
     }
     pub fn has_method(&self, name: impl Display) -> bool {
         let Some(value) = self.env.get_var(name.to_string()) else {
@@ -370,10 +368,10 @@ pub struct Function {
 }
 impl From<Closure> for Function {
     fn from(value: Closure) -> Self {
-        return Self {
+        Self {
             args: value.args,
             block: value.block,
-        };
+        }
     }
 }
 impl Function {
@@ -424,7 +422,7 @@ impl From<NativeCallError> for CallError {
             NativeCallError::Major(e) => Self::Major(e),
             NativeCallError::Unspecified(e) => Self::Unspecified(e),
             NativeCallError::Panic(e) => Self::Panic(e),
-            NativeCallError::MethodNotFound => Self::Unspecified(format!("Non existent method")),
+            NativeCallError::MethodNotFound => Self::Unspecified("Non existent method".to_string()),
         }
     }
 }

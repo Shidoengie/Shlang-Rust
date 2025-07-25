@@ -2,11 +2,11 @@ use super::interpreter::{EvalRes, IError};
 
 use crate::{
     backend::values::*,
-    frontend::nodes::{self, *},
     spans::{IntoSpanned, Span},
 };
 use std::{collections::HashMap, fmt::Display};
 #[derive(Clone, Debug, PartialEq)]
+#[derive(Default)]
 pub struct Scope {
     pub parent: Option<Box<Scope>>,
     pub vars: HashMap<String, Value>,
@@ -39,7 +39,7 @@ impl Scope {
         if self.assign(name.clone(), value).is_none() {
             return Err(IError::InvalidAssignment(name).to_spanned(span));
         }
-        return Ok(Value::Void);
+        Ok(Value::Void)
     }
     pub fn get_struct(&self, struct_name: &String) -> Option<Struct> {
         if let Some(obj) = self.structs.get(struct_name) {
@@ -91,14 +91,5 @@ impl Scope {
             return parent.assign(var_name, value);
         }
         None
-    }
-}
-impl Default for Scope {
-    fn default() -> Self {
-        Scope {
-            parent: None,
-            vars: HashMap::new(),
-            structs: HashMap::new(),
-        }
     }
 }

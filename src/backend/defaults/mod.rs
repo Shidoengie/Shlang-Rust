@@ -98,7 +98,7 @@ fn create_map(data: FuncData, state: &mut Interpreter) -> FuncResult {
             }
 
             let key = state.heap.insert(map.into());
-            return Ok(Value::Ref(key));
+            Ok(Value::Ref(key))
         }
         Err(err) => Err(err.into()),
     }
@@ -115,7 +115,7 @@ fn error_struct(msg: String) -> Struct {
 fn create_err(msg: impl Display, heap: &mut SlotMap<RefKey, Value>) -> Value {
     let err_obg = error_struct(msg.to_string());
 
-    return err_obg.insert(heap);
+    err_obg.insert(heap)
 }
 pub(crate) fn type_err_obj(
     expected: &Type,
@@ -131,7 +131,7 @@ pub(crate) fn type_err_obj(
 #[macro_export]
 macro_rules! get_params {
     ($($param:pat = $type:expr),+ ; $data:expr, $state:expr) => {
-        use crate::backend::defaults::type_err_obj;
+        use $crate::backend::defaults::type_err_obj;
         let mut _idx = 0;
         $(
             let $param = &$data.args[_idx] else {
@@ -151,8 +151,8 @@ macro_rules! get_params {
 macro_rules! get_native_params {
     (
         $range:tt; $($param:pat = $type:expr),+ ; $data:expr, $state:expr) => {
-        use crate::backend::defaults::type_err_obj;
-        crate::check_args!($range, $data.args.len())?;
+        use $crate::backend::defaults::type_err_obj;
+        $crate::check_args!($range, $data.args.len())?;
         let mut _idx = 0;
         $(
             let $param = &$data.args[_idx] else {
@@ -170,12 +170,12 @@ macro_rules! get_native_params {
     };
     (
         $($param:pat = $type:expr),+ ; $data:expr, $state:expr) => {
-        use crate::backend::defaults::type_err_obj;
+        use $crate::backend::defaults::type_err_obj;
         let mut _idx:u8 = 0;
         $(
             let Some($param) = &$data.args.get(_idx as usize) else {
 
-        crate::check_args!((_idx + 1), $data.args.len())?;
+        $crate::check_args!((_idx + 1), $data.args.len())?;
                 return Ok(type_err_obj(
                     &$type,
                     &$data.args[_idx as usize].get_type(),
@@ -196,7 +196,7 @@ macro_rules! get_native_params {
 #[macro_export]
 macro_rules! assert_params {
     ($($param:pat = $type:expr),+ ; $data:expr, $state:expr) => {
-        use crate::backend::defaults::type_err_obj;
+        use $crate::backend::defaults::type_err_obj;
         let mut _assert_idx = 0;
         $(
     let $param = &$data.args[_assert_idx] else {
@@ -342,7 +342,7 @@ fn get_error_obj<'a>(val: &Value, heap: &'a mut SlotMap<RefKey, Value>) -> Optio
     if obj.id.as_ref().is_some_and(|id| id != "Error") {
         return None;
     }
-    return Some(obj);
+    Some(obj)
 }
 pub fn deref_val(val: Value, heap: &SlotMap<RefKey, Value>) -> Value {
     if let Value::Ref(id) = val {
@@ -358,7 +358,7 @@ pub fn get_args(data: FuncData, state: &mut Interpreter) -> FuncResult {
         _ => unimplemented!(),
     };
     let list: Vec<Value> = args.iter().map(|s| Value::Str(s.to_owned())).collect();
-    return Ok(Value::Ref(state.heap.insert(Value::List(list))));
+    Ok(Value::Ref(state.heap.insert(Value::List(list))))
 }
 ///ONLY USE IT IN METHODS!
 pub fn count_args(data: FuncData, _: &mut Interpreter) -> FuncResult {

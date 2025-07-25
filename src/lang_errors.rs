@@ -40,11 +40,11 @@ impl ErrorBuilder {
         )
     }
     pub fn line_pos(&self, span: Span) -> usize {
-        return self.input[..span.0]
+        self.input[..span.0]
             .chars()
             .filter(|ch| *ch == '\n')
             .count()
-            + 1;
+            + 1
     }
 }
 pub trait LangError {
@@ -60,7 +60,7 @@ pub trait LangError {
     where
         Self: Sized,
     {
-        return Err(self);
+        Err(self)
     }
 }
 

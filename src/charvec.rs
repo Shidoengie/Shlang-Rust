@@ -18,13 +18,13 @@ impl Debug for CharVec {
 impl From<String> for CharVec {
     fn from(value: String) -> Self {
         let val: Vec<char> = value.par_chars().collect();
-        return Self(val);
+        Self(val)
     }
 }
 impl From<&str> for CharVec {
     fn from(value: &str) -> Self {
         let val: Vec<char> = value.par_chars().collect();
-        return Self(val);
+        Self(val)
     }
 }
 impl Index<usize> for CharVec {

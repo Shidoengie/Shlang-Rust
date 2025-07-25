@@ -60,7 +60,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn expect_next(&mut self) -> ParseRes<Token> {
         let token = self.peek_some()?;
         self.next();
-        return Ok(token);
+        Ok(token)
     }
     fn skip_some(&mut self) -> ParseRes<Token> {
         self.next();
@@ -86,7 +86,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         if token.is(&expected) {
             return Some(token);
         }
-        return None;
+        None
     }
     fn consume(&mut self, expected: TokenType) -> ParseRes<Token> {
         let token = self.expect(expected)?;
@@ -168,8 +168,8 @@ impl<'input> Parser<'input, Lexer<'input>> {
             None => return Ok(self.empty_var_decl(first, ident)),
         };
         match last.kind {
-            TokenType::Equal => return self.var_decl(var_name, first),
-            _ => return Ok(self.empty_var_decl(first, ident)),
+            TokenType::Equal => self.var_decl(var_name, first),
+            _ => Ok(self.empty_var_decl(first, ident)),
         }
     }
     /// Parses tokens into an assignment node
@@ -181,19 +181,19 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
         match op_token.kind {
             TokenType::PlusEqual => {
-                return self.compound_assignment(BinaryOp::Add, target, value, span);
+                self.compound_assignment(BinaryOp::Add, target, value, span)
             }
             TokenType::MinusEqual => {
-                return self.compound_assignment(BinaryOp::Subtract, target, value, span);
+                self.compound_assignment(BinaryOp::Subtract, target, value, span)
             }
             TokenType::SlashEqual => {
-                return self.compound_assignment(BinaryOp::Divide, target, value, span);
+                self.compound_assignment(BinaryOp::Divide, target, value, span)
             }
             TokenType::QuestionEqual => {
-                return self.compound_assignment(BinaryOp::NullCoalescing, target, value, span);
+                self.compound_assignment(BinaryOp::NullCoalescing, target, value, span)
             }
             TokenType::StarEqual => {
-                return self.compound_assignment(BinaryOp::Multiply, target, value, span);
+                self.compound_assignment(BinaryOp::Multiply, target, value, span)
             }
             TokenType::Equal => Ok(Assignment {
                 target: bx!(target),
@@ -240,12 +240,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let last_span = self.peek_some()?.span;
         let expr = self.parse_expr(false)?;
         let block = vec![Node::ResultNode(bx!(expr.clone())).to_spanned(expr.span)];
-        return Ok(FuncDef {
+        Ok(FuncDef {
             args,
             block,
             captures: true,
         }
-        .to_nodespan(first_span + last_span));
+        .to_nodespan(first_span + last_span))
     }
     /// This function parses the parameters of function definitions aka: func >(one,two)<
     fn parse_func_params(&mut self) -> ParseRes<Vec<String>> {
@@ -613,8 +613,8 @@ impl<'input> Parser<'input, Lexer<'input>> {
         right: &NodeSpan,
         span: Span,
     ) -> ParseRes<NodeSpan> {
-        expect_expr(&left)?;
-        expect_expr(&right)?;
+        expect_expr(left)?;
+        expect_expr(right)?;
         Ok(BinaryNode {
             kind,
             left: bx!(left.clone()),
@@ -780,7 +780,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             method_params.first().unwrap().span + method_params.last().unwrap().span
         };
 
-        return Ok(FieldAccess {
+        Ok(FieldAccess {
             target: bx!(target),
             requested: bx!(Call {
                 callee: bx!(Node::Variable(requested).to_spanned(ident.span)),
@@ -788,7 +788,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             }
             .to_nodespan(arg_span)),
         }
-        .to_nodespan(ident.span + arg_span));
+        .to_nodespan(ident.span + arg_span))
     }
     fn parse_field_access(&mut self, target: NodeSpan, _span: Span) -> ParseRes<NodeSpan> {
         let ident = self.expect(TokenType::Identifier)?;
@@ -837,5 +837,5 @@ fn expect_expr(expr: &NodeSpan) -> ParseRes<&NodeSpan> {
     if !expr.item.can_result() {
         return Err(ParseError::UnexpectedVoidExpression.to_spanned(expr.span));
     }
-    return Ok(expr);
+    Ok(expr)
 }

@@ -4,9 +4,7 @@ use crate::backend::defaults::natives::cmd::CommandWrapper;
 
 use super::*;
 use std::{
-    error::Error,
-    fs, io,
-    process::Command,
+    fs,
     thread,
     time::{self, Duration, SystemTime},
 };
@@ -24,7 +22,7 @@ pub fn delete_var(data: FuncData, state: &mut Interpreter) -> FuncResult {
             Value::Str(var) = Type::Str,
             Value::Bool(will_panic) = Type::Bool
         ;data,state);
-            (var, will_panic.clone())
+            (var, *will_panic)
         }
         _ => unimplemented!(),
     };
@@ -34,9 +32,9 @@ pub fn delete_var(data: FuncData, state: &mut Interpreter) -> FuncResult {
     }
     let err = create_err("Undefined Variable", &mut state.heap);
     if will_panic {
-        return Err(CallError::Panic(err));
+        Err(CallError::Panic(err))
     } else {
-        return Ok(err);
+        Ok(err)
     }
 }
 
@@ -90,7 +88,7 @@ pub fn eval(data: FuncData, state: &mut Interpreter) -> FuncResult {
         };
         (
             name.clone(),
-            Function::new(func.block.clone(), func.args.clone()).into(),
+            Function::new(func.block.clone(), func.args.clone()),
         )
     }));
     let mut inter = Interpreter::new(ast, parsed_funcs);
@@ -139,7 +137,7 @@ pub fn import_var(data: FuncData, state: &mut Interpreter) -> FuncResult {
         };
         (
             name.clone(),
-            Function::new(func.block.clone(), func.args.clone()).into(),
+            Function::new(func.block.clone(), func.args.clone()),
         )
     }));
     let mut inter = Interpreter::new(ast, parsed_funcs);
@@ -207,7 +205,7 @@ fn gen_range(from: f64, to: f64, inc: f64) -> Vec<Value> {
 pub fn range(data: FuncData, state: &mut Interpreter) -> FuncResult {
     match data.args.len() {
         0 => {
-            return Ok(create_err("Expected at least 1 argument", &mut state.heap));
+            Ok(create_err("Expected at least 1 argument", &mut state.heap))
         }
         1 => {
             get_params!(
@@ -259,21 +257,21 @@ pub fn clone_val(data: FuncData, state: &mut Interpreter) -> FuncResult {
         return Ok(data.args[0].clone());
     };
     let derefed = state.heap[id].clone();
-    return Ok(Value::Ref(state.heap.insert(derefed)));
+    Ok(Value::Ref(state.heap.insert(derefed)))
 }
 pub fn capture_env(data: FuncData, state: &mut Interpreter) -> FuncResult {
     let obj = Struct {
         env: data.parent.clone(),
         id: None,
     };
-    return Ok(Value::Ref(state.heap.insert(Value::Struct(obj))));
+    Ok(Value::Ref(state.heap.insert(Value::Struct(obj))))
 }
 pub fn rand_num(data: FuncData, state: &mut Interpreter) -> FuncResult {
     match data.args.len() {
         1 => {
             get_params!(Value::Num(to) = Type::Num;data,state);
             let num: f64 = rand::thread_rng().gen_range(0.0..*to);
-            return Ok(Value::Num(num));
+            Ok(Value::Num(num))
         }
         2 => {
             get_params!(Value::Num(from) = Type::Num,Value::Num(to) = Type::Num;data,state);
@@ -281,20 +279,20 @@ pub fn rand_num(data: FuncData, state: &mut Interpreter) -> FuncResult {
                 return Ok(create_err("Invalid Range", &mut state.heap));
             }
             let num: f64 = rand::thread_rng().gen_range(*from..*to);
-            return Ok(Value::Num(num));
+            Ok(Value::Num(num))
         }
         _ => unimplemented!(),
     }
 }
 pub fn err_func(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(Value::Str(msg) = Type::Str;data,state);
-    return Ok(create_err(msg, &mut state.heap));
+    Ok(create_err(msg, &mut state.heap))
 }
 pub fn cmd(data: FuncData, state: &mut Interpreter) -> FuncResult {
     get_params!(Value::Str(process) = Type::Str;data,state);
-    return Ok(Value::Ref(
+    Ok(Value::Ref(
         state
             .heap
             .insert(CommandWrapper::new(process.clone()).into()),
-    ));
+    ))
 }

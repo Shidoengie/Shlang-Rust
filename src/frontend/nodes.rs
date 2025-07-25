@@ -1,10 +1,9 @@
-use crate::backend::scope::Scope;
 
 use crate::frontend::tokens::TokenType;
-use crate::{Interpreter, spans::*};
+use crate::spans::*;
 
 use std::collections::*;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub enum Precedence {
     Lowest,
@@ -196,7 +195,7 @@ impl Debug for Node {
                 }
 
                 for (index, name) in func.args.iter().enumerate() {
-                    f.write_str(&name)?;
+                    f.write_str(name)?;
                     if index + 1 != func.args.len() {
                         write!(f, ", ")?;
                     }

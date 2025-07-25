@@ -1,4 +1,4 @@
-use crate::{Interpreter, catch, get_params, lang_errors::LangError};
+use crate::{Interpreter, catch, get_params};
 
 use super::*;
 
@@ -59,6 +59,6 @@ fn call_closure(data: FuncData, state: &mut Interpreter) -> FuncResult {
     };
     let res = catch!( err {
         return Err(CallError::Major(err.item));
-    } in state.call_closure(closure.to_owned().into(),&list.clone(),data.span));
-    return Ok(res);
+    } in state.call_closure(closure.to_owned(),&list.clone(),data.span));
+    Ok(res)
 }

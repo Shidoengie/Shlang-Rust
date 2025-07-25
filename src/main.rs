@@ -56,7 +56,7 @@ fn input(message: &str) -> String {
     io::stdin()
         .read_line(&mut result)
         .expect("didnt receive input:");
-    return String::from(result.trim());
+    String::from(result.trim())
 }
 
 fn main() {
@@ -106,7 +106,7 @@ fn execute_source(source: String) {
         };
         (
             name.clone(),
-            Function::new(func.block.clone(), func.args.clone()).into(),
+            Function::new(func.block.clone(), func.args.clone()),
         )
     }));
     let mut interpreter = Interpreter::new(ast, parsed_funcs);
@@ -131,7 +131,7 @@ fn execute_file(path: &path::Path) {
         };
         (
             name.clone(),
-            Function::new(func.block.clone(), func.args.clone()).into(),
+            Function::new(func.block.clone(), func.args.clone()),
         )
     }));
     let mut interpreter = Interpreter::new(ast, parsed_funcs);
@@ -187,7 +187,7 @@ fn repl() {
             };
             (
                 name.clone(),
-                Function::new(func.block.clone(), func.args.clone()).into(),
+                Function::new(func.block.clone(), func.args.clone()),
             )
         }));
         let mut inter = Interpreter::new(ast, parsed_funcs);

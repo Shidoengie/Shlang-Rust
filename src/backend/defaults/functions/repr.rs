@@ -70,16 +70,16 @@ pub fn get_print_repr(
             key,
         ) {
             Ok(res) => {
-                return Ok(res.to_string());
+                Ok(res.to_string())
             }
             Err(item) => {
                 if let IError::MethodNotFound(_, _) = item.item {
                     return Ok(obj.to_string());
                 };
-                return Err(CallError::Major(item.item));
+                Err(CallError::Major(item.item))
             }
         },
-        _ => return Ok(val.to_string()),
+        _ => Ok(val.to_string()),
     }
 }
 pub fn println_builtin(data: FuncData, state: &mut Interpreter) -> FuncResult {
@@ -103,7 +103,7 @@ pub fn input_builtin(data: FuncData, state: &mut Interpreter) -> FuncResult {
     if read.is_err() {
         result = "".to_string()
     }
-    return Ok(Value::Str(String::from(result.trim())));
+    Ok(Value::Str(String::from(result.trim())))
 }
 pub fn to_str(data: FuncData, state: &mut Interpreter) -> FuncResult {
     Ok(Value::Str(

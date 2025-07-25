@@ -7,7 +7,7 @@ use crate::{Interpreter, check_args, get_params};
 use rayon::prelude::*;
 impl NativeTraitID for String {
     fn get_obj_id() -> &'static str {
-        return "String";
+        "String"
     }
 }
 impl NativeTrait for String {
@@ -21,18 +21,18 @@ impl NativeTrait for String {
         match name {
             "len" => {
                 check_args(arg_range!(), len)?;
-                return Ok(Value::Num(self.chars().count() as f64));
+                Ok(Value::Num(self.chars().count() as f64))
             }
             "byte_len" => {
                 check_args(arg_range!(), len)?;
-                return Ok(Value::Num(self.len() as f64));
+                Ok(Value::Num(self.len() as f64))
             }
             "parse_num" => {
                 check_args!(len)?;
                 let Ok(num) = self.parse::<f64>() else {
                     return Ok(create_err("Failed to parse number", &mut ctx.heap));
                 };
-                return Ok(Value::Num(num));
+                Ok(Value::Num(num))
             }
             "repeat" => {
                 check_args!(1, len)?;
@@ -40,7 +40,7 @@ impl NativeTrait for String {
                     Value::Num(times) = Type::Num
                 ;data,ctx);
                 let n = times.floor() as usize;
-                return Ok(Value::Str(self.repeat(n)));
+                Ok(Value::Str(self.repeat(n)))
             }
             "has" => {
                 check_args(arg_range!(1), len)?;
@@ -59,9 +59,9 @@ impl NativeTrait for String {
                         }
                         let mut value = self.clone();
                         value.remove(index.floor() as usize);
-                        return Ok(Value::Str(value));
+                        Ok(Value::Str(value))
                     }
-                    Value::Str(pattern) => return Ok(Value::Str(self.replace(pattern, ""))),
+                    Value::Str(pattern) => Ok(Value::Str(self.replace(pattern, ""))),
                     _ => Ok(Value::Null),
                 }
             }
@@ -113,7 +113,7 @@ impl NativeTrait for String {
                 }
                 let start_index = start.floor() as usize;
                 let end_index = end.floor() as usize;
-                return Ok(Value::Str(self[start_index..end_index].to_owned()));
+                Ok(Value::Str(self[start_index..end_index].to_owned()))
             }
             "substring" => {
                 check_args!(2, len)?;
@@ -168,7 +168,7 @@ impl NativeTrait for String {
             }
             "to_upper" => {
                 check_args(NO_ARGS, len)?;
-                return Ok(Value::Str(self.to_uppercase()));
+                Ok(Value::Str(self.to_uppercase()))
             }
             "char_at" => {
                 check_args(arg_range!(1), len)?;
@@ -191,14 +191,14 @@ impl NativeTrait for String {
                     .skip_any(index)
                     .find_first(|(i, _)| *i == index)
                     .unwrap();
-                return Ok(Value::Str(val.to_string()));
+                Ok(Value::Str(val.to_string()))
             }
             "to_lower" => {
                 check_args(NO_ARGS, len)?;
-                return Ok(Value::Str(self.to_lowercase()));
+                Ok(Value::Str(self.to_lowercase()))
             }
             "into_err" => {
-                return Ok(create_err(self, &mut ctx.heap));
+                Ok(create_err(self, &mut ctx.heap))
             }
             "split" => {
                 check_args(arg_range!(0 => 1), len)?;
@@ -228,7 +228,7 @@ impl NativeTrait for String {
                 let val = ctx.heap.insert(Value::List(split_str));
                 Ok(Value::Ref(val))
             }
-            _ => return Err(Ce::MethodNotFound),
+            _ => Err(Ce::MethodNotFound),
         }
     }
 }

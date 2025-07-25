@@ -265,25 +265,25 @@ impl Interpreter {
                 if !left {
                     return Ok(Control::Value(Value::Bool(false)));
                 }
-                return self.eval_node(&node.right, parent);
+                self.eval_node(&node.right, parent)
             }
             BinaryOp::OR => {
                 if left {
                     return Ok(Control::Value(Value::Bool(true)));
                 }
-                return self.eval_node(&node.right, parent);
+                self.eval_node(&node.right, parent)
             }
             op => {
-                return Err(IError::InvalidOp(op, Type::Bool)
-                    .to_spanned(Span(node.left.span.1, node.right.span.0)));
+                Err(IError::InvalidOp(op, Type::Bool)
+                    .to_spanned(Span(node.left.span.1, node.right.span.0)))
             }
-        };
+        }
     }
     fn null_coalescing(&mut self, left: Value, node: BinaryNode, parent: &mut Scope) -> EvalRes {
         if left != Value::Null {
             return Ok(Control::Value(left));
         }
-        return self.eval_node(&node.right, parent);
+        self.eval_node(&node.right, parent)
     }
     fn eval_binary_node(&mut self, bin_op: BinaryNode, parent: &mut Scope) -> EvalRes {
         let left = unwrap_val!(self.eval_node(&bin_op.left, parent)?);
@@ -490,7 +490,7 @@ impl Interpreter {
                 &mut defaults::closure_obj().env,
                 target,
             ),
-            Value::Null => return NULL,
+            Value::Null => NULL,
             a => unspec_err(
                 format!("Requested type {} has no properties", a.get_type()),
                 requested.span,
@@ -544,7 +544,7 @@ impl Interpreter {
                 let Some(val) = obj.inner.lang_get(&name, self) else {
                     return Err(IError::NonExistentVar(name.to_owned()).to_spanned(requested.span));
                 };
-                return Ok(Control::Value(val));
+                Ok(Control::Value(val))
             }
             _ => unimplemented!(),
         }
@@ -682,14 +682,14 @@ impl Interpreter {
         }
         let key = self.envs.insert(parent.clone());
 
-        return Ok(Control::Value(
+        Ok(Control::Value(
             Closure {
                 args: func.args,
                 block: func.block,
                 env: key,
             }
             .into(),
-        ));
+        ))
     }
     pub(crate) fn call_closure(
         &mut self,
@@ -703,7 +703,7 @@ impl Interpreter {
 
         self.envs[id] = env;
 
-        return Ok(result);
+        Ok(result)
     }
 
     fn capture_fn(&mut self, val: Value, parent: &mut Scope) -> Value {
@@ -715,7 +715,7 @@ impl Interpreter {
             }
             .into();
         }
-        return val;
+        val
     }
     fn eval_call(&mut self, request: Call, base_env: &mut Scope, parent: &mut Scope) -> EvalRes {
         let func_val = unwrap_val!(self.eval_node(&request.callee, parent)?);
@@ -741,7 +741,7 @@ impl Interpreter {
                 let res = self.call_closure(id, &arg_values, request.callee.span)?;
                 Ok(res.into())
             }
-            _ => return type_err(Type::Function, func_val.get_type(), request.callee.span),
+            _ => type_err(Type::Function, func_val.get_type(), request.callee.span),
         }
     }
 
@@ -763,13 +763,13 @@ impl Interpreter {
         let result = self.eval_block_with(called.block, parent, arg_scope)?;
         match result {
             Control::Continue | Control::Break => {
-                return Err(IError::InvalidControl.to_spanned(span));
+                Err(IError::InvalidControl.to_spanned(span))
             }
             Control::Result(val) | Control::Return(val) | Control::Value(val) => {
                 if val.is_void() {
                     return unspec_err("Attempted to return void", span);
                 }
-                return Ok(val);
+                Ok(val)
             }
         }
     }
@@ -795,9 +795,9 @@ impl Interpreter {
                     return Err(IError::Panic(val.to_string()).to_spanned(span));
                 }
                 let msg = obj.env.get_var("msg").unwrap();
-                return Err(IError::Panic(msg.to_string()).to_spanned(span));
+                Err(IError::Panic(msg.to_string()).to_spanned(span))
             }
-            _ => return Err(IError::Panic(val.to_string()).to_spanned(span)),
+            _ => Err(IError::Panic(val.to_string()).to_spanned(span)),
         }
     }
     fn handle_func_results(&mut self, result: FuncResult, span: Span) -> EvalRes<Value> {
@@ -907,11 +907,11 @@ impl Interpreter {
         base_env: &mut Scope,
         span: Span,
     ) -> EvalRes {
-        let Some(val) = obj.inner.lang_get(&name, self) else {
+        let Some(val) = obj.inner.lang_get(name, self) else {
             return Err(IError::NonExistentVar(name.to_owned()).to_spanned(span));
         };
         self.heap[id] = Value::NativeObject(obj);
-        return Ok(val.into());
+        Ok(val.into())
     }
     fn eval_primitive_method(
         &mut self,
@@ -939,10 +939,10 @@ impl Interpreter {
             span: arg_span,
             parent: base_env,
         };
-        let raw_res = obj.inner.call_native_method(&method, self, data);
+        let raw_res = obj.inner.call_native_method(method, self, data);
         let res =
-            self.native_method_results(raw_res, &method, &obj.id, request.callee.span + arg_span)?;
-        return Ok(Control::Value(res));
+            self.native_method_results(raw_res, method, &obj.id, request.callee.span + arg_span)?;
+        Ok(Control::Value(res))
     }
     fn eval_native_method(
         &mut self,
@@ -966,7 +966,7 @@ impl Interpreter {
             }
         };
         self.heap[id] = Value::NativeObject(obj);
-        return Ok(res);
+        Ok(res)
     }
 }
 ///Struct handling
@@ -1132,12 +1132,12 @@ impl Interpreter {
     }
 }
 fn unspec_err<T>(msg: impl Display, span: Span) -> EvalRes<T> {
-    return IError::Unspecified(msg.to_string()).to_spanned(span).err();
+    IError::Unspecified(msg.to_string()).to_spanned(span).err()
 }
 fn type_err<T>(expected: Type, got: Type, span: Span) -> EvalRes<T> {
-    return IError::InvalidType(vec![expected], got)
+    IError::InvalidType(vec![expected], got)
         .to_spanned(span)
-        .err();
+        .err()
 }
 fn check_args(arg_range: Option<(u8, u8)>, given_size: usize, mut span: Span) -> EvalRes<()> {
     let Some(range) = arg_range else {
@@ -1168,5 +1168,5 @@ fn check_args(arg_range: Option<(u8, u8)>, given_size: usize, mut span: Span) ->
             span,
         );
     }
-    return Ok(());
+    Ok(())
 }

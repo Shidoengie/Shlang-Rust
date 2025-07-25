@@ -1,6 +1,6 @@
 use backend::scope::Scope;
 use clap::Subcommand;
-use clap::ValueEnum;
+
 use colored::Colorize;
 use lang_errors::*;
 

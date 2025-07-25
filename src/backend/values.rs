@@ -1,5 +1,5 @@
 use dyn_clone::DynClone;
-use rayon::prelude::*;
+
 use slotmap::{SlotMap, new_key_type};
 use std::{
     any::Any,
@@ -142,9 +142,17 @@ macro_rules! arg_range {
 }
 #[derive(Debug)]
 pub struct NativeConstructorData<'a> {
-    pub arguments: VarMap,
+    pub arguments: HashMap<String, Value>,
     pub span: Span,
     pub parent: &'a mut Scope,
+}
+impl<'a> NativeConstructorData<'a> {
+    pub fn validate(&self, params: &[String]) -> Result<(), String> {
+        if self.arguments.keys().eq(params) {
+            return Err(format!("Malformed Constructor"));
+        }
+        return Ok(());
+    }
 }
 /// The result of the Native Constructor
 ///
@@ -170,6 +178,12 @@ impl From<CallError> for NativeCallError {
         }
     }
 }
+pub trait NativeTraitID {
+    fn get_obj_id() -> &'static str;
+    fn get_obj_id_from_val(&self) -> &'static str {
+        return Self::get_obj_id();
+    }
+}
 pub trait NativeTrait: Debug + Any + DynClone {
     fn call_native_method(
         &mut self,
@@ -188,8 +202,8 @@ pub trait NativeTrait: Debug + Any + DynClone {
     fn as_type_id(&self) -> std::any::TypeId {
         return self.type_id();
     }
-    fn get_id(&self) -> &str;
 }
+
 dyn_clone::clone_trait_object!(NativeTrait);
 
 #[derive(Clone, Debug)]
@@ -203,6 +217,16 @@ impl NativeObject {
             id: id.to_string(),
             inner: Box::new(inner),
         };
+    }
+}
+impl<T: NativeTrait + NativeTraitID> From<T> for NativeObject {
+    fn from(value: T) -> Self {
+        return Self::new(value.get_obj_id_from_val(), value);
+    }
+}
+impl<T: NativeTrait + NativeTraitID> From<T> for Value {
+    fn from(value: T) -> Self {
+        return Value::NativeObject(NativeObject::new(value.get_obj_id_from_val(), value));
     }
 }
 impl From<NativeObject> for Value {

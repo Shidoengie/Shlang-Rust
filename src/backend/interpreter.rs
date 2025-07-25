@@ -471,9 +471,7 @@ impl Interpreter {
         match target {
             Value::Ref(id) => self.access_ref(id, requested, base_env, parent),
 
-            Value::Str(str) => {
-                self.access_primitive(val, NativeObject::new("String", str), requested, base_env)
-            }
+            Value::Str(str) => self.access_primitive(val, str.into(), requested, base_env),
             Value::Num(_) => self.eval_access_request(
                 requested,
                 base_env,
@@ -508,12 +506,9 @@ impl Interpreter {
     ) -> EvalRes {
         match &self.heap[id] {
             Value::Struct(obj) => self.access_struct(id, requested, base_env, obj.clone()),
-            Value::List(list) => self.access_native_object(
-                id,
-                NativeObject::new("List", list.clone()),
-                requested,
-                base_env,
-            ),
+            Value::List(list) => {
+                self.access_native_object(id, list.clone().into(), requested, base_env)
+            }
             Value::NativeObject(obj) => {
                 self.access_native_object(id, obj.clone(), requested, base_env)
             }
@@ -539,8 +534,7 @@ impl Interpreter {
                         if !matches!(err.item, IError::MethodNotFound(_, _)) {
                             return Err(err);
                         }
-                        let mut methods_obj =
-                            NativeObject::new("GlobalMethods", GlobalMethods(val));
+                        let mut methods_obj = GlobalMethods(val).into();
                         self.eval_primitive_method(&mut methods_obj, request, base_env)?
                     }
                 };
@@ -967,8 +961,7 @@ impl Interpreter {
                 if !matches!(err.item, IError::MethodNotFound(_, _)) {
                     return Err(err);
                 }
-                let mut methods_obj =
-                    NativeObject::new("GlobalMethods", GlobalMethods(Value::Ref(id)));
+                let mut methods_obj = GlobalMethods(Value::Ref(id)).into();
                 self.eval_primitive_method(&mut methods_obj, request, base_env)?
             }
         };
@@ -989,11 +982,7 @@ impl Interpreter {
             unimplemented!()
         };
         let Some(func_val) = obj_env.get_var(method) else {
-            return self.eval_primitive_method(
-                &mut NativeObject::new("GlobalMethods", natives::GlobalMethods(obj)),
-                request,
-                base_env,
-            );
+            return self.eval_primitive_method(&mut GlobalMethods(obj).into(), request, base_env);
         };
 
         let call_args = request.args;

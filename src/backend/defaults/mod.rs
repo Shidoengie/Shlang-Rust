@@ -96,8 +96,8 @@ fn create_map(data: FuncData, state: &mut Interpreter) -> FuncResult {
             if ok != Value::Null {
                 return Ok(ok);
             }
-            let obj = NativeObject::new("Map", map);
-            let key = state.heap.insert(Value::NativeObject(obj));
+
+            let key = state.heap.insert(map.into());
             return Ok(Value::Ref(key));
         }
         Err(err) => Err(err.into()),
@@ -146,6 +146,52 @@ macro_rules! get_params {
             _idx += 1;
         )*
     };
+}
+#[macro_export]
+macro_rules! get_native_params {
+    (
+        $range:tt; $($param:pat = $type:expr),+ ; $data:expr, $state:expr) => {
+        use crate::backend::defaults::type_err_obj;
+        crate::check_args!($range, $data.args.len())?;
+        let mut _idx = 0;
+        $(
+            let $param = &$data.args[_idx] else {
+                return Ok(type_err_obj(
+                    &$type,
+                    &$data.args[_idx].get_type(),
+                    _idx + 1,
+                    &mut $state.heap,
+                ));
+            };
+
+            _idx += 1;
+        )*
+
+    };
+    (
+        $($param:pat = $type:expr),+ ; $data:expr, $state:expr) => {
+        use crate::backend::defaults::type_err_obj;
+        let mut _idx:u8 = 0;
+        $(
+            let Some($param) = &$data.args.get(_idx as usize) else {
+
+        crate::check_args!((_idx + 1), $data.args.len())?;
+                return Ok(type_err_obj(
+                    &$type,
+                    &$data.args[_idx as usize].get_type(),
+                    _idx as usize + 1,
+                    &mut $state.heap,
+                ));
+            };
+
+            _idx += 1;
+        )*
+
+    };
+    ($data:expr, $state:expr) => {
+        use crate::backend::defaults::type_err_obj;
+        crate::check_args!($data.args.len())?;
+    }
 }
 #[macro_export]
 macro_rules! assert_params {

@@ -4,7 +4,7 @@ use crate::{
         defaults::{create_err, natives::check_args, type_err_obj},
         values::*,
     },
-    check_args, get_list, get_params,
+    check_args, get_list, get_native_params, get_params,
 };
 use std::collections::HashMap;
 
@@ -12,14 +12,15 @@ pub fn make_hashmap(data: NativeConstructorData, ctx: &mut Interpreter) -> Nativ
     if !data.arguments.is_empty() {
         return Err(format!("This struct doesnt accept any arguments"));
     }
-    let obj = NativeObject::new("Map", HashMap::<String, Value>::new());
-    return Ok(obj);
+    return Ok(HashMap::<String, Value>::new().into());
 }
 type Ce = NativeCallError;
-impl NativeTrait for HashMap<String, Value> {
-    fn get_id(&self) -> &str {
+impl NativeTraitID for HashMap<String, Value> {
+    fn get_obj_id() -> &'static str {
         return "Map";
     }
+}
+impl NativeTrait for HashMap<String, Value> {
     fn call_native_method(
         &mut self,
         name: &str,
@@ -28,9 +29,7 @@ impl NativeTrait for HashMap<String, Value> {
     ) -> NativeFuncResult {
         match name {
             "from" => {
-                check_args!(1, data.args.len())?;
-
-                get_params!(
+                get_native_params!(
                     Value::Ref(key) = Type::Ref
                 ;data,ctx);
                 if let Value::Struct(obj) = &ctx.heap[*key] {
@@ -63,16 +62,14 @@ impl NativeTrait for HashMap<String, Value> {
                 Ok(Value::Null)
             }
             "get" => {
-                check_args!(1, data.args.len())?;
-                get_params!(
+                get_native_params!(
                     Value::Str(key) = Type::Str
                 ;data,ctx);
                 let val = self.get(key).unwrap_or(&Value::Null).clone();
                 Ok(val)
             }
             "set" => {
-                check_args!(2, data.args.len())?;
-                get_params!(
+                get_native_params!(
                     Value::Str(key) = Type::Str
                 ;data,ctx);
                 self.insert(key.to_owned(), data.args[1].to_owned());
@@ -95,8 +92,7 @@ impl NativeTrait for HashMap<String, Value> {
                 return Ok(Value::Num(self.len() as f64));
             }
             "remove" => {
-                check_args!(1, data.args.len())?;
-                get_params!(
+                get_native_params!(
                     Value::Str(key) = Type::Str
                 ;data,ctx);
                 if self.remove(key).is_none() {
@@ -106,8 +102,7 @@ impl NativeTrait for HashMap<String, Value> {
                 return Ok(Value::Null);
             }
             "has_key" => {
-                check_args!(1, data.args.len())?;
-                get_params!(
+                get_native_params!(
                     Value::Str(key) = Type::Str
                 ;data,ctx);
                 return Ok(Value::Bool(self.contains_key(key)));

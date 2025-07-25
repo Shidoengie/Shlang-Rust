@@ -5,11 +5,12 @@ use crate::backend::values::*;
 use crate::{Interpreter, check_args, get_params};
 
 use rayon::prelude::*;
-
-impl NativeTrait for String {
-    fn get_id(&self) -> &str {
+impl NativeTraitID for String {
+    fn get_obj_id() -> &'static str {
         return "String";
     }
+}
+impl NativeTrait for String {
     fn call_native_method(
         &mut self,
         name: &str,

@@ -4,15 +4,17 @@ use crate::backend::defaults::{create_err, get_error_obj};
 use crate::backend::values::*;
 use crate::frontend::tokens::map_keyword;
 use crate::lang_errors::LangError;
-use crate::{Interpreter, get_params};
+use crate::{Interpreter, get_native_params, get_params};
 use crate::{catch, check_args};
 type Ce = NativeCallError;
 #[derive(Debug, Clone)]
 pub struct GlobalMethods(pub Value);
-impl NativeTrait for GlobalMethods {
-    fn get_id(&self) -> &str {
+impl NativeTraitID for GlobalMethods {
+    fn get_obj_id() -> &'static str {
         return "GlobalMethods";
     }
+}
+impl NativeTrait for GlobalMethods {
     fn call_native_method(
         &mut self,
         name: &str,
@@ -32,8 +34,8 @@ impl NativeTrait for GlobalMethods {
                 return Err(Ce::Panic(msg));
             }
             "catch" => {
-                check_args!(1, arg_len)?;
-                get_params!(
+                get_native_params!(
+                    1;
                     Value::Closure(func) = Type::Function
                 ;data,ctx);
                 if let Value::Ref(id) = self.0 {

@@ -39,11 +39,12 @@ impl CommandWrapper {
             .output();
     }
 }
-
-impl NativeTrait for Output {
-    fn get_id(&self) -> &str {
+impl NativeTraitID for Output {
+    fn get_obj_id() -> &'static str {
         return "Output";
     }
+}
+impl NativeTrait for Output {
     fn call_native_method(
         &mut self,
         name: &str,
@@ -87,20 +88,22 @@ use crate::{
         defaults::create_err,
         values::{NativeCallError as Ce, *},
     },
-    check_args, get_list, get_params,
+    check_args, get_list, get_native_params, get_params,
 };
 pub fn make(data: NativeConstructorData, ctx: &mut Interpreter) -> NativeConstructorResult {
     let Some(name) = data.arguments.get("cmd") else {
         return Err(format!("Name argument is required"));
     };
 
-    let obj = NativeObject::new("Command", CommandWrapper::new(name.to_string()));
-    return Ok(obj);
+    let obj = CommandWrapper::new(name.to_string());
+    return Ok(obj.into());
 }
-impl NativeTrait for CommandWrapper {
-    fn get_id(&self) -> &str {
+impl NativeTraitID for CommandWrapper {
+    fn get_obj_id() -> &'static str {
         return "Cmd";
     }
+}
+impl NativeTrait for CommandWrapper {
     fn call_native_method(
         &mut self,
         name: &str,
@@ -110,8 +113,8 @@ impl NativeTrait for CommandWrapper {
         let len = data.args.len();
         match name {
             "arg" => {
-                check_args!(2, len)?;
-                get_params!(
+                get_native_params!(
+                    2;
                     Value::Str(name) = Type::Str,
                     Value::Str(value) = Type::Str
                 ;data,ctx);
@@ -119,8 +122,8 @@ impl NativeTrait for CommandWrapper {
                 return Ok(Value::Null);
             }
             "args" => {
-                check_args!(1, len)?;
-                get_params!(
+                get_native_params!(
+                    1;
                     Value::Ref(key) = Type::Ref
                 ;data,ctx);
                 let list = get_list!(key, ctx);
@@ -135,8 +138,7 @@ impl NativeTrait for CommandWrapper {
                 check_args!(len)?;
                 match self.finish() {
                     Ok(ok) => {
-                        let val = NativeObject::new("Output", ok);
-                        let key = ctx.heap.insert(val.into());
+                        let key = ctx.heap.insert(ok.into());
                         return Ok(Value::Ref(key));
                     }
                     Err(err) => Ok(create_err(err, &mut ctx.heap)),

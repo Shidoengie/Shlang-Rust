@@ -1,21 +1,20 @@
 use super::Ce;
 use crate::{
-    Interpreter,
     backend::{
         defaults::{
-            NULL, create_err,
-            natives::{NO_ARGS, check_args},
-            type_err_obj,
+            create_err, natives::{check_args, NO_ARGS}, type_err_obj, NULL
         },
         values::*,
-    },
-    catch, check_args, get_list, get_params,
+    }, catch, check_args, get_list, get_native_params, Interpreter
 };
 
-impl NativeTrait for Vec<Value> {
-    fn get_id(&self) -> &str {
+impl NativeTraitID for Vec<Value> {
+    fn get_obj_id() -> &'static str {
         return "List";
     }
+}
+
+impl NativeTrait for Vec<Value> {
     fn call_native_method(
         &mut self,
         name: &str,
@@ -49,8 +48,8 @@ impl NativeTrait for Vec<Value> {
                 Ok(Value::Num((old_len - new_len) as f64))
             }
             "pop_at" => {
-                check_args!(1, given_size)?;
-                get_params!(
+                
+                get_native_params!(
                     Value::Num(og_index) = Type::Num
                 ;data,ctx);
                 if *og_index >= self.len() as f64 {
@@ -64,8 +63,7 @@ impl NativeTrait for Vec<Value> {
                 return Ok(Value::Null);
             }
             "append" => {
-                check_args!(1, given_size)?;
-                get_params!(
+                get_native_params!(
                     Value::Ref(pushed_id) = Type::Ref
                 ;data,ctx);
                 let mut pushed = get_list!(pushed_id, ctx);
@@ -78,8 +76,8 @@ impl NativeTrait for Vec<Value> {
                 Ok(Value::Null)
             }
             "join" => {
-                check_args!(1, given_size)?;
-                get_params!(
+                
+                get_native_params!(
                     Value::Str(seperator) = Type::Str
                 ;data,ctx);
                 Ok(Value::Str(list_join(self, seperator)))
@@ -89,7 +87,7 @@ impl NativeTrait for Vec<Value> {
                 Ok(Value::Bool(self.contains(&data.args[1])))
             }
             "map" => {
-                get_params!(
+                get_native_params!(
         
                 Value::Closure(cl) = Type::Closure
             ;data,ctx);
@@ -106,8 +104,8 @@ impl NativeTrait for Vec<Value> {
             }
             
             "filter" => {
-                check_args!(1,given_size)?;
-                get_params!(
+                
+                get_native_params!(
                     Value::Closure(cl) = Type::Closure
                 ;data,ctx);
                 let mut buffer: Vec<Value> = vec![];

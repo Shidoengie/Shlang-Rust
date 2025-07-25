@@ -9,7 +9,7 @@ edition = "2024"
 clap = { version = "4.5.40", features = ["derive"] }
 colored = "2"
 dyn-clone = "1.0.19"
-insta = "1.30.0"
+
 rand = "0.8.5"
 rayon = "1.10.0"
 slotmap = "1.0.7"

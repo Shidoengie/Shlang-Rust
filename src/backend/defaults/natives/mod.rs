@@ -2,21 +2,24 @@ use std::collections::HashMap;
 use std::fmt::Display;
 
 use crate::arg_range;
+use crate::backend::defaults::natives::cmd::CommandWrapper;
 use crate::backend::values::NativeCallError;
 use crate::backend::values::NativeConstructor;
 use crate::backend::values::NativeFuncResult;
+use crate::backend::values::NativeTraitID;
 use crate::hashmap;
 mod global_methods;
 pub use global_methods::GlobalMethods;
 pub(super) mod cmd;
+
 mod hashmap;
 mod lists;
 mod strings;
 type Ce = NativeCallError;
 pub fn native_constructors() -> HashMap<String, NativeConstructor> {
     hashmap![
-        Map => hashmap::make_hashmap as NativeConstructor,
-        Command => cmd::make as NativeConstructor
+        (HashMap::get_obj_id().to_string()) => hashmap::make_hashmap as NativeConstructor,
+        (CommandWrapper::get_obj_id().to_string()) => cmd::make as NativeConstructor
     ]
 }
 #[macro_export]

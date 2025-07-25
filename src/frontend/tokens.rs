@@ -61,7 +61,6 @@ pub enum TokenType {
     Question,
     DualQuestion,
     QuestionEqual,
-
     Match,
     Is,
     Enum,

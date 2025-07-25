@@ -1,11 +1,15 @@
 use super::Ce;
 use crate::{
+    Interpreter,
     backend::{
         defaults::{
-            create_err, natives::{check_args, NO_ARGS}, type_err_obj, NULL
+            NULL, create_err,
+            natives::{NO_ARGS, check_args},
+            type_err_obj,
         },
         values::*,
-    }, catch, check_args, get_list, get_native_params, Interpreter
+    },
+    catch, check_args, get_list, get_native_params,
 };
 
 impl NativeTraitID for Vec<Value> {
@@ -48,7 +52,6 @@ impl NativeTrait for Vec<Value> {
                 Ok(Value::Num((old_len - new_len) as f64))
             }
             "pop_at" => {
-                
                 get_native_params!(
                     Value::Num(og_index) = Type::Num
                 ;data,ctx);
@@ -76,7 +79,6 @@ impl NativeTrait for Vec<Value> {
                 Ok(Value::Null)
             }
             "join" => {
-                
                 get_native_params!(
                     Value::Str(seperator) = Type::Str
                 ;data,ctx);
@@ -88,10 +90,8 @@ impl NativeTrait for Vec<Value> {
             }
             "map" => {
                 get_native_params!(
-        
-                Value::Closure(cl) = Type::Closure
-            ;data,ctx);
-                
+                    Value::Closure(cl) = Type::Closure
+                ;data,ctx);
                 let mut buffer: Vec<Value> = vec![];
                 for v in self {
                     let mapped = catch!(err {
@@ -102,19 +102,17 @@ impl NativeTrait for Vec<Value> {
                 }
                 return Ok(Value::Ref(ctx.heap.insert(Value::List(buffer))));
             }
-            
+
             "filter" => {
-                
                 get_native_params!(
                     Value::Closure(cl) = Type::Closure
                 ;data,ctx);
                 let mut buffer: Vec<Value> = vec![];
                 for v in self.iter().cloned() {
-                    
                     let mapped = catch!(err {
                         return Err(Ce::Major(err.item));
                     } in ctx.call_closure(cl.clone(), &[v.clone()], data.span));
-                
+
                     let Value::Bool(skip) = mapped else {
                         return Ok(create_err(
                             format!(

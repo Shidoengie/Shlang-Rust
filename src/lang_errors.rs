@@ -151,7 +151,7 @@ impl LangError for Spanned<InterpreterError> {
                 };
                 let got_txt = if got == &1 { "argument" } else { "arguments" };
                 format!(
-                "Invalid argument size expected {expected:?} {expected_txt} but got {got:?} {got_txt}"
+                    "Invalid argument size expected {expected:?} {expected_txt} but got {got:?} {got_txt}"
                 )
             }
             InvalidBinary(got) => format!("Invalid type in binary operation: {:?}", got),

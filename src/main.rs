@@ -37,6 +37,7 @@ enum Mode {
     Ast {
         path: Option<PathBuf>,
     },
+    /// Takes in an input and runs it
     Input {
         input: String,
     },

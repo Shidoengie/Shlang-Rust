@@ -1,0 +1,16 @@
+---
+source: src/frontend/ast/parser_test.rs
+expression: "parse_expr (\"a.b().c\")"
+---
+Ok(
+    FieldAccess {
+        target: FieldAccess {
+            target: Var(a)[0,1],
+            requested: Call {
+                callee: Var(b)[2,3],
+                args: [],
+            }[4,5],
+        }[2,5],
+        requested: Var(c)[6,7],
+    }[2,7],
+)

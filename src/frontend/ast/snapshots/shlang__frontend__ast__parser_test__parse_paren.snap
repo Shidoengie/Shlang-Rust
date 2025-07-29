@@ -1,0 +1,15 @@
+---
+source: src/frontend/ast/parser_test.rs
+expression: "parse_expr (\"(1+2+b);\")"
+---
+Ok(
+    BinaryNode {
+        kind: Add,
+        left: BinaryNode {
+            kind: Add,
+            left: Number(1)[1,2],
+            right: Number(2)[3,4],
+        }[1,4],
+        right: Var(b)[5,6],
+    }[1,6],
+)

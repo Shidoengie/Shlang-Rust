@@ -1,0 +1,59 @@
+---
+source: src/frontend/ast/parser_test.rs
+expression: "parse_expr (\"1*2+2-2/2%5 and 10 or 10!=1==2<4<=3>0>=3;\")"
+---
+Ok(
+    BinaryNode {
+        kind: OR,
+        left: BinaryNode {
+            kind: And,
+            left: BinaryNode {
+                kind: Subtract,
+                left: BinaryNode {
+                    kind: Add,
+                    left: BinaryNode {
+                        kind: Multiply,
+                        left: Number(1)[0,1],
+                        right: Number(2)[2,3],
+                    }[0,3],
+                    right: Number(2)[4,5],
+                }[0,5],
+                right: BinaryNode {
+                    kind: Modulo,
+                    left: BinaryNode {
+                        kind: Divide,
+                        left: Number(2)[6,7],
+                        right: Number(2)[8,9],
+                    }[6,9],
+                    right: Number(5)[10,11],
+                }[6,11],
+            }[0,11],
+            right: Number(10)[16,18],
+        }[0,18],
+        right: BinaryNode {
+            kind: IsEqual,
+            left: BinaryNode {
+                kind: IsDifferent,
+                left: Number(10)[22,24],
+                right: Number(1)[26,27],
+            }[22,27],
+            right: BinaryNode {
+                kind: GreaterOrEqual,
+                left: BinaryNode {
+                    kind: Greater,
+                    left: BinaryNode {
+                        kind: LesserOrEqual,
+                        left: BinaryNode {
+                            kind: Lesser,
+                            left: Number(2)[29,30],
+                            right: Number(4)[31,32],
+                        }[29,32],
+                        right: Number(3)[34,35],
+                    }[29,35],
+                    right: Number(0)[36,37],
+                }[29,37],
+                right: Number(3)[39,40],
+            }[29,40],
+        }[22,40],
+    }[0,40],
+)

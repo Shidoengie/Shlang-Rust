@@ -1,0 +1,10 @@
+---
+source: src/frontend/ast/parser_test.rs
+expression: "parse_expr (\"a();\")"
+---
+Ok(
+    Call {
+        callee: Var(a)[0,1],
+        args: [],
+    }[2,3],
+)

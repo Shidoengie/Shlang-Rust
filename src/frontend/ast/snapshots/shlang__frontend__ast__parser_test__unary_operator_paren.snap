@@ -1,0 +1,10 @@
+---
+source: src/frontend/ast/parser_test.rs
+expression: "parse_expr (\"!(0);\")"
+---
+Ok(
+    UnaryNode {
+        kind: NOT,
+        object: Number(0)[2,3],
+    }[1,3],
+)

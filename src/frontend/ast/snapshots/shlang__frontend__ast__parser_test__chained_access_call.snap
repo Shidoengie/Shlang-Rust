@@ -1,0 +1,31 @@
+---
+source: src/frontend/ast/parser_test.rs
+expression: "parse_expr (\"a.b().c().d().e()\")"
+---
+Ok(
+    FieldAccess {
+        target: FieldAccess {
+            target: FieldAccess {
+                target: FieldAccess {
+                    target: Var(a)[0,1],
+                    requested: Call {
+                        callee: Var(b)[2,3],
+                        args: [],
+                    }[4,5],
+                }[2,5],
+                requested: Call {
+                    callee: Var(c)[6,7],
+                    args: [],
+                }[8,9],
+            }[6,9],
+            requested: Call {
+                callee: Var(d)[10,11],
+                args: [],
+            }[12,13],
+        }[10,13],
+        requested: Call {
+            callee: Var(e)[14,15],
+            args: [],
+        }[16,17],
+    }[14,17],
+)

@@ -1,0 +1,16 @@
+---
+source: src/frontend/ast/parser_test.rs
+expression: "parse_expr (\"func(b){do{1}1}\")"
+---
+Ok(
+    Function(b){
+        Do{
+            Result(
+                Number(1),
+            )[11,12],
+        }[10,13],
+        Result(
+            Number(1),
+        )[13,14],
+    }[4,15],
+)

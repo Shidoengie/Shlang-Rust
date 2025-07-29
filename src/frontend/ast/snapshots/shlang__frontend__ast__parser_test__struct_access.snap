@@ -1,0 +1,14 @@
+---
+source: src/frontend/ast/parser_test.rs
+expression: "parse_expr (\"b.a*2\")"
+---
+Ok(
+    BinaryNode {
+        kind: Multiply,
+        left: FieldAccess {
+            target: Var(b)[0,1],
+            requested: Var(a)[2,3],
+        }[0,3],
+        right: Number(2)[4,5],
+    }[0,5],
+)

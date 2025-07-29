@@ -1,0 +1,17 @@
+---
+source: src/frontend/ast/parser_test.rs
+expression: "parse_expr (\"!0+(-0);\")"
+---
+Ok(
+    BinaryNode {
+        kind: Add,
+        left: UnaryNode {
+            kind: NOT,
+            object: Number(0)[1,2],
+        }[1,2],
+        right: UnaryNode {
+            kind: NEGATIVE,
+            object: Number(0)[5,6],
+        }[5,6],
+    }[1,6],
+)

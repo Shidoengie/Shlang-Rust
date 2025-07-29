@@ -1,0 +1,12 @@
+---
+source: src/frontend/ast/parser_test.rs
+expression: "parse_expr (\"struct abc{};\")"
+---
+Ok(
+    StructDef {
+        name: Some(
+            "abc",
+        ),
+        fields: [],
+    }[7,12],
+)

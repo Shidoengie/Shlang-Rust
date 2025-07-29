@@ -1,0 +1,7 @@
+---
+source: src/frontend/ast/parser_test.rs
+expression: "parse_expr (\"var a;\")"
+---
+Ok(
+    Declare(a) as Null[0,3][0,5],
+)

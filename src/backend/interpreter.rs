@@ -273,10 +273,8 @@ impl Interpreter {
                 }
                 self.eval_node(&node.right, parent)
             }
-            op => {
-                Err(IError::InvalidOp(op, Type::Bool)
-                    .to_spanned(Span(node.left.span.1, node.right.span.0)))
-            }
+            op => Err(IError::InvalidOp(op, Type::Bool)
+                .to_spanned(Span(node.left.span.1, node.right.span.0))),
         }
     }
     fn null_coalescing(&mut self, left: Value, node: BinaryNode, parent: &mut Scope) -> EvalRes {
@@ -524,7 +522,7 @@ impl Interpreter {
     ) -> EvalRes {
         match requested.item.clone() {
             Node::Call(request) => {
-                let res = self.eval_primitive_method(&mut obj, request.clone(), base_env);
+                let res = self.eval_primitive_method(&mut obj, None, request.clone(), base_env);
                 let res = match res {
                     Ok(res) => res,
                     Err(err) => {
@@ -535,7 +533,7 @@ impl Interpreter {
                             return Err(err);
                         }
                         let mut methods_obj = GlobalMethods(val).into();
-                        self.eval_primitive_method(&mut methods_obj, request, base_env)?
+                        self.eval_primitive_method(&mut methods_obj, None, request, base_env)?
                     }
                 };
                 Ok(res)
@@ -762,9 +760,7 @@ impl Interpreter {
         let arg_scope = Scope::from_vars(arg_map);
         let result = self.eval_block_with(called.block, parent, arg_scope)?;
         match result {
-            Control::Continue | Control::Break => {
-                Err(IError::InvalidControl.to_spanned(span))
-            }
+            Control::Continue | Control::Break => Err(IError::InvalidControl.to_spanned(span)),
             Control::Result(val) | Control::Return(val) | Control::Value(val) => {
                 if val.is_void() {
                     return unspec_err("Attempted to return void", span);
@@ -816,7 +812,6 @@ impl Interpreter {
     fn call_builtin(
         &mut self,
         called: BuiltinFunc,
-
         arg_values: Vec<Value>,
         span: Span,
         parent: &mut Scope,
@@ -826,6 +821,7 @@ impl Interpreter {
             args: arg_values,
             span,
             parent,
+            key: None,
         };
         let result = (called.function)(data, self);
         Ok(Control::Value(self.handle_func_results(result, span)?))
@@ -916,6 +912,7 @@ impl Interpreter {
     fn eval_primitive_method(
         &mut self,
         obj: &mut NativeObject,
+        key: Option<&RefKey>,
         request: Call,
         base_env: &mut Scope,
     ) -> EvalRes {
@@ -938,6 +935,7 @@ impl Interpreter {
             args,
             span: arg_span,
             parent: base_env,
+            key: key,
         };
         let raw_res = obj.inner.call_native_method(method, self, data);
         let res =
@@ -951,7 +949,7 @@ impl Interpreter {
         mut obj: NativeObject,
         base_env: &mut Scope,
     ) -> EvalRes {
-        let res = self.eval_primitive_method(&mut obj, request.clone(), base_env);
+        let res = self.eval_primitive_method(&mut obj, Some(&id), request.clone(), base_env);
         let res = match res {
             Ok(res) => res,
             Err(err) => {
@@ -962,7 +960,7 @@ impl Interpreter {
                     return Err(err);
                 }
                 let mut methods_obj = GlobalMethods(Value::Ref(id)).into();
-                self.eval_primitive_method(&mut methods_obj, request, base_env)?
+                self.eval_primitive_method(&mut methods_obj, Some(&id), request, base_env)?
             }
         };
         self.heap[id] = Value::NativeObject(obj);
@@ -982,7 +980,12 @@ impl Interpreter {
             unimplemented!()
         };
         let Some(func_val) = obj_env.get_var(method) else {
-            return self.eval_primitive_method(&mut GlobalMethods(obj).into(), request, base_env);
+            return self.eval_primitive_method(
+                &mut GlobalMethods(obj).into(),
+                None,
+                request,
+                base_env,
+            );
         };
 
         let call_args = request.args;

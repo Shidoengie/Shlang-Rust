@@ -5,6 +5,7 @@ use colored::Colorize;
 use lang_errors::*;
 
 use clap::Parser;
+
 use shlang::Parser as LangParser;
 use shlang::backend::values::*;
 use shlang::frontend::nodes::Node;

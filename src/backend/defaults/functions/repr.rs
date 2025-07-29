@@ -65,13 +65,12 @@ pub fn get_print_repr(
                 args: vec![],
                 span,
                 parent,
+                key: None,
             },
             state,
             key,
         ) {
-            Ok(res) => {
-                Ok(res.to_string())
-            }
+            Ok(res) => Ok(res.to_string()),
             Err(item) => {
                 if let IError::MethodNotFound(_, _) = item.item {
                     return Ok(obj.to_string());
@@ -79,11 +78,12 @@ pub fn get_print_repr(
                 Err(CallError::Major(item.item))
             }
         },
-        _ => Ok(val.to_string()),
+        _ => Ok(derefed.to_string()),
     }
 }
 pub fn println_builtin(data: FuncData, state: &mut Interpreter) -> FuncResult {
     let out = stringfy_args(&data.args, data.span, data.parent, state)?;
+
     println!("{out}");
     Ok(Value::Null)
 }

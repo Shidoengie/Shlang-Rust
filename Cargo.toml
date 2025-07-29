@@ -7,11 +7,14 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.5.40", features = ["derive"] }
+
 colored = "2"
 dyn-clone = "1.0.19"
 
 rand = "0.8.5"
 rayon = "1.10.0"
+
+
 slotmap = "1.0.7"
 [dev-dependencies]
 insta = { version = "1.30.0", features = ["yaml"] }

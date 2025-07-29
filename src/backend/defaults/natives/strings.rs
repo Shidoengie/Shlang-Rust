@@ -62,7 +62,10 @@ impl NativeTrait for String {
                         Ok(Value::Str(value))
                     }
                     Value::Str(pattern) => Ok(Value::Str(self.replace(pattern, ""))),
-                    _ => Ok(Value::Null),
+                    _ => Ok(create_err(
+                        format!("Expected str or num but got {}", target.get_type()),
+                        &mut ctx.heap,
+                    )),
                 }
             }
             "replace" => {
@@ -197,9 +200,7 @@ impl NativeTrait for String {
                 check_args(NO_ARGS, len)?;
                 Ok(Value::Str(self.to_lowercase()))
             }
-            "into_err" => {
-                Ok(create_err(self, &mut ctx.heap))
-            }
+            "into_err" => Ok(create_err(self, &mut ctx.heap)),
             "split" => {
                 check_args(arg_range!(0 => 1), len)?;
                 if data.args.is_empty() {

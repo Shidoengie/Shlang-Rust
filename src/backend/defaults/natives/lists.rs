@@ -1,10 +1,7 @@
 use super::Ce;
 use crate::{
     Interpreter,
-    backend::{
-        defaults::create_err,
-        values::*,
-    },
+    backend::{defaults::create_err, values::*},
     catch, check_args, get_list, get_native_params,
 };
 
@@ -22,6 +19,7 @@ impl NativeTrait for Vec<Value> {
         data: FuncData,
     ) -> NativeFuncResult {
         let given_size = data.args.len();
+        let key = data.key.expect("Expected key to exist");
         match name {
             "pop" => {
                 check_args!(given_size)?;
@@ -59,7 +57,7 @@ impl NativeTrait for Vec<Value> {
                 }
                 let index = og_index.floor() as usize;
                 self.remove(index);
-                Ok(Value::Null)
+                Ok(Value::Ref(*key))
             }
             "append" => {
                 get_native_params!(
@@ -67,12 +65,12 @@ impl NativeTrait for Vec<Value> {
                 ;data,ctx);
                 let mut pushed = get_list!(pushed_id, ctx);
                 self.append(&mut pushed);
-                Ok(Value::Null)
+                Ok(Value::Ref(*key))
             }
             "push" => {
                 check_args!(1, given_size)?;
                 self.push(data.args[1].clone());
-                Ok(Value::Null)
+                Ok(Value::Ref(*key))
             }
             "join" => {
                 get_native_params!(

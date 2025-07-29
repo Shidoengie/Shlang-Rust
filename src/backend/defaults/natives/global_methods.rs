@@ -4,6 +4,7 @@ use crate::backend::defaults::get_error_obj;
 use crate::backend::values::*;
 use crate::{Interpreter, get_native_params};
 use crate::{catch, check_args};
+
 type Ce = NativeCallError;
 #[derive(Debug, Clone)]
 pub struct GlobalMethods(pub Value);
@@ -12,6 +13,7 @@ impl NativeTraitID for GlobalMethods {
         "GlobalMethods"
     }
 }
+
 impl NativeTrait for GlobalMethods {
     fn call_native_method(
         &mut self,
@@ -61,6 +63,7 @@ impl NativeTrait for GlobalMethods {
                         args: vec![self.0.clone()],
                         span: data.span,
                         parent: data.parent,
+                        key: None,
                     },
                     ctx,
                 )

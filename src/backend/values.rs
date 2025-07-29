@@ -408,6 +408,7 @@ pub struct FuncData<'a> {
     pub args: Vec<Value>,
     pub span: Span,
     pub parent: &'a mut Scope,
+    pub key: Option<&'a RefKey>,
 }
 
 #[derive(Debug)]

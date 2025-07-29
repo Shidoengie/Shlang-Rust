@@ -1,0 +1,3 @@
+var a = cmd("ls");
+var out = a.finish().try();
+print(out.stdout())

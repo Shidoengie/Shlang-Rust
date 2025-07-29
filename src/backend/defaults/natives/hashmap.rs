@@ -1,9 +1,6 @@
 use crate::{
     Interpreter,
-    backend::{
-        defaults::create_err,
-        values::*,
-    },
+    backend::{defaults::create_err, values::*},
     check_args, get_list, get_native_params,
 };
 use std::collections::HashMap;
@@ -24,9 +21,11 @@ impl NativeTrait for HashMap<String, Value> {
     fn call_native_method(
         &mut self,
         name: &str,
+
         ctx: &mut Interpreter,
         data: FuncData,
     ) -> NativeFuncResult {
+        let key = data.key.expect("Expected refkey to exist");
         match name {
             "from" => {
                 get_native_params!(
@@ -59,7 +58,7 @@ impl NativeTrait for HashMap<String, Value> {
                 }
 
                 *self = HashMap::from_iter(buffer);
-                Ok(Value::Null)
+                Ok(Value::Ref(*key))
             }
             "get" => {
                 get_native_params!(
@@ -70,10 +69,10 @@ impl NativeTrait for HashMap<String, Value> {
             }
             "set" => {
                 get_native_params!(
-                    Value::Str(key) = Type::Str
+                    Value::Str(map_key) = Type::Str
                 ;data,ctx);
-                self.insert(key.to_owned(), data.args[1].to_owned());
-                Ok(Value::Null)
+                self.insert(map_key.to_owned(), data.args[1].to_owned());
+                Ok(Value::Ref(*key))
             }
             "values" => {
                 check_args!(data.args.len())?;
@@ -93,13 +92,13 @@ impl NativeTrait for HashMap<String, Value> {
             }
             "remove" => {
                 get_native_params!(
-                    Value::Str(key) = Type::Str
+                    Value::Str(val) = Type::Str
                 ;data,ctx);
-                if self.remove(key).is_none() {
+                if self.remove(val).is_none() {
                     return Ok(create_err("Key not found", &mut ctx.heap));
                 }
 
-                Ok(Value::Null)
+                Ok(Value::Ref(*key))
             }
             "has_key" => {
                 get_native_params!(

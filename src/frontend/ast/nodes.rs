@@ -60,7 +60,7 @@ impl From<TokenType> for BinaryOp {
             TokenType::Star => BinaryOp::Multiply,
             TokenType::Percent => BinaryOp::Modulo,
             TokenType::And | TokenType::DualAmpersand => BinaryOp::And,
-            TokenType::Or | TokenType::DualPipe => BinaryOp::OR,
+            TokenType::Or | TokenType::DualPipe => BinaryOp::Or,
             TokenType::DoubleEqual => BinaryOp::IsEqual,
             TokenType::BangEqual => BinaryOp::IsDifferent,
             TokenType::Greater => BinaryOp::Greater,
@@ -82,23 +82,21 @@ pub struct FuncDef {
 
 #[derive(Clone, PartialEq)]
 pub enum Node {
-    Number(f64),
     Null,
     Bool(bool),
     Str(String),
+    Float(f64),
+    Int(i64),
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
-    ResultNode(Box<NodeSpan>),
-    ReturnNode(Box<NodeSpan>),
+    ResultNode(NodeRef),
+    ReturnNode(NodeRef),
     BreakNode,
     ContinueNode,
-    Declaration(Declaration),
-    Assignment(Assignment),
+    Declaration(String, NodeRef),
+    Assignment { target: NodeRef, value: NodeRef },
     Variable(String),
-    Index {
-        target: Box<NodeSpan>,
-        index: Box<NodeSpan>,
-    },
+    Index { target: NodeRef, index: NodeRef },
     FuncDef(FuncDef),
     ListLit(Vec<NodeSpan>),
     Call(Call),
@@ -120,8 +118,11 @@ impl Node {
         }
         !matches!(
             self.clone(),
-            Self::Declaration(_)
-                | Self::Assignment(_)
+            Self::Declaration(_, _)
+                | Self::Assignment {
+                    target: _,
+                    value: _
+                }
                 | Self::ReturnNode(_)
                 | Self::BreakNode
                 | Self::ContinueNode
@@ -139,19 +140,15 @@ impl Debug for Node {
                 }
             }
 
-            Node::Number(num) => write!(f, "Number({num})"),
+            Node::Int(num) => write!(f, "Int({num})"),
+            Node::Float(num) => write!(f, "Float({num})"),
             Node::Str(txt) => write!(f, r#""{txt}""#),
             Node::Variable(val) => write!(f, "Var({val})"),
             Node::Null => f.write_str("Null"),
             Node::BreakNode => f.write_str("Break"),
-            Node::ContinueNode => f.write_str("continue"),
-            Node::Declaration(decl) => {
-                write!(
-                    f,
-                    "Declare({name}) as {val:?}",
-                    name = decl.var_name,
-                    val = decl.value
-                )
+            Node::ContinueNode => f.write_str("Continue"),
+            Node::Declaration(name, expr) => {
+                write!(f, "Declare({name} = {expr:?})",)
             }
             Node::Index { target, index } => f
                 .debug_struct("Index")
@@ -179,7 +176,7 @@ impl Debug for Node {
             Node::StructDef(node) => write!(f, "{node:#?}"),
             Node::Branch(node) => write!(f, "{node:#?}"),
             Node::ForLoop(node) => write!(f, "{node:#?}"),
-            Node::Assignment(node) => write!(f, "{node:#?}"),
+            Node::Assignment { target, value } => write!(f, "Assign({target:#?} = {value:#?})"),
             Node::FieldAccess(node) => write!(f, "{node:#?}"),
             Node::While(node) => write!(f, "{node:#?}"),
             Node::Call(node) => write!(f, "{node:#?}"),
@@ -207,11 +204,11 @@ impl Debug for Node {
     }
 }
 pub type NodeSpan = Spanned<Node>;
-pub type NodeRef = Box<Spanned<Node>>;
+pub type NodeRef = Spanned<Box<Node>>;
 impl NodeSpan {
-    pub fn wrap_in_result(&self) -> Self {
-        let value = self.clone();
-        Spanned::new(Node::ResultNode(Box::new(value.clone())), value.span)
+    pub fn wrap_in_result(self) -> Self {
+        let span = self.span;
+        Node::ResultNode(self.box_item()).to_spanned(span)
     }
 }
 pub trait IntoNodespan {
@@ -237,7 +234,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { FuncDef UnaryNode Constructor StructDef  FieldAccess BinaryNode Call Assignment Declaration Branch While ForLoop}
+nodes_from! { FuncDef UnaryNode Constructor StructDef  FieldAccess BinaryNode Call Branch While ForLoop}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
@@ -247,7 +244,7 @@ pub enum BinaryOp {
     Multiply,
     Modulo,
     And,
-    OR,
+    Or,
     IsEqual,
     IsDifferent,
     Greater,
@@ -273,24 +270,13 @@ impl BinaryNode {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub enum UnaryOp {
-    NEGATIVE,
-    NOT,
+    Negative,
+    Not,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct UnaryNode {
     pub kind: UnaryOp,
     pub object: NodeRef,
-}
-#[derive(Clone, Debug, PartialEq)]
-pub struct Declaration {
-    pub var_name: String,
-    pub value: NodeRef,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Assignment {
-    pub target: NodeRef,
-    pub value: NodeRef,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -301,14 +287,14 @@ pub struct Call {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Field {
-    Declaration(Declaration),
+    Declaration(String, NodeRef),
     StructDef(StructDef),
 }
 impl Spanned<Field> {
-    pub fn to_node(&self) -> NodeSpan {
-        match &self.item {
-            Field::Declaration(decl) => NodeSpan::new(Node::Declaration(decl.clone()), self.span),
-            Field::StructDef(decl) => NodeSpan::new(Node::StructDef(decl.clone()), self.span),
+    pub fn to_node(self) -> NodeSpan {
+        match self.item {
+            Field::Declaration(name, expr) => Node::Declaration(name, expr).to_spanned(self.span),
+            Field::StructDef(decl) => Node::StructDef(decl.clone()).to_spanned(self.span),
         }
     }
 }
@@ -338,14 +324,14 @@ pub struct Branch {
 impl Branch {
     pub fn new_single(condition: NodeSpan, block: NodeStream) -> Self {
         Self {
-            condition: Box::new(condition),
+            condition: condition.box_item(),
             if_block: block,
             else_block: None,
         }
     }
     pub fn new(condition: NodeSpan, if_block: NodeStream, else_block: NodeStream) -> Self {
         Self {
-            condition: Box::new(condition),
+            condition: condition.box_item(),
             if_block,
             else_block: Some(else_block),
         }
@@ -360,6 +346,6 @@ pub struct While {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ForLoop {
     pub ident: String,
-    pub list: Box<NodeSpan>,
+    pub list: NodeRef,
     pub proc: NodeStream,
 }

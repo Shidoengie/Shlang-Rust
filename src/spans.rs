@@ -1,6 +1,6 @@
 use std::{
     fmt::Debug,
-    ops::Add,
+    ops::{Add, Deref},
 };
 pub trait SpanUtil {
     fn get_span(&self) -> Span;
@@ -19,7 +19,6 @@ impl<T> Spanned<T> {
     pub fn box_item(self) -> Spanned<Box<T>> {
         Spanned::new(Box::new(self.item), self.span)
     }
-
     pub fn swap_item<U>(&self, item: U) -> Spanned<U> {
         Spanned {
             item,
@@ -32,11 +31,12 @@ impl<T: Debug> Debug for Spanned<T> {
         write!(f, "{:#?}[{:?},{:?}]", self.item, self.span.0, self.span.1)
     }
 }
-impl<T: Clone> Spanned<Box<T>> {
+impl<T> Spanned<Box<T>> {
     pub fn deref_item<'a>(self) -> Spanned<T> {
         Spanned::new(*self.item, self.span)
     }
 }
+
 impl<T> SpanUtil for Spanned<T> {
     fn get_span(&self) -> Span {
         self.span

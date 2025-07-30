@@ -78,6 +78,8 @@ pub enum TokenType {
     Interface,
     Def,
     As,
+    Import,
+    From,
 }
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Token {
@@ -165,7 +167,8 @@ pub fn map_keyword(text: &str) -> Option<TokenType> {
         "priv" => TokenType::Priv,
         "mod" => TokenType::Mod,
         "as" => TokenType::As,
-
+        "import" => TokenType::Import,
+        "from" => TokenType::From,
         _ => return None,
     };
     Some(res)

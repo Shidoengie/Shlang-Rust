@@ -777,12 +777,11 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
         Ok(FieldAccess {
             target: target.box_item(),
-            requested: Call {
+            requested: AccessType::Method(Call {
                 callee: Node::Variable(requested).to_spanned(ident.span).box_item(),
                 args: method_params,
-            }
-            .to_nodespan(arg_span)
-            .box_item(),
+            })
+            .to_spanned(arg_span),
         }
         .to_nodespan(ident.span + arg_span))
     }
@@ -794,7 +793,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         if self.is_expected(TokenType::LParen).is_none() {
             Ok(FieldAccess {
                 target: target.clone().box_item(),
-                requested: Node::Variable(requested).to_spanned(ident.span).box_item(),
+                requested: AccessType::Property(requested).to_spanned(ident.span),
             }
             .to_nodespan(target.span + ident.span))
         } else {
@@ -806,22 +805,13 @@ impl<'input> Parser<'input, Lexer<'input>> {
 ///base parser
 impl<'input> Parser<'input, Lexer<'input>> {
     /// Parses input as expressions and collects it into a block
-    pub fn parse(&mut self) -> ParseRes<(NodeStream, HashMap<String, Node>)> {
+    pub fn parse(&mut self) -> ParseRes<NodeStream> {
         let mut body: NodeStream = vec![];
-        let mut functions: HashMap<String, Node> = HashMap::new();
         while self.peek().is_some() {
             let expr = self.parse_expr(false)?;
-            let Node::Declaration(var, value) = expr.item else {
-                body.push(expr.clone());
-                continue;
-            };
-            let Node::FuncDef(_) = &*value.item else {
-                body.push(value.clone().deref_item());
-                continue;
-            };
-            functions.insert(var.clone(), *value.item.clone());
+            body.push(expr);
         }
-        Ok((Self::filter_block(body), functions))
+        Ok(Self::filter_block(body))
     }
 }
 

@@ -1,0 +1,19 @@
+---
+source: src/frontend/ast/parser_test.rs
+assertion_line: 23
+expression: "parse_expr (\"a(1,1,1)+1;\")"
+---
+Ok(
+    BinaryNode {
+        kind: Add,
+        left: Call {
+            callee: Var(a)[0,1],
+            args: [
+                Int(1)[2,3],
+                Int(1)[4,5],
+                Int(1)[6,7],
+            ],
+        }[2,8],
+        right: Int(1)[9,10],
+    }[2,10],
+)

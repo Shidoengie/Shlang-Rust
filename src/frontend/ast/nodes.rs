@@ -301,7 +301,12 @@ impl Spanned<Field> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct FieldAccess {
     pub target: NodeRef,
-    pub requested: NodeRef,
+    pub requested: Spanned<AccessType>,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub enum AccessType {
+    Property(String),
+    Method(Call),
 }
 
 #[derive(Clone, Debug, PartialEq)]

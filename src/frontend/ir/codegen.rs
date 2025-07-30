@@ -48,7 +48,7 @@ impl IRgen {
     pub fn generate(&mut self, input: &str) -> GenRes<&[Op]> {
         let mut parser = frontend::Parser::new(input);
 
-        let (prog, _) = parser.parse().unwrap();
+        let prog = parser.parse().unwrap();
 
         for node in prog {
             self.node_gen(node)?;
@@ -102,6 +102,8 @@ impl IRgen {
                         self.add_op(Op::Store(index));
                         Ok(())
                     }
+                    Node::Index { target, index } => todo!(),
+
                     _ => todo!(),
                 }
             }

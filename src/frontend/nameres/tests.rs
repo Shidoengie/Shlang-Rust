@@ -1,8 +1,8 @@
 use crate::{
     frontend::{
         Parser,
+        ast::{Node, NodeStream},
         nameres::{error::NameErr, resolver::NameRes},
-        nodes::{Node, NodeStream},
     },
     spans::{IntoSpanned, Span, Spanned},
     test_func,

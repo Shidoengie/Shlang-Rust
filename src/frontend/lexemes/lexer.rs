@@ -1,5 +1,6 @@
-use super::token::*;
+use super::tokens::*;
 use crate::charvec::CharVec;
+use crate::frontend::tokens;
 use crate::spans::Span;
 use std::str::Chars;
 
@@ -75,7 +76,7 @@ impl<'a> Lexer<'a> {
         let Some(span) = self.source.get(start..stop) else {
             panic!("Identifiers can only be ASCII");
         };
-        let Some(keyword) = super::token::map_keyword(span) else {
+        let Some(keyword) = tokens::map_keyword(span) else {
             return Token::new(TokenType::Identifier, Span(start, stop));
         };
         Token::new(keyword, Span(start, stop))

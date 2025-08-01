@@ -107,15 +107,13 @@ pub enum Node {
     ForLoop(ForLoop),
     DoBlock(NodeStream),
     Constructor(Constructor),
-    StructDef(StructDef),
+    StructDef(HashMap<String, NodeSpan>),
+    RecordLit(HashMap<String, NodeSpan>),
     FieldAccess(FieldAccess),
     DontResult,
 }
 impl Node {
     pub fn can_result(&self) -> bool {
-        if let Self::StructDef(def) = self {
-            return def.name.is_none();
-        }
         !matches!(
             self.clone(),
             Self::Declaration(_, _)
@@ -139,7 +137,7 @@ impl Debug for Node {
                     write!(f, "false")
                 }
             }
-
+            Node::RecordLit(map) => f.debug_map().entries(map).finish(),
             Node::Int(num) => write!(f, "Int({num})"),
             Node::Float(num) => write!(f, "Float({num})"),
             Node::Str(txt) => write!(f, r#""{txt}""#),
@@ -234,7 +232,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { FuncDef UnaryNode Constructor StructDef  FieldAccess BinaryNode Call Branch While ForLoop}
+nodes_from! { FuncDef UnaryNode Constructor  FieldAccess BinaryNode Call Branch While ForLoop}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
@@ -276,27 +274,13 @@ pub enum UnaryOp {
 #[derive(Clone, Debug, PartialEq)]
 pub struct UnaryNode {
     pub kind: UnaryOp,
-    pub object: NodeRef,
+    pub target: NodeRef,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Call {
     pub callee: NodeRef,
     pub args: NodeStream,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Field {
-    Declaration(String, NodeRef),
-    StructDef(StructDef),
-}
-impl Spanned<Field> {
-    pub fn to_node(self) -> NodeSpan {
-        match self.item {
-            Field::Declaration(name, expr) => Node::Declaration(name, expr).to_spanned(self.span),
-            Field::StructDef(decl) => Node::StructDef(decl.clone()).to_spanned(self.span),
-        }
-    }
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct FieldAccess {
@@ -309,11 +293,6 @@ pub enum AccessType {
     Method(Call),
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct StructDef {
-    pub name: Option<String>,
-    pub fields: Vec<Spanned<Field>>,
-}
 #[derive(Clone, Debug, PartialEq)]
 
 pub struct Constructor {

@@ -1,13 +1,14 @@
-use std::collections::HashMap;
-use std::iter::Peekable;
-
-use super::nodes::*;
+use clap::builder::Str;
 
 use crate::frontend::Lexer;
-use crate::frontend::ast::error::ParseError;
+use crate::frontend::ast::nodes::*;
+use crate::frontend::errors::ParseError;
 use crate::frontend::tokens::*;
+use crate::hashmap;
 use crate::lang_errors::*;
 use crate::spans::*;
+use std::collections::HashMap;
+use std::iter::Peekable;
 
 pub type ParseRes<T> = Result<T, Spanned<ParseError>>;
 
@@ -547,7 +548,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
                 self.next();
                 Ok(Node::ListLit(literal).to_spanned(span))
             }
-            TokenType::LBrace => self.anon_struct(),
+            TokenType::LBrace => self.map_literal(),
             TokenType::Identifier => Ok(Node::Variable(self.text(token)).to_spanned(token.span)),
             TokenType::While => self.parse_while_loop(),
             TokenType::If => self.parse_branch(),
@@ -631,7 +632,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let right_span = right.span;
         Ok(UnaryNode {
             kind,
-            object: right.box_item(),
+            target: right.box_item(),
         }
         .to_nodespan(op_span + right_span))
     }
@@ -646,27 +647,20 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
 ///struct parsing
 impl<'input> Parser<'input, Lexer<'input>> {
-    fn node_to_feildspan(&mut self, node: NodeSpan) -> ParseRes<Spanned<Field>> {
+    fn node_to_field(&mut self, node: NodeSpan) -> ParseRes<(String, NodeSpan)> {
         match node.item {
             Node::Declaration(name, expr) => {
-                return Ok(Field::Declaration(name, expr).to_spanned(node.span));
+                return Ok((name, expr.deref_item()));
             }
-            Node::StructDef(def) => return Ok(Spanned::new(Field::StructDef(def), node.span)),
-            _ => {}
+            _ => return Err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span)),
         }
-        Err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span))
     }
-    fn anon_struct(&mut self) -> ParseRes<NodeSpan> {
+    fn map_literal(&mut self) -> ParseRes<NodeSpan> {
         let token = self.peek_some()?;
-        let mut fields: Vec<Spanned<Field>> = vec![];
-
+        let mut entries: HashMap<String, NodeSpan> = hashmap!();
         if token.is(&TokenType::RBrace) {
             self.next();
-            return Ok(StructDef {
-                fields: vec![],
-                name: None,
-            }
-            .to_nodespan(token.span + 1));
+            return Ok(Node::RecordLit(hashmap!()).to_spanned(token.span + 1));
         }
         loop {
             let target = self.consume(TokenType::Identifier)?;
@@ -674,7 +668,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             let expr = self.parse_only_expr(false)?;
             let span = expr.span;
             let field_name = self.text(&target);
-            fields.push(Field::Declaration(field_name, expr.box_item()).to_spanned(span));
+            entries.insert(field_name, expr);
             if self.peek().is(&TokenType::Comma) {
                 self.next();
             }
@@ -683,7 +677,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             }
         }
         let span = token.span + self.next().unwrap().span;
-        Ok(StructDef { fields, name: None }.to_nodespan(span))
+        Ok(Node::RecordLit(entries).to_spanned(span))
     }
     fn parse_struct(&mut self) -> ParseRes<NodeSpan> {
         let first = self.peek_some()?;
@@ -692,14 +686,15 @@ impl<'input> Parser<'input, Lexer<'input>> {
             return self.named_struct(&name_ident);
         }
         let block = self.parse_block()?;
-        let mut fields: Vec<Spanned<Field>> = vec![];
+        let mut fields: HashMap<String, NodeSpan> = hashmap!();
         for node in block {
-            fields.push(self.node_to_feildspan(node)?);
+            let field = self.node_to_field(node)?;
+            fields.insert(field.0, field.1);
         }
 
         let last = self.next().unwrap();
         let span = first.span + last.span;
-        Ok(StructDef { fields, name: None }.to_nodespan(span))
+        Ok(Node::StructDef(fields).to_spanned(span))
     }
     fn named_struct(&mut self, name_ident: &Token) -> ParseRes<NodeSpan> {
         self.next();
@@ -707,15 +702,13 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let last = self.next().unwrap();
         let name = self.text(name_ident);
         let span = name_ident.span + last.span;
-        let mut fields: Vec<Spanned<Field>> = vec![];
+        let mut fields: HashMap<String, NodeSpan> = hashmap!();
         for node in block {
-            fields.push(self.node_to_feildspan(node)?);
+            let field = self.node_to_field(node)?;
+            fields.insert(field.0, field.1);
         }
-        let def = StructDef {
-            fields,
-            name: Some(name),
-        }
-        .to_nodespan(span);
+        let obj = Node::StructDef(fields).to_spanned(span).box_item();
+        let def = Node::Declaration(name, obj).to_spanned(span);
         Ok(def)
     }
 

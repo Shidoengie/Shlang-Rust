@@ -6,13 +6,13 @@ use std::{
 
 use crate::{
     frontend::{
+        ast::{self, *},
         nameres::{
             error::NameErr,
             scope::{Scope, VarInfo},
         },
-        nodes::*,
     },
-    lang_errors::LangError,
+    hashmap,
     spans::{IntoSpanned, Spanned},
 };
 type Res<T = NodeSpan> = Result<T, Spanned<NameErr>>;
@@ -47,12 +47,41 @@ impl NameRes {
                 parent.define(name.clone(), VarInfo::new(&new_name));
                 return Ok(Node::Declaration(new_name, value.box_item()).to_spanned(span));
             }
+            Node::While(node) => {
+                let condition = self
+                    .resolve_node(node.condition.deref_item(), parent)?
+                    .box_item();
+                let proc = self.resolve_block(node.proc, parent)?;
+                return Ok(ast::While { condition, proc }.to_nodespan(span));
+            }
+            Node::Loop(block) => {
+                let block = self.resolve_block(block, parent)?;
+                return Ok(Node::Loop(block).to_spanned(span));
+            }
+            Node::Branch(branch) => {
+                let condition = self
+                    .resolve_node(branch.condition.deref_item(), parent)?
+                    .box_item();
+                let if_block = self.resolve_block(branch.if_block, parent)?;
+                let else_block = if let Some(else_block) = branch.else_block {
+                    Some(self.resolve_block(else_block, parent)?)
+                } else {
+                    None
+                };
+                return Ok(ast::Branch {
+                    condition,
+                    else_block,
+                    if_block,
+                }
+                .to_nodespan(span));
+            }
             Node::Variable(name) => {
                 let Some(info) = parent.get_var(&name) else {
                     return Err(NameErr::UndefinedVar(name).to_spanned(span));
                 };
                 return Ok(Node::Variable(info.name).to_spanned(span));
             }
+
             Node::DoBlock(block) => {
                 let block = self.resolve_block(block, parent)?;
                 Ok(Node::DoBlock(block).to_spanned(span))
@@ -72,6 +101,22 @@ impl NameRes {
                     kind: bin.kind,
                 }
                 .to_nodespan(span));
+            }
+            Node::StructDef(obj) => {
+                let mut buf: HashMap<String, NodeSpan> = hashmap!();
+                for (name, node) in obj {
+                    let node = self.resolve_node(node, parent)?;
+                    buf.insert(name, node);
+                }
+                Ok(Node::StructDef(buf).to_spanned(span))
+            }
+            Node::RecordLit(obj) => {
+                let mut buf: HashMap<String, NodeSpan> = hashmap!();
+                for (name, node) in obj {
+                    let node = self.resolve_node(node, parent)?;
+                    buf.insert(name, node);
+                }
+                Ok(Node::RecordLit(buf).to_spanned(span))
             }
             node => return Ok(node.to_spanned(span)),
         }

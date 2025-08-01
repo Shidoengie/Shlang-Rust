@@ -5,6 +5,6 @@ expression: "parse_expr (\"!(0);\")"
 Ok(
     UnaryNode {
         kind: Not,
-        object: Int(0)[2,3],
+        target: Int(0)[2,3],
     }[1,3],
 )

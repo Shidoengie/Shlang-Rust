@@ -6,7 +6,6 @@ use lang_errors::*;
 use clap::Parser;
 
 use shlang::frontend::Parser as LangParser;
-use shlang::frontend::nodes::Node;
 
 use shlang::*;
 use slotmap::SlotMap;
@@ -124,6 +123,7 @@ fn lex_mode(maybe_path: Option<PathBuf>) {
 
 fn lex_from(source: String) {
     let lexer = shlang::frontend::Lexer::new(&source);
+
     for token in lexer {
         println!("{} <-> {token:#?}", &source[token.span.0..token.span.1]);
     }

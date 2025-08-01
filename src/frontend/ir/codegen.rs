@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use super::instructions::{OpCode as Op, *};
 
 use crate::*;
-use frontend::nodes::*;
+use frontend::ast::*;
+
 use lang_errors::LangError;
 use spans::Spanned;
 use spans::*;
@@ -79,7 +80,7 @@ impl IRgen {
                 Ok(())
             }
             Node::UnaryNode(expr) => {
-                self.node_gen(expr.object.deref_item())?;
+                self.node_gen(expr.target.deref_item())?;
                 match expr.kind {
                     UnaryOp::Negative => self.add_op(Op::Neg),
                     UnaryOp::Not => self.add_op(Op::Not),

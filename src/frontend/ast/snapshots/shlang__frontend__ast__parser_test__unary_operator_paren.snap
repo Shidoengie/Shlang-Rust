@@ -4,7 +4,7 @@ expression: "parse_expr (\"!(0);\")"
 ---
 Ok(
     UnaryNode {
-        kind: NOT,
-        object: Number(0)[2,3],
+        kind: Not,
+        object: Int(0)[2,3],
     }[1,3],
 )

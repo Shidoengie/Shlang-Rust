@@ -4,11 +4,11 @@ expression: "parse_expr (\"do{var a = 1;1+a}\")"
 ---
 Ok(
     Do{
-        Declare(a) as Number(1)[11,12][3,12],
+        Declare(a = Int(1)[11,12])[3,12],
         Result(
             BinaryNode {
                 kind: Add,
-                left: Number(1)[13,14],
+                left: Int(1)[13,14],
                 right: Var(a)[15,16],
             },
         )[13,16],

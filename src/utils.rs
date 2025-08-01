@@ -43,3 +43,15 @@ macro_rules! char_vec {
         CharVec(val)
     }};
 }
+#[macro_export]
+macro_rules! test_func {
+    ($func:expr,($($name:ident : $input:expr)*)) => {
+        $(
+        #[test]
+        fn $name () {
+            // Perform your desired operation using the input parameter
+            insta::assert_debug_snapshot!($func($input));
+        }
+        )*
+    };
+}

@@ -6,12 +6,12 @@ Ok(
     BinaryNode {
         kind: Add,
         left: UnaryNode {
-            kind: NOT,
-            object: Number(0)[1,2],
+            kind: Not,
+            object: Int(0)[1,2],
         }[1,2],
         right: UnaryNode {
-            kind: NEGATIVE,
-            object: Number(0)[5,6],
+            kind: Negative,
+            object: Int(0)[5,6],
         }[5,6],
     }[1,6],
 )

@@ -1,0 +1,14 @@
+---
+source: src/frontend/nameres/tests.rs
+expression: "test_nameres (\"var a = 10; do {var a = a;}\")"
+---
+Ok(
+    [
+        Declare(a@0 = Int(10)[8,10])[0,10],
+        Result(
+            Do{
+                Declare(a@1 = Var(a@0)[24,25])[16,25],
+            },
+        )[15,27],
+    ],
+)

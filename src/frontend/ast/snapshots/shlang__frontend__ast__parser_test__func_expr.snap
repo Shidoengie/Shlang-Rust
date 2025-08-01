@@ -5,7 +5,7 @@ expression: "parse_expr (\"func(b){1}\")"
 Ok(
     Function(b){
         Result(
-            Number(1),
+            Int(1),
         )[8,9],
     }[4,10],
 )

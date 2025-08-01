@@ -3,8 +3,5 @@ source: src/frontend/ast/parser_test.rs
 expression: "parse_expr (\"b = 1;\")"
 ---
 Ok(
-    Assignment {
-        target: Var(b)[0,1],
-        value: Number(1)[4,5],
-    }[0,5],
+    Assign(Var(b)[0,1] = Int(1)[4,5])[0,5],
 )

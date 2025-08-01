@@ -1,4 +1,4 @@
-mod error;
+pub mod error;
 pub mod nodes;
 mod parser;
 #[cfg(test)]

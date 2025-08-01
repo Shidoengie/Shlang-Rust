@@ -1,0 +1,9 @@
+---
+source: src/frontend/nameres/tests.rs
+expression: "test_nameres (\"var a = c;\")"
+---
+Err(
+    UndefinedVar(
+        "c",
+    )[8,9],
+)

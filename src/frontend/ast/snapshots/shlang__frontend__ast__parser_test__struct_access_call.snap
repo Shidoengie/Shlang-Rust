@@ -6,11 +6,15 @@ Ok(
     FieldAccess {
         target: FieldAccess {
             target: Var(a)[0,1],
-            requested: Call {
-                callee: Var(b)[2,3],
-                args: [],
-            }[4,5],
+            requested: Method(
+                Call {
+                    callee: Var(b)[2,3],
+                    args: [],
+                },
+            )[4,5],
         }[2,5],
-        requested: Var(c)[6,7],
+        requested: Property(
+            "c",
+        )[6,7],
     }[2,7],
 )

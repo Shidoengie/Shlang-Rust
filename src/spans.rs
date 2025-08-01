@@ -1,6 +1,6 @@
 use std::{
     fmt::Debug,
-    ops::{Add, Deref},
+    ops::{self, Add, Deref, Range, RangeFrom},
 };
 pub trait SpanUtil {
     fn get_span(&self) -> Span;
@@ -13,7 +13,7 @@ pub struct Spanned<T> {
     pub span: Span,
 }
 impl<T> Spanned<T> {
-    pub fn new(item: T, span: Span) -> Self {
+    pub const fn new(item: T, span: Span) -> Self {
         Self { item, span }
     }
     pub fn box_item(self) -> Spanned<Box<T>> {
@@ -65,6 +65,16 @@ pub trait IntoSpanned {
 impl<T> IntoSpanned for T {}
 #[derive(Clone, PartialEq, Eq, Hash, Copy)]
 pub struct Span(pub usize, pub usize);
+
+impl SpanUtil for Range<usize> {
+    fn get_span(&self) -> Span {
+        return Span(self.start, self.end);
+    }
+    fn take_span(self) -> Span {
+        return Span(self.start, self.end);
+    }
+}
+
 impl Span {
     pub const EMPTY: Self = Self(0, 0);
 }
@@ -85,6 +95,7 @@ impl Add<usize> for Span {
         Span(self.0, self.1 + rhs)
     }
 }
+
 impl SpanUtil for Span {
     fn get_span(&self) -> Span {
         *self

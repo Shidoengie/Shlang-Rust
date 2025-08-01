@@ -1,8 +1,0 @@
----
-source: src/frontend/ast/parser_test.rs
-assertion_line: 23
-expression: "parse_expr (\"b = 1;\")"
----
-Ok(
-    Assign(Var(b)[0,1] = Int(1)[4,5])[0,5],
-)

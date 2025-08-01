@@ -4,7 +4,7 @@ expression: "parse_expr (\"!true;\")"
 ---
 Ok(
     UnaryNode {
-        kind: NOT,
+        kind: Not,
         object: true[1,5],
     }[1,5],
 )

@@ -1,0 +1,9 @@
+---
+source: src/frontend/nameres/tests.rs
+expression: "test_nameres (\"do {var a = 10;}; var b = a;\")"
+---
+Err(
+    UndefinedVar(
+        "a",
+    )[26,27],
+)

@@ -8,24 +8,32 @@ Ok(
             target: FieldAccess {
                 target: FieldAccess {
                     target: Var(a)[3,4],
-                    requested: Call {
-                        callee: Var(b)[5,6],
-                        args: [],
-                    }[7,8],
+                    requested: Method(
+                        Call {
+                            callee: Var(b)[5,6],
+                            args: [],
+                        },
+                    )[7,8],
                 }[5,8],
-                requested: Call {
-                    callee: Var(c)[10,11],
-                    args: [],
-                }[12,13],
+                requested: Method(
+                    Call {
+                        callee: Var(c)[10,11],
+                        args: [],
+                    },
+                )[12,13],
             }[10,13],
-            requested: Call {
-                callee: Var(d)[15,16],
-                args: [],
-            }[17,18],
+            requested: Method(
+                Call {
+                    callee: Var(d)[15,16],
+                    args: [],
+                },
+            )[17,18],
         }[15,18],
-        requested: Call {
-            callee: Var(e)[20,21],
-            args: [],
-        }[22,23],
+        requested: Method(
+            Call {
+                callee: Var(e)[20,21],
+                args: [],
+            },
+        )[22,23],
     }[20,23],
 )

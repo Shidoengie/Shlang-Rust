@@ -5,6 +5,6 @@ expression: "parse_expr (\"a[1]\")"
 Ok(
     Index {
         target: Var(a)[0,1],
-        index: Number(1)[2,3],
+        index: Int(1)[2,3],
     }[2,4],
 )

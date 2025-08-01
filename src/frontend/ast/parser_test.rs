@@ -1,23 +1,11 @@
 use super::nodes::*;
 use super::parser::*;
-
-use insta::*;
+use crate::test_func;
 use std::*;
 
 fn parse_expr(source: &str) -> ParseRes<NodeSpan> {
     let mut parser = Parser::new(source);
     parser.parse_expr(false)
-}
-macro_rules! test_func {
-    ($func:expr,($($name:ident : $input:expr)*)) => {
-        $(
-        #[test]
-        fn $name () {
-            // Perform your desired operation using the input parameter
-            assert_debug_snapshot!($func($input));
-        }
-        )*
-    };
 }
 
 test_func!(parse_expr,(

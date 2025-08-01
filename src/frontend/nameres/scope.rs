@@ -2,7 +2,7 @@ use crate::spans::{IntoSpanned, Span};
 use std::{collections::HashMap, fmt::Display};
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct VarInfo {
-    name: String,
+    pub name: String,
 }
 impl VarInfo {
     pub fn new(name: impl Display) -> Self {

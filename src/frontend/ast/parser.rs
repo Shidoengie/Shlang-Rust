@@ -29,20 +29,20 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
     }
     /// converts token spans into text
-    pub fn text(&mut self, token: &Token) -> String {
+    fn text(&mut self, token: &Token) -> String {
         self.input[token.span.0..token.span.1].to_string()
     }
-    pub fn filtered_text(&mut self, token: &Token, filter: char) -> String {
+    fn filtered_text(&mut self, token: &Token, filter: char) -> String {
         String::from_iter(self.text(token).chars().filter(|c| c != &filter))
     }
-    pub fn parse_int(&mut self, token: &Token) -> Node {
+    fn parse_int(&mut self, token: &Token) -> Node {
         let mut text = self.input[token.span.0..token.span.1].to_string();
         let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
         text = String::from_iter(idk);
         Node::Int(text.parse().unwrap())
     }
 
-    pub fn parse_float(&mut self, token: &Token) -> Node {
+    fn parse_float(&mut self, token: &Token) -> Node {
         let mut text = self.input[token.span.0..token.span.1].to_string();
         let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
         text = String::from_iter(idk);

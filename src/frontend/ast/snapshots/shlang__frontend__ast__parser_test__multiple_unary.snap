@@ -6,11 +6,11 @@ Ok(
     BinaryNode {
         kind: Add,
         left: UnaryNode {
-            kind: NOT,
+            kind: Not,
             object: true[1,5],
         }[1,5],
         right: UnaryNode {
-            kind: NOT,
+            kind: Not,
             object: true[9,13],
         }[9,13],
     }[1,13],

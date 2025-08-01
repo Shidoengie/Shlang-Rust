@@ -8,11 +8,11 @@ Ok(
         left: Call {
             callee: Var(a)[0,1],
             args: [
-                Number(1)[2,3],
-                Number(1)[4,5],
-                Number(1)[6,7],
+                Int(1)[2,3],
+                Int(1)[4,5],
+                Int(1)[6,7],
             ],
         }[2,8],
-        right: Number(1)[9,10],
+        right: Int(1)[9,10],
     }[2,10],
 )

@@ -6,7 +6,7 @@ Ok(
     Function(b){
         Do{
             Result(
-                Number(1),
+                Int(1),
             )[11,12],
         }[10,13],
     }[4,15],

@@ -1,5 +1,6 @@
 ---
 source: src/frontend/ast/parser_test.rs
+description: test_parsing
 expression: "parse_expr (\"b = 1;\")"
 ---
 Ok(

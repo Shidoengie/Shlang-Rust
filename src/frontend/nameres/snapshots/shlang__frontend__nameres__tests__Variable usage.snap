@@ -1,0 +1,11 @@
+---
+source: src/frontend/nameres/tests.rs
+description: test_locals
+expression: "test_nameres (\"var a = 1; var b = a;\")"
+---
+Ok(
+    Do{
+        VarDecl(a@0 = Int(1)[13,14])[5,14],
+        VarDecl(b@0 = Var(a@0)[24,25])[16,25],
+    }[3,28],
+)

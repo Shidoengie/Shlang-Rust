@@ -46,16 +46,6 @@ pub struct IRgen {
     idents: HashMap<String, usize>,
 }
 impl IRgen {
-    pub fn generate(&mut self, input: &str) -> GenRes<&[Op]> {
-        let mut parser = frontend::Parser::new(input);
-
-        let prog = parser.parse().unwrap();
-
-        for node in prog {
-            self.node_gen(node)?;
-        }
-        return Ok(&self.stack);
-    }
     fn push_val(&mut self, val: Value) -> GenRes {
         self.add_op(Op::Push(val));
         Ok(())
@@ -87,10 +77,10 @@ impl IRgen {
                 }
                 Ok(())
             }
-            Node::Declaration(name, expr) => {
+            Node::VarDecl(decl) => {
                 let index = self.idents.len() + 1;
-                self.node_gen(expr.deref_item())?;
-                self.idents.insert(name, index);
+                self.node_gen(decl.expr.deref_item())?;
+                self.idents.insert(decl.name, index);
                 self.add_op(Op::Store(index));
                 Ok(())
             }

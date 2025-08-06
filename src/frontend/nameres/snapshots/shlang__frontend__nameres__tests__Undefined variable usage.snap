@@ -1,9 +1,10 @@
 ---
 source: src/frontend/nameres/tests.rs
+description: test_locals
 expression: "test_nameres (\"var a = c;\")"
 ---
 Err(
     UndefinedVar(
         "c",
-    )[8,9],
+    )[13,14],
 )

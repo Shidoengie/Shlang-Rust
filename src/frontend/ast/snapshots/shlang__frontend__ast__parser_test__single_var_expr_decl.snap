@@ -1,7 +1,8 @@
 ---
 source: src/frontend/ast/parser_test.rs
+description: test_parsing
 expression: "parse_expr (\"var a;\")"
 ---
 Ok(
-    Declare(a = Null[0,3])[0,5],
+    VarDecl(a = Null[0,3])[0,5],
 )

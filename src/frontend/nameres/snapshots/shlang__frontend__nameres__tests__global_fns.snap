@@ -1,0 +1,30 @@
+---
+source: src/frontend/nameres/tests.rs
+description: test_globals
+expression: "test_global_nameres\n(r#\"\n    var b = a();\n    func a() {\n        return 10;\n    } \n    \"#)"
+---
+Ok(
+    [
+        Decl(
+            VarDecl {
+                name: "b",
+                expr: Call {
+                    callee: Var(a)[13,14],
+                    args: [],
+                }[15,16],
+                readonly: false,
+            },
+        )[5,16],
+        Decl(
+            VarDecl {
+                name: "a",
+                expr: Function(){
+                    Return(
+                        Int(10),
+                    )[41,47],
+                }[27,32],
+                readonly: false,
+            },
+        )[27,32],
+    ],
+)

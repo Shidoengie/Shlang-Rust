@@ -1,0 +1,10 @@
+---
+source: src/frontend/nameres/tests.rs
+description: test_locals
+expression: "test_nameres (\"for i in [1,2,3] {var b = i}; var d = i;\")"
+---
+Err(
+    UndefinedVar(
+        "i",
+    )[43,44],
+)

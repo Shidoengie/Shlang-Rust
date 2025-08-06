@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    fmt::Display,
-    num::{NonZeroU32, NonZeroU64},
-};
+use std::{collections::HashMap, fmt::Display, hash::Hash, num::NonZeroU32};
 
 use crate::{
     frontend::{
@@ -13,18 +9,43 @@ use crate::{
         },
     },
     hashmap,
-    spans::{IntoSpanned, Spanned},
+    spans::{IntoSpanned, Span, Spanned},
 };
 type Res<T = NodeSpan> = Result<T, Spanned<NameErr>>;
-
+type DeclStream = Vec<Spanned<DeclType>>;
 #[derive(Debug, Default)]
 pub struct NameRes {
     name_count: HashMap<String, NonZeroU32>,
+    globals: HashMap<String, usize>,
 }
 impl NameRes {
-    pub fn resolve(ast: NodeStream) -> Res<NodeStream> {
-        let mut resolver = Self::default();
-        resolver.resolve_block(ast, &mut Scope::default())
+    pub fn resolve(ast: DeclStream) -> Res<DeclStream> {
+        let mut globals = HashMap::<String, usize>::new();
+        for (index, val) in ast.iter().enumerate() {
+            match &val.item {
+                DeclType::Decl(decl) => globals.insert(decl.name.to_string(), index),
+            };
+        }
+        let mut resolver = Self {
+            globals,
+            ..Default::default()
+        };
+        resolver.resolve_toplevel(ast)
+    }
+    fn resolve_toplevel(&mut self, decls: DeclStream) -> Res<DeclStream> {
+        let mut root = Scope::default();
+        let mut new_decls = vec![];
+        for i in decls {
+            match i.item {
+                DeclType::Decl(mut decl) => {
+                    decl.expr = self
+                        .resolve_node(decl.expr.deref_item(), &mut root)?
+                        .box_item();
+                    new_decls.push(DeclType::Decl(decl).to_spanned(i.span));
+                }
+            };
+        }
+        Ok(new_decls)
     }
     fn gen_name(&mut self, name: impl AsRef<str>) -> String {
         let name = name.as_ref();
@@ -38,14 +59,61 @@ impl NameRes {
         *count = new_count;
         return format!("{name}@{old_count}");
     }
-    fn resolve_node(&mut self, node: NodeSpan, parent: &mut Scope) -> Res {
+    fn get_var(&mut self, name: impl AsRef<str>, parent: &mut Scope, span: Span) -> Res<VarInfo> {
+        let name = name.as_ref();
+
+        if let Some(info) = parent.get_var(&name) {
+            return Ok(info);
+        }
+        let Some(info) = parent.get_var(&name).or_else(|| {
+            self.globals
+                .get(name)
+                .map(|_| return VarInfo::new(&name, true))
+        }) else {
+            return Err(NameErr::UndefinedVar(name.to_string()).to_spanned(span));
+        };
+        Ok(info)
+    }
+    fn resolve_var_decl(&mut self, mut decl: VarDecl, parent: &mut Scope) -> Res<VarDecl> {
+        let new_name = self.gen_name(&decl.name);
+        decl.expr = self
+            .resolve_node(decl.expr.deref_item(), parent)?
+            .box_item();
+        parent.define(decl.name, VarInfo::new(&new_name, false));
+        decl.name = new_name;
+        return Ok(decl);
+    }
+    pub fn resolve_node(&mut self, node: NodeSpan, parent: &mut Scope) -> Res {
         let span = node.span;
         match node.item {
-            Node::Declaration(name, value) => {
-                let new_name = self.gen_name(&name);
-                let value = self.resolve_node(value.deref_item(), parent)?;
-                parent.define(name.clone(), VarInfo::new(&new_name));
-                return Ok(Node::Declaration(new_name, value.box_item()).to_spanned(span));
+            Node::VarDecl(decl) => {
+                return Ok(self.resolve_var_decl(decl, parent)?.to_nodespan(span));
+            }
+            Node::Assignment { target, value } => {
+                let target = self.resolve_node(target.deref_item(), parent)?.box_item();
+                let value = self.resolve_node(value.deref_item(), parent)?.box_item();
+                return Ok(Node::Assignment { target, value }.to_spanned(span));
+            }
+            Node::Variable(name) => {
+                let info = self.get_var(name, parent, span)?;
+                return Ok(Node::Variable(info.name).to_spanned(span));
+            }
+
+            Node::FuncDef(func) => {
+                let mut func_scope = Scope::default();
+                let mut args = vec![];
+                for arg in func.args {
+                    let new_name = self.gen_name(arg.clone());
+                    func_scope.define(arg, VarInfo::new(&new_name, false));
+                    args.push(new_name);
+                }
+                let block = self.resolve_block_with(func.block, parent, func_scope)?;
+                return Ok(Node::FuncDef(FuncDef {
+                    block,
+                    args,
+                    captures: func.captures,
+                })
+                .to_spanned(span));
             }
             Node::While(node) => {
                 let condition = self
@@ -75,16 +143,16 @@ impl NameRes {
                 }
                 .to_nodespan(span));
             }
-            Node::Variable(name) => {
-                let Some(info) = parent.get_var(&name) else {
-                    return Err(NameErr::UndefinedVar(name).to_spanned(span));
-                };
-                return Ok(Node::Variable(info.name).to_spanned(span));
-            }
 
             Node::DoBlock(block) => {
                 let block = self.resolve_block(block, parent)?;
                 Ok(Node::DoBlock(block).to_spanned(span))
+            }
+            Node::ReturnNode(node) => {
+                return Ok(Node::ReturnNode(
+                    self.resolve_node(node.deref_item(), parent)?.box_item(),
+                )
+                .to_spanned(span));
             }
             Node::ResultNode(node) => {
                 return Ok(Node::ResultNode(
@@ -92,6 +160,7 @@ impl NameRes {
                 )
                 .to_spanned(span));
             }
+
             Node::BinaryNode(bin) => {
                 let left = self.resolve_node(bin.left.deref_item(), parent)?;
                 let right = self.resolve_node(bin.right.deref_item(), parent)?;
@@ -102,6 +171,27 @@ impl NameRes {
                 }
                 .to_nodespan(span));
             }
+            Node::ForLoop(forloop) => {
+                let ident = self.gen_name(&forloop.ident);
+                let mut base = Scope::default();
+                base.define(
+                    forloop.ident,
+                    VarInfo {
+                        name: ident.clone(),
+                        global: false,
+                    },
+                );
+                let list = self
+                    .resolve_node(forloop.list.deref_item(), parent)?
+                    .box_item();
+                let proc = self.resolve_block_with(forloop.proc, parent, base)?;
+                Ok(ForLoop { ident, list, proc }.to_nodespan(span))
+            }
+            Node::Index { target, index } => {
+                let target = self.resolve_node(target.deref_item(), parent)?.box_item();
+                let index = self.resolve_node(index.deref_item(), parent)?.box_item();
+                return Ok(Node::Index { target, index }.to_spanned(span));
+            }
             Node::StructDef(obj) => {
                 let mut buf: HashMap<String, NodeSpan> = hashmap!();
                 for (name, node) in obj {
@@ -110,6 +200,23 @@ impl NameRes {
                 }
                 Ok(Node::StructDef(buf).to_spanned(span))
             }
+            Node::Call(call) => {
+                let callee = self
+                    .resolve_node(call.callee.deref_item(), parent)?
+                    .box_item();
+                let mut args = vec![];
+                for node in call.args {
+                    args.push(self.resolve_node(node, parent)?);
+                }
+                return Ok(Call { args, callee }.to_nodespan(span));
+            }
+            Node::FieldAccess(mut field) => {
+                field.target = self
+                    .resolve_node(field.target.deref_item(), parent)?
+                    .box_item();
+                return Ok(field.to_nodespan(span));
+            }
+
             Node::RecordLit(obj) => {
                 let mut buf: HashMap<String, NodeSpan> = hashmap!();
                 for (name, node) in obj {
@@ -118,20 +225,58 @@ impl NameRes {
                 }
                 Ok(Node::RecordLit(buf).to_spanned(span))
             }
-            node => return Ok(node.to_spanned(span)),
+            Node::ListLit(list) => {
+                let mut buf = vec![];
+                for node in list {
+                    buf.push(self.resolve_node(node, parent)?);
+                }
+                return Ok(Node::ListLit(buf).to_spanned(span));
+            }
+            Node::UnaryNode(mut un) => {
+                un.target = self
+                    .resolve_node(un.target.deref_item(), parent)?
+                    .box_item();
+                return Ok(un.to_nodespan(span));
+            }
+            Node::Constructor(mut con) => {
+                con.name = self.get_var(&con.name, parent, span)?.name;
+                let mut buf = HashMap::<String, NodeSpan>::new();
+                for (name, value) in con.params {
+                    let value = self.resolve_node(value, parent)?;
+                    buf.insert(name, value);
+                }
+                con.params = buf;
+                return Ok(con.to_nodespan(span));
+            }
+            Node::ContinueNode
+            | Node::BreakNode
+            | Node::Bool(_)
+            | Node::Float(_)
+            | Node::Null
+            | Node::Str(_)
+            | Node::Int(_)
+            | Node::DontResult => return Ok(node), //node => return Ok(node.to_spanned(span)),
         }
     }
-    fn resolve_block(&mut self, ast: NodeStream, parent: &mut Scope) -> Res<NodeStream> {
-        let mut new_scope = Scope::new_child_in(parent.clone());
+    fn resolve_block_with(
+        &mut self,
+        ast: NodeStream,
+        parent: &mut Scope,
+        mut base: Scope,
+    ) -> Res<NodeStream> {
+        base.parent = Some(Box::new(parent.clone()));
         let mut buffer: NodeStream = vec![];
         for node in ast {
-            let resolved = self.resolve_node(node, &mut new_scope)?;
+            let resolved = self.resolve_node(node, &mut base)?;
             buffer.push(resolved);
         }
-        let Some(mod_parent) = new_scope.parent else {
+        let Some(mod_parent) = base.parent else {
             unimplemented!("Parent should always exist");
         };
         *parent = *mod_parent;
         return Ok(buffer);
+    }
+    fn resolve_block(&mut self, ast: NodeStream, parent: &mut Scope) -> Res<NodeStream> {
+        return self.resolve_block_with(ast, parent, Scope::default());
     }
 }

@@ -1,0 +1,22 @@
+---
+source: src/frontend/nameres/tests.rs
+description: test_locals
+expression: "test_nameres (\"for i in [1,2,3] {var b = i}\")"
+---
+Ok(
+    Do{
+        Result(
+            ForLoop {
+                ident: "i@0",
+                list: List{
+                    Int(1)[15,16],
+                    Int(2)[17,18],
+                    Int(3)[19,20],
+                }[14,21],
+                proc: [
+                    VarDecl(b@0 = Var(i@0)[31,32])[23,32],
+                ],
+            },
+        )[9,23],
+    }[3,35],
+)

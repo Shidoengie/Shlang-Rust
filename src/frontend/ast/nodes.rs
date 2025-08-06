@@ -93,7 +93,7 @@ pub enum Node {
     ReturnNode(NodeRef),
     BreakNode,
     ContinueNode,
-    Declaration(String, NodeRef),
+    VarDecl(VarDecl),
     Assignment { target: NodeRef, value: NodeRef },
     Variable(String),
     Index { target: NodeRef, index: NodeRef },
@@ -116,7 +116,7 @@ impl Node {
     pub fn can_result(&self) -> bool {
         !matches!(
             self.clone(),
-            Self::Declaration(_, _)
+            Self::VarDecl(_)
                 | Self::Assignment {
                     target: _,
                     value: _
@@ -145,8 +145,13 @@ impl Debug for Node {
             Node::Null => f.write_str("Null"),
             Node::BreakNode => f.write_str("Break"),
             Node::ContinueNode => f.write_str("Continue"),
-            Node::Declaration(name, expr) => {
-                write!(f, "Declare({name} = {expr:?})",)
+            Node::VarDecl(decl) => {
+                if decl.readonly {
+                    write!(f, "LetDecl")?;
+                } else {
+                    write!(f, "VarDecl")?;
+                }
+                write!(f, "({name} = {expr:?})", name = decl.name, expr = decl.expr)
             }
             Node::Index { target, index } => f
                 .debug_struct("Index")
@@ -225,14 +230,14 @@ macro_rules! nodes_from {
             }
             impl IntoNodespan for $name {
                 fn to_nodespan(self,span:Span) -> NodeSpan {
-                    Spanned::new(Node::$name(self.clone()),span)
+                    Spanned::new(Node::$name(self),span)
                 }
 
             }
         )*
     }
 }
-nodes_from! { FuncDef UnaryNode Constructor  FieldAccess BinaryNode Call Branch While ForLoop}
+nodes_from! { VarDecl FuncDef UnaryNode Constructor  FieldAccess BinaryNode Call Branch While ForLoop}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
@@ -332,4 +337,22 @@ pub struct ForLoop {
     pub ident: String,
     pub list: NodeRef,
     pub proc: NodeStream,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct VarDecl {
+    pub name: String,
+    pub expr: NodeRef,
+    pub readonly: bool,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub enum DeclType {
+    Decl(VarDecl),
+}
+enum ConstExpr {
+    String(String),
+    Null,
+    Bool(bool),
+    Float(f64),
+    Int(i64),
 }

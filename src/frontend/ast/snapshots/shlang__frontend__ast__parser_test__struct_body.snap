@@ -1,7 +1,8 @@
 ---
 source: src/frontend/ast/parser_test.rs
+description: test_parsing
 expression: "parse_expr (\"struct abc{};\")"
 ---
 Ok(
-    Declare(abc = {}[7,12])[7,12],
+    VarDecl(abc = {}[7,12])[7,12],
 )

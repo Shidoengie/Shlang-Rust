@@ -45,12 +45,23 @@ macro_rules! char_vec {
 }
 #[macro_export]
 macro_rules! test_func {
-    ($func:expr,($($name:ident : $input:expr)*)) => {
+    (
+        $(  $section:ident, $func:expr,
+            {$($name:expr => $test:expr $(,)?)* }
+        $(,)?)*
+    ) => {
         $(
-        #[test]
-        fn $name () {
-            // Perform your desired operation using the input parameter
-            insta::assert_debug_snapshot!($func($input));
+            #[test]
+        fn $section() {
+            insta::with_settings!(
+                {description => stringify!($section)},
+                {
+                    $(
+                        insta::assert_debug_snapshot!($name,$func($test));
+                    )*
+                }
+
+            )
         }
         )*
     };

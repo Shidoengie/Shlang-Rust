@@ -149,23 +149,32 @@ impl<'input> Parser<'input, Lexer<'input>> {
 impl<'input> Parser<'input, Lexer<'input>> {
     /// These Parse variable definitions/declarations
     fn empty_var_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
-        let var_name = self.text(&var_ident);
+        let name = self.text(&var_ident);
         let span = first.span + var_ident.span;
-        Node::Declaration(var_name, Node::Null.to_spanned(first.span).box_item()).to_spanned(span)
+        VarDecl {
+            name,
+            readonly: false,
+            expr: Node::Null.to_spanned(first.span).box_item(),
+        }
+        .to_nodespan(span)
     }
-    fn var_decl(&mut self, var_name: String, name_ident: &Token) -> ParseRes<NodeSpan> {
+    fn var_decl(&mut self, name: String, name_ident: &Token) -> ParseRes<NodeSpan> {
         self.next(); // Consume '='
         let val = self.parse_pratt_expression(Precedence::Lowest, false)?;
         let span = name_ident.span + val.span;
-        Ok(Node::Declaration(var_name, val.box_item()).to_spanned(span))
+        Ok(VarDecl {
+            name,
+            readonly: false,
+            expr: val.box_item(),
+        }
+        .to_nodespan(span))
     }
     fn parse_vardef(&mut self, first: &Token) -> ParseRes<NodeSpan> {
         let ident = self.expect(TokenType::Identifier)?;
         let var_name = self.text(&ident);
         self.next();
-        let last = match self.peek() {
-            Some(tk) => tk,
-            None => return Ok(self.empty_var_decl(first, ident)),
+        let Some(last) = self.peek() else {
+            return Ok(self.empty_var_decl(first, ident));
         };
         match last.kind {
             TokenType::Equal => self.var_decl(var_name, first),
@@ -277,24 +286,25 @@ impl<'input> Parser<'input, Lexer<'input>> {
     /// This creates a function object and creates a Declaration Node
     /// this is so it can then be cast into a variable
     fn parse_named_func(&mut self, name_ident: &Token) -> ParseRes<NodeSpan> {
-        let func_name = self.text(name_ident);
+        let name = self.text(name_ident);
         self.next();
         let params = self.parse_func_params()?;
         let last = self.peek_some()?;
         let block = self.parse_block()?;
 
         let func_span = name_ident.span + last.span;
-        Ok(Node::Declaration(
-            func_name,
-            FuncDef {
+        Ok(VarDecl {
+            name,
+            readonly: false,
+            expr: FuncDef {
                 block,
                 args: params,
                 captures: false,
             }
             .to_nodespan(func_span)
             .box_item(),
-        )
-        .to_spanned(func_span))
+        }
+        .to_nodespan(func_span))
     }
     /// This creates the function object which is passed as a value
     fn build_func(&mut self) -> ParseRes<Node> {
@@ -649,8 +659,8 @@ impl<'input> Parser<'input, Lexer<'input>> {
 impl<'input> Parser<'input, Lexer<'input>> {
     fn node_to_field(&mut self, node: NodeSpan) -> ParseRes<(String, NodeSpan)> {
         match node.item {
-            Node::Declaration(name, expr) => {
-                return Ok((name, expr.deref_item()));
+            Node::VarDecl(decl) => {
+                return Ok((decl.name, decl.expr.deref_item()));
             }
             _ => return Err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span)),
         }
@@ -707,8 +717,13 @@ impl<'input> Parser<'input, Lexer<'input>> {
             let field = self.node_to_field(node)?;
             fields.insert(field.0, field.1);
         }
-        let obj = Node::StructDef(fields).to_spanned(span).box_item();
-        let def = Node::Declaration(name, obj).to_spanned(span);
+        let expr = Node::StructDef(fields).to_spanned(span).box_item();
+        let def = VarDecl {
+            name,
+            expr,
+            readonly: false,
+        }
+        .to_nodespan(span);
         Ok(def)
     }
 
@@ -798,13 +813,24 @@ impl<'input> Parser<'input, Lexer<'input>> {
 ///base parser
 impl<'input> Parser<'input, Lexer<'input>> {
     /// Parses input as expressions and collects it into a block
-    pub fn parse(&mut self) -> ParseRes<NodeStream> {
-        let mut body: NodeStream = vec![];
+    pub fn parse(&mut self) -> ParseRes<Vec<Spanned<DeclType>>> {
+        let mut body: Vec<Spanned<DeclType>> = vec![];
         while self.peek().is_some() {
             let expr = self.parse_expr(false)?;
-            body.push(expr);
+            if expr.item == Node::DontResult {
+                continue;
+            }
+            match expr.item {
+                Node::VarDecl(decl) => body.push(DeclType::Decl(decl).to_spanned(expr.span)),
+                _ => {
+                    return Err(ParseError::Unspecified(format!(
+                        "Invalid expression in top scope, only declarations are allowed."
+                    ))
+                    .to_spanned(expr.span));
+                }
+            };
         }
-        Ok(Self::filter_block(body))
+        Ok(body)
     }
 }
 

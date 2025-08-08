@@ -5,7 +5,7 @@ expression: "test_global_nameres\n(r#\"\n    var b = a();\n    func a() {\n     
 ---
 Ok(
     [
-        Decl(
+        VarDecl(
             VarDecl {
                 name: "b",
                 expr: Call {
@@ -15,7 +15,7 @@ Ok(
                 readonly: false,
             },
         )[5,16],
-        Decl(
+        VarDecl(
             VarDecl {
                 name: "a",
                 expr: Function(){

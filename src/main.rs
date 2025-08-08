@@ -5,8 +5,9 @@ use lang_errors::*;
 
 use clap::Parser;
 
-use shlang::frontend::Parser as LangParser;
+use shlang::frontend::ast::parser::Parser as LangParser;
 
+use shlang::frontend::lexemes::lexer::Lexer;
 use shlang::*;
 use slotmap::SlotMap;
 use std::collections::HashMap;
@@ -67,27 +68,26 @@ fn ast_mode(maybe_path: Option<PathBuf>) {
         loop {
             let source = input(">: ");
             let err_out = ErrorBuilder::new(source.clone());
-            let mut parser = LangParser::new(source.as_str());
-            match parser.parse() {
+            match LangParser::parse(source.as_str()) {
                 Ok(ast) => println!("{ast:#?}"),
                 Err(err) => err.print_msg(err_out),
             };
         }
     };
     let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
-    let mut parser = LangParser::new(source.as_str());
-    let ast = parser.parse();
+    let ast = LangParser::parse(source.as_str());
+
     println!("{ast:#?}");
 }
 fn execute_source(source: String) {
     let err_out = ErrorBuilder::new(source.clone());
-    let mut parser = LangParser::new(&source);
+    //let mut parser = LangParser::new(&source);
     todo!()
 }
 fn execute_file(path: &path::Path) {
     let source = fs::read_to_string(path).expect("Should have been able to read the file");
     let err_out = ErrorBuilder::new(source.clone());
-    let mut parser = LangParser::new(&source);
+    //let mut parser = LangParser::new(&source);
     todo!()
 }
 
@@ -105,7 +105,7 @@ fn repl() {
     loop {
         let source = input(">: ");
         let err_out = ErrorBuilder::new(source.clone());
-        let mut parser = LangParser::new(source.as_str());
+        //let mut parser = LangParser::new(source.as_str());
         todo!()
     }
 }
@@ -122,7 +122,7 @@ fn lex_mode(maybe_path: Option<PathBuf>) {
 }
 
 fn lex_from(source: String) {
-    let lexer = shlang::frontend::Lexer::new(&source);
+    let lexer = Lexer::new(&source);
 
     for token in lexer {
         println!("{} <-> {token:#?}", &source[token.span.0..token.span.1]);

@@ -45,10 +45,13 @@ impl ErrorBuilder {
             + 1
     }
 }
-pub trait LangError: SpanUtil {
+pub trait LangError {
     fn msg(&self) -> String;
 
-    fn print_msg(&self, err_out: ErrorBuilder) {
+    fn print_msg(&self, err_out: ErrorBuilder)
+    where
+        Self: SpanUtil,
+    {
         err_out.emit(self.msg().as_str(), self.get_span());
     }
     fn err<T>(self) -> Result<T, Self>

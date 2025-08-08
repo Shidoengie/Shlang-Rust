@@ -1,17 +1,68 @@
-use clap::builder::Str;
-
-use crate::frontend::Lexer;
+mod error;
 use crate::frontend::ast::nodes::*;
-use crate::frontend::errors::ParseError;
-use crate::frontend::tokens::*;
+pub use error::ParseError;
+
+use crate::frontend::lexemes::lexer::Lexer;
+use crate::frontend::lexemes::tokens::*;
 use crate::hashmap;
 use crate::lang_errors::*;
 use crate::spans::*;
 use std::collections::HashMap;
 use std::iter::Peekable;
 
-pub type ParseRes<T> = Result<T, Spanned<ParseError>>;
+pub type Result<T = NodeSpan> = std::result::Result<T, Spanned<ParseError>>;
 
+impl From<&TokenType> for Precedence {
+    fn from(kind: &TokenType) -> Self {
+        match kind {
+            TokenType::Equal
+            | TokenType::QuestionEqual
+            | TokenType::PlusEqual
+            | TokenType::MinusEqual
+            | TokenType::StarEqual
+            | TokenType::SlashEqual => Precedence::Assign,
+            TokenType::Or | TokenType::DualPipe => Precedence::Or,
+            TokenType::And | TokenType::DualAmpersand => Precedence::And,
+            TokenType::DoubleEqual | TokenType::BangEqual => Precedence::Equality,
+            TokenType::Greater
+            | TokenType::GreaterEqual
+            | TokenType::Lesser
+            | TokenType::LesserEqual => Precedence::Comparison,
+            TokenType::DualQuestion => Precedence::Nullish,
+            TokenType::Plus | TokenType::Minus => Precedence::Sum,
+            TokenType::Slash | TokenType::Star | TokenType::Percent => Precedence::Product,
+            TokenType::LParen => Precedence::Call,
+            TokenType::LBrace => Precedence::Constructor,
+            TokenType::LBracket => Precedence::Index,
+            TokenType::Dot => Precedence::Member,
+            _ => Precedence::Lowest,
+        }
+    }
+}
+
+/// Helper to convert a token type into its corresponding BinaryOp.
+impl From<TokenType> for BinaryOp {
+    fn from(kind: TokenType) -> Self {
+        match kind {
+            TokenType::Plus => BinaryOp::Add,
+            TokenType::Minus => BinaryOp::Subtract,
+            TokenType::Slash => BinaryOp::Divide,
+            TokenType::Star => BinaryOp::Multiply,
+            TokenType::Percent => BinaryOp::Modulo,
+            TokenType::And | TokenType::DualAmpersand => BinaryOp::And,
+            TokenType::Or | TokenType::DualPipe => BinaryOp::Or,
+            TokenType::DoubleEqual => BinaryOp::IsEqual,
+            TokenType::BangEqual => BinaryOp::IsDifferent,
+            TokenType::Greater => BinaryOp::Greater,
+            TokenType::Lesser => BinaryOp::Lesser,
+            TokenType::GreaterEqual => BinaryOp::GreaterOrEqual,
+            TokenType::LesserEqual => BinaryOp::LesserOrEqual,
+            TokenType::DualQuestion => BinaryOp::NullCoalescing,
+            // This panic should ideally never be reached if the parser logic is correct.
+            _ => panic!("Cannot convert token type {:?} to a BinaryOp", kind),
+        }
+    }
+}
 #[derive(Clone)]
 pub struct Parser<'input, I>
 where
@@ -23,12 +74,6 @@ where
 
 ///utils and block parsing
 impl<'input> Parser<'input, Lexer<'input>> {
-    pub fn new(input: &'input str) -> Parser<'input, Lexer<'input>> {
-        Parser {
-            input,
-            tokens: Lexer::new(input).peekable(),
-        }
-    }
     /// converts token spans into text
     fn text(&mut self, token: &Token) -> String {
         self.input[token.span.0..token.span.1].to_string()
@@ -55,7 +100,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
     /// peeks the current token and if none was found it prints and returns an error
     /// this is used for expressions that require the existence of a current token
-    fn peek_some(&mut self) -> ParseRes<Token> {
+    fn peek_some(&mut self) -> Result<Token> {
         let Some(peeked) = self.tokens.peek().cloned() else {
             return Err(ParseError::UnexpectedStreamEnd.to_spanned(Span::EMPTY));
         };
@@ -65,18 +110,18 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn next(&mut self) -> Option<Token> {
         self.tokens.next()
     }
-    fn expect_next(&mut self) -> ParseRes<Token> {
+    fn expect_next(&mut self) -> Result<Token> {
         let token = self.peek_some()?;
         self.next();
         Ok(token)
     }
-    fn skip_some(&mut self) -> ParseRes<Token> {
+    fn skip_some(&mut self) -> Result<Token> {
         self.next();
         self.peek_some()
     }
     /// checks if a token is the expected token and if it isnt returns an error
     /// this is used for checking if certain expressions are valid
-    fn check_valid(&mut self, expected: TokenType, token: Token) -> ParseRes<()> {
+    fn check_valid(&mut self, expected: TokenType, token: Token) -> Result<()> {
         if token.is(&expected) {
             return Ok(());
         }
@@ -84,7 +129,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
     /// peeks the current token and checks if it is the same as the expected token returning an error if it isnt
     /// this is also used for validating expressions
-    fn expect(&mut self, expected: TokenType) -> ParseRes<Token> {
+    fn expect(&mut self, expected: TokenType) -> Result<Token> {
         let token = self.peek_some()?;
         self.check_valid(expected, token.clone())?;
         Ok(token)
@@ -96,12 +141,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         None
     }
-    fn consume(&mut self, expected: TokenType) -> ParseRes<Token> {
+    fn consume(&mut self, expected: TokenType) -> Result<Token> {
         let token = self.expect(expected)?;
         self.next();
         Ok(token)
     }
-    fn consume_ident(&mut self) -> ParseRes<String> {
+    fn consume_ident(&mut self) -> Result<String> {
         let token = self.expect(TokenType::Identifier)?;
         self.next();
         Ok(self.text(&token))
@@ -125,7 +170,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
     /// Parses and collects expressions into a Block node
     /// this is used for expressions with blocks like if
-    fn parse_block(&mut self) -> ParseRes<NodeStream> {
+    fn parse_block(&mut self) -> Result<NodeStream> {
         let mut body: NodeStream = vec![];
         self.next();
         let token = self.peek_some()?;
@@ -134,7 +179,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             return Ok(body);
         }
         loop {
-            let expr = self.parse_expr(false)?;
+            let expr = self.parse_node(false)?;
             body.push(expr);
             if self.peek().is(&TokenType::RBrace) {
                 break;
@@ -158,7 +203,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         .to_nodespan(span)
     }
-    fn var_decl(&mut self, name: String, name_ident: &Token) -> ParseRes<NodeSpan> {
+    fn var_decl(&mut self, name: String, name_ident: &Token) -> Result {
         self.next(); // Consume '='
         let val = self.parse_pratt_expression(Precedence::Lowest, false)?;
         let span = name_ident.span + val.span;
@@ -169,7 +214,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         .to_nodespan(span))
     }
-    fn parse_vardef(&mut self, first: &Token) -> ParseRes<NodeSpan> {
+    fn parse_vardef(&mut self, first: &Token) -> Result {
         let ident = self.expect(TokenType::Identifier)?;
         let var_name = self.text(&ident);
         self.next();
@@ -182,7 +227,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
     }
     /// Parses tokens into an assignment node
-    fn parse_assignment(&mut self, target: NodeSpan, op_token: Token) -> ParseRes<NodeSpan> {
+    fn parse_assignment(&mut self, target: NodeSpan, op_token: Token) -> Result {
         let op_precedence = Precedence::from(&op_token.kind);
         self.next(); // Consume the assignment operator
         let value = self.parse_pratt_expression(op_precedence, false)?;
@@ -218,7 +263,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         var: NodeSpan,
         value: NodeSpan,
         span: Span,
-    ) -> ParseRes<NodeSpan> {
+    ) -> Result {
         let value = self.binary_node(kind, var.clone(), value.clone(), var.span + value.span)?;
         Ok(Node::Assignment {
             target: var.box_item(),
@@ -230,7 +275,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
 ///function parsing
 impl<'input> Parser<'input, Lexer<'input>> {
-    fn parse_closure(&mut self) -> ParseRes<NodeSpan> {
+    fn parse_closure(&mut self) -> Result {
         let first_span = self.peek_some()?.span;
         let args = self.parse_func_params()?;
         if self.peek_some()?.is(&TokenType::LBrace) {
@@ -245,7 +290,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             .to_nodespan(first_span + last_span));
         }
         let last_span = self.peek_some()?.span;
-        let expr = self.parse_expr(false)?;
+        let expr = self.parse_node(false)?;
         let span = expr.span;
         let block = vec![Node::ResultNode(expr.box_item()).to_spanned(span)];
         Ok(FuncDef {
@@ -256,7 +301,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         .to_nodespan(first_span + last_span))
     }
     /// This function parses the parameters of function definitions aka: func >(one,two)<
-    fn parse_func_params(&mut self) -> ParseRes<Vec<String>> {
+    fn parse_func_params(&mut self) -> Result<Vec<String>> {
         self.next();
         let mut token = self.peek_some()?;
         let mut params: Vec<String> = vec![];
@@ -285,7 +330,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
     /// This creates a function object and creates a Declaration Node
     /// this is so it can then be cast into a variable
-    fn parse_named_func(&mut self, name_ident: &Token) -> ParseRes<NodeSpan> {
+    fn parse_named_func(&mut self, name_ident: &Token) -> Result {
         let name = self.text(name_ident);
         self.next();
         let params = self.parse_func_params()?;
@@ -307,7 +352,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         .to_nodespan(func_span))
     }
     /// This creates the function object which is passed as a value
-    fn build_func(&mut self) -> ParseRes<Node> {
+    fn build_func(&mut self) -> Result<Node> {
         let args = self.parse_func_params()?;
         let block = self.parse_block()?;
         Ok(FuncDef {
@@ -319,14 +364,14 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
     /// This uses build_func to create the function and then converts it into a nodespan
     /// this is so it can be used in a block
-    fn parse_anon_func(&mut self, first: &Token) -> ParseRes<NodeSpan> {
+    fn parse_anon_func(&mut self, first: &Token) -> Result {
         let func = self.build_func()?;
         let last = self.peek_some()?;
         let span = first.span + last.span;
         Ok(func.to_spanned(span))
     }
     /// Takes the aformentioned function and combines them to alow the current function syntax
-    fn parse_funcdef(&mut self) -> ParseRes<NodeSpan> {
+    fn parse_funcdef(&mut self) -> Result {
         let first = self.peek_some()?;
         match first.kind {
             TokenType::Identifier => return self.parse_named_func(&first),
@@ -340,7 +385,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 ///function call parsing
 impl<'input> Parser<'input, Lexer<'input>> {
     /// Parses a list of expresions like a list or call parameters
-    fn parse_expr_list(&mut self, token: &Token, closing_tok: TokenType) -> ParseRes<NodeStream> {
+    fn parse_expr_list(&mut self, token: &Token, closing_tok: TokenType) -> Result<NodeStream> {
         let mut token = token.clone();
         let mut params: NodeStream = vec![];
 
@@ -364,7 +409,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         Ok(params)
     }
-    fn parse_call(&mut self, callee: NodeSpan) -> ParseRes<NodeSpan> {
+    fn parse_call(&mut self, callee: NodeSpan) -> Result {
         let first_span = self.peek_some()?.span;
         let token = self.peek_some()?;
         let params = self.parse_expr_list(&token, TokenType::RParen)?;
@@ -381,7 +426,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
 ///loop parsing
 impl<'input> Parser<'input, Lexer<'input>> {
-    fn parse_while_loop(&mut self) -> ParseRes<NodeSpan> {
+    fn parse_while_loop(&mut self) -> Result {
         let first = self.peek_some()?;
         let condition = self.parse_only_expr(true)?.box_item();
         let last = self.peek_some()?;
@@ -390,7 +435,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let span = first.span + last.span;
         Ok(While { condition, proc }.to_nodespan(span))
     }
-    fn parse_for(&mut self) -> ParseRes<NodeSpan> {
+    fn parse_for(&mut self) -> Result {
         let ident_span = self.peek_some()?.span;
         let ident = self.consume_ident()?;
 
@@ -402,14 +447,14 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let span = ident_span + last.span;
         Ok(ForLoop { ident, list, proc }.to_nodespan(span))
     }
-    fn parse_do(&mut self) -> ParseRes<NodeSpan> {
+    fn parse_do(&mut self) -> Result {
         let first = self.expect(TokenType::LBrace)?;
         let block = self.parse_block()?;
         let last = self.next().unwrap();
         let span = first.span + last.span;
         Ok(Node::DoBlock(block).to_spanned(span))
     }
-    fn parse_loop(&mut self) -> ParseRes<NodeSpan> {
+    fn parse_loop(&mut self) -> Result {
         let first = self.expect(TokenType::LBrace)?;
         let block = self.parse_block()?;
         let last = self.next().unwrap();
@@ -420,12 +465,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
 ///branch parsing
 impl<'input> Parser<'input, Lexer<'input>> {
-    fn parse_elif(
-        &mut self,
-        condition: NodeSpan,
-        if_block: NodeStream,
-        span: Span,
-    ) -> ParseRes<NodeSpan> {
+    fn parse_elif(&mut self, condition: NodeSpan, if_block: NodeStream, span: Span) -> Result {
         self.next();
         let elif = self.parse_branch()?;
 
@@ -433,7 +473,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         Ok(Branch::new(condition, if_block, elif_block).to_nodespan(span))
     }
     /// parses if expressions
-    fn parse_return(&mut self, value: &Token) -> ParseRes<NodeSpan> {
+    fn parse_return(&mut self, value: &Token) -> Result {
         let expr = self.parse_only_expr(false)?;
         if expr.item == Node::DontResult {
             return Ok(
@@ -443,7 +483,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         Ok(Node::ReturnNode(expr.box_item()).to_spanned(value.span))
     }
-    fn parse_branch(&mut self) -> ParseRes<NodeSpan> {
+    fn parse_branch(&mut self) -> Result {
         let first = self.peek_some()?;
         let condition = self.parse_only_expr(true)?;
 
@@ -470,7 +510,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
 ///list parsing
 impl<'input> Parser<'input, Lexer<'input>> {
-    fn parse_index(&mut self, target: NodeSpan) -> ParseRes<NodeSpan> {
+    fn parse_index(&mut self, target: NodeSpan) -> Result {
         let first = self.peek_some()?;
 
         let index = self.parse_only_expr(false)?;
@@ -500,25 +540,21 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
     }
 
-    /// The main public entry point for parsing any expression.
-    pub fn parse_expr(&mut self, in_conditional: bool) -> ParseRes<NodeSpan> {
+    /// Parses an expression
+    fn parse_node(&mut self, in_conditional: bool) -> Result {
         self.parse_pratt_expression(Precedence::Lowest, in_conditional)
     }
 
     /// An entry point for parsing expressions that must return a value (not void).
-    fn parse_only_expr(&mut self, in_conditional: bool) -> ParseRes<NodeSpan> {
-        let node = self.parse_expr(in_conditional)?;
+    fn parse_only_expr(&mut self, in_conditional: bool) -> Result {
+        let node = self.parse_node(in_conditional)?;
         expect_expr(&node)?;
         Ok(node)
     }
 
     /// The core of the Pratt parser. It takes a precedence leveal and parses
     /// until it hits an operator with a lower or equal precedence.
-    fn parse_pratt_expression(
-        &mut self,
-        precedence: Precedence,
-        in_conditional: bool,
-    ) -> ParseRes<NodeSpan> {
+    fn parse_pratt_expression(&mut self, precedence: Precedence, in_conditional: bool) -> Result {
         let token = self.expect_next()?;
         let mut left = self.parse_prefix(&token)?;
 
@@ -536,7 +572,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
 
     /// Handles parsing for tokens that appear at the start of an expression.
-    fn parse_prefix(&mut self, token: &Token) -> ParseRes<NodeSpan> {
+    fn parse_prefix(&mut self, token: &Token) -> Result {
         match &token.kind {
             TokenType::Str(lit) => Ok(Node::Str(lit.to_string()).to_spanned(token.span)),
             TokenType::Struct => self.parse_struct(),
@@ -579,12 +615,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
     /// Handles parsing for tokens that appear *between* two expressions (infix)
     /// or after an expression (postfix-like calls/indexing).
-    fn parse_infix(
-        &mut self,
-        left: NodeSpan,
-        op_token: Token,
-        in_conditional: bool,
-    ) -> ParseRes<NodeSpan> {
+    fn parse_infix(&mut self, left: NodeSpan, op_token: Token, in_conditional: bool) -> Result {
         match op_token.kind {
             TokenType::LParen => {
                 self.next(); // Consume '('
@@ -618,13 +649,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
     }
 
-    fn binary_node(
-        &self,
-        kind: BinaryOp,
-        left: NodeSpan,
-        right: NodeSpan,
-        span: Span,
-    ) -> ParseRes<NodeSpan> {
+    fn binary_node(&self, kind: BinaryOp, left: NodeSpan, right: NodeSpan, span: Span) -> Result {
         expect_expr(&left)?;
         expect_expr(&right)?;
         Ok(BinaryNode {
@@ -635,7 +660,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         .to_nodespan(span))
     }
     ///parses unary operators: ! not -
-    fn unary_operator(&mut self, kind: UnaryOp) -> ParseRes<NodeSpan> {
+    fn unary_operator(&mut self, kind: UnaryOp) -> Result {
         let op_span = self.peek_some()?.span;
         // Pass the operator's precedence to the recursive call
         let right = self.parse_pratt_expression(Precedence::Unary, false)?;
@@ -647,8 +672,8 @@ impl<'input> Parser<'input, Lexer<'input>> {
         .to_nodespan(op_span + right_span))
     }
     /// parses parentheses/groupings
-    fn parse_paren(&mut self) -> ParseRes<NodeSpan> {
-        let expr = self.parse_expr(false)?;
+    fn parse_paren(&mut self) -> Result {
+        let expr = self.parse_node(false)?;
 
         self.consume(TokenType::RParen)?;
         Ok(expr)
@@ -657,7 +682,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
 ///struct parsing
 impl<'input> Parser<'input, Lexer<'input>> {
-    fn node_to_field(&mut self, node: NodeSpan) -> ParseRes<(String, NodeSpan)> {
+    fn node_to_field(&mut self, node: NodeSpan) -> Result<(String, NodeSpan)> {
         match node.item {
             Node::VarDecl(decl) => {
                 return Ok((decl.name, decl.expr.deref_item()));
@@ -665,7 +690,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             _ => return Err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span)),
         }
     }
-    fn map_literal(&mut self) -> ParseRes<NodeSpan> {
+    fn map_literal(&mut self) -> Result {
         let token = self.peek_some()?;
         let mut entries: HashMap<String, NodeSpan> = hashmap!();
         if token.is(&TokenType::RBrace) {
@@ -689,7 +714,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let span = token.span + self.next().unwrap().span;
         Ok(Node::RecordLit(entries).to_spanned(span))
     }
-    fn parse_struct(&mut self) -> ParseRes<NodeSpan> {
+    fn parse_struct(&mut self) -> Result {
         let first = self.peek_some()?;
         let maybe_named = self.is_expected(TokenType::Identifier);
         if let Some(name_ident) = maybe_named {
@@ -706,7 +731,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let span = first.span + last.span;
         Ok(Node::StructDef(fields).to_spanned(span))
     }
-    fn named_struct(&mut self, name_ident: &Token) -> ParseRes<NodeSpan> {
+    fn named_struct(&mut self, name_ident: &Token) -> Result {
         self.next();
         let block = self.parse_block()?;
         let last = self.next().unwrap();
@@ -727,7 +752,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         Ok(def)
     }
 
-    fn struct_params(&mut self) -> ParseRes<HashMap<String, NodeSpan>> {
+    fn struct_params(&mut self) -> Result<HashMap<String, NodeSpan>> {
         self.consume(TokenType::LBrace)?;
         let token = self.peek_some()?;
         let mut body: HashMap<String, NodeSpan> = HashMap::from([]);
@@ -749,7 +774,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         Ok(body)
     }
 
-    fn parse_constructor(&mut self, target: NodeSpan) -> ParseRes<NodeSpan> {
+    fn parse_constructor(&mut self, target: NodeSpan) -> Result {
         let Node::Variable(name) = target.item else {
             return ParseError::Unspecified("Unexpected expression for constructor".to_owned())
                 .to_spanned(target)
@@ -766,12 +791,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
 ///struct field access parsing
 impl<'input> Parser<'input, Lexer<'input>> {
-    fn parse_method(
-        &mut self,
-        target: NodeSpan,
-        requested: String,
-        ident: Token,
-    ) -> ParseRes<NodeSpan> {
+    fn parse_method(&mut self, target: NodeSpan, requested: String, ident: Token) -> Result {
         self.expect_next()?; // Consume '('
         let token = self.peek_some()?;
         let method_params = self.parse_expr_list(&token, TokenType::RParen)?;
@@ -793,7 +813,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         }
         .to_nodespan(ident.span + arg_span))
     }
-    fn parse_field_access(&mut self, target: NodeSpan, _span: Span) -> ParseRes<NodeSpan> {
+    fn parse_field_access(&mut self, target: NodeSpan, _span: Span) -> Result {
         let ident = self.expect(TokenType::Identifier)?;
         self.next();
         let requested = self.text(&ident);
@@ -812,16 +832,30 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
 ///base parser
 impl<'input> Parser<'input, Lexer<'input>> {
+    pub fn parse_expr(input: &'input str) -> Result {
+        let mut parser = Parser {
+            input,
+            tokens: Lexer::new(input).peekable(),
+        };
+        parser.parse_node(false)
+    }
+    pub fn parse(input: &'input str) -> Result<Vec<Spanned<DeclType>>> {
+        let mut parser = Parser {
+            input,
+            tokens: Lexer::new(input).peekable(),
+        };
+        parser.parse_toplevel()
+    }
     /// Parses input as expressions and collects it into a block
-    pub fn parse(&mut self) -> ParseRes<Vec<Spanned<DeclType>>> {
+    fn parse_toplevel(&mut self) -> Result<Vec<Spanned<DeclType>>> {
         let mut body: Vec<Spanned<DeclType>> = vec![];
         while self.peek().is_some() {
-            let expr = self.parse_expr(false)?;
+            let expr = self.parse_node(false)?;
             if expr.item == Node::DontResult {
                 continue;
             }
             match expr.item {
-                Node::VarDecl(decl) => body.push(DeclType::Decl(decl).to_spanned(expr.span)),
+                Node::VarDecl(decl) => body.push(DeclType::VarDecl(decl).to_spanned(expr.span)),
                 _ => {
                     return Err(ParseError::Unspecified(format!(
                         "Invalid expression in top scope, only declarations are allowed."
@@ -834,11 +868,11 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
 }
 
-fn unexpected_token<T>(token: Token) -> ParseRes<T> {
+fn unexpected_token<T>(token: Token) -> Result<T> {
     Err(ParseError::UnexpectedToken(token.kind).to_spanned(token.span))
 }
 
-fn expect_expr(expr: &NodeSpan) -> ParseRes<&NodeSpan> {
+fn expect_expr(expr: &NodeSpan) -> Result<&NodeSpan> {
     if !expr.item.can_result() {
         return Err(ParseError::UnexpectedVoidExpression.to_spanned(expr.span));
     }

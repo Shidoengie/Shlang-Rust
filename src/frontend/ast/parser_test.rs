@@ -1,11 +1,10 @@
 use super::nodes::*;
-use super::parser::*;
+use super::parser::{self, *};
 use crate::test_func;
 use std::*;
 
-fn parse_expr(source: &str) -> ParseRes<NodeSpan> {
-    let mut parser = Parser::new(source);
-    parser.parse_expr(false)
+fn parse_expr(source: &str) -> parser::Result<NodeSpan> {
+    Parser::parse_expr(source)
 }
 
 test_func!(test_parsing,parse_expr, {

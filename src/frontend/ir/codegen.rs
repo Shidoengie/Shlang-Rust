@@ -3,12 +3,13 @@ use std::collections::HashMap;
 use super::instructions::{OpCode as Op, *};
 
 use crate::*;
-use frontend::ast::*;
+use frontend::ast::nodes::*;
 
 use lang_errors::LangError;
 use spans::Spanned;
 use spans::*;
-type GenRes<T = ()> = Result<T, Spanned<GenErr>>;
+pub type Result<T = ()> = std::result::Result<T, Spanned<GenErr>>;
+#[derive(Debug)]
 pub enum GenErr {
     Unspecified(String),
 }
@@ -42,32 +43,78 @@ impl From<BinaryOp> for Op {
 }
 #[derive(Default)]
 pub struct IRgen {
-    pub stack: Vec<Op>,
+    stack: Vec<Op>,
     idents: HashMap<String, usize>,
 }
 impl IRgen {
-    fn push_val(&mut self, val: Value) -> GenRes {
+    pub fn generate_expr(expr: NodeSpan) -> Result<Vec<Op>> {
+        let mut codegen = Self::default();
+        codegen.node_gen(expr)?;
+        Ok(codegen.stack)
+    }
+
+    fn gen_globals(&mut self, globals: &[DeclType]) {
+        for decl in globals {
+            match decl {
+                DeclType::VarDecl(decl) => self.insert_ident(decl.name.to_owned()),
+            };
+        }
+    }
+    pub fn generate(prog: Vec<DeclType>) -> Result<Vec<Op>> {
+        let mut codegen = Self::default();
+        codegen.gen_top_level(prog)?;
+        Ok(codegen.stack)
+    }
+    pub fn gen_top_level(&mut self, prog: Vec<DeclType>) -> Result {
+        self.gen_globals(&prog);
+        for decl in prog {
+            match decl {
+                DeclType::VarDecl(decl) => {
+                    self.node_gen(decl.expr.deref_item())?;
+                    self.add_op(Op::Store(self.idents[&decl.name]));
+                }
+            }
+        }
+        Ok(())
+    }
+    fn push_val(&mut self, val: Value) -> Result {
         self.add_op(Op::Push(val));
         Ok(())
     }
-    fn get_var(&mut self, name: impl AsRef<str>, span: Span) -> GenRes<usize> {
+    fn get_var(&mut self, name: impl AsRef<str>) -> Result<usize> {
         Ok(self.idents[name.as_ref()])
     }
     fn add_op(&mut self, op: Op) {
         self.stack.push(op);
     }
-    fn node_gen(&mut self, node: Spanned<Node>) -> GenRes {
+    fn insert_ident(&mut self, ident: String) -> usize {
+        let index = self.idents.len() + 1;
+        self.idents.insert(ident, index);
+        index
+    }
+    fn gen_vardecl(&mut self, decl: VarDecl) -> Result {
+        self.node_gen(decl.expr.deref_item())?;
+        let index = self.insert_ident(decl.name);
+        self.add_op(Op::Store(index));
+        Ok(())
+    }
+    fn gen_block(&mut self, block: Vec<NodeSpan>) -> Result {
+        for node in block {
+            self.node_gen(node)?;
+        }
+        Ok(())
+    }
+    fn node_gen(&mut self, node: NodeSpan) -> Result {
         let span = node.span;
         match node.item {
-            Node::Float(num) => self.push_val(Value::Float(num)),
-            Node::Int(num) => self.push_val(Value::Int(num)),
-            Node::Bool(cond) => self.push_val(Value::Bool(cond)),
-            Node::Str(txt) => self.push_val(Value::String(txt)),
+            Node::Float(num) => self.push_val(Value::Float(num))?,
+            Node::Int(num) => self.push_val(Value::Int(num))?,
+            Node::Bool(cond) => self.push_val(Value::Bool(cond))?,
+            Node::Str(txt) => self.push_val(Value::String(txt))?,
             Node::BinaryNode(expr) => {
                 self.node_gen(expr.left.deref_item())?;
                 self.node_gen(expr.right.deref_item())?;
                 self.add_op(expr.kind.into());
-                Ok(())
             }
             Node::UnaryNode(expr) => {
                 self.node_gen(expr.target.deref_item())?;
@@ -75,37 +122,32 @@ impl IRgen {
                     UnaryOp::Negative => self.add_op(Op::Neg),
                     UnaryOp::Not => self.add_op(Op::Not),
                 }
-                Ok(())
             }
-            Node::VarDecl(decl) => {
-                let index = self.idents.len() + 1;
-                self.node_gen(decl.expr.deref_item())?;
-                self.idents.insert(decl.name, index);
-                self.add_op(Op::Store(index));
-                Ok(())
-            }
-            Node::Assignment { target, value } => {
-                let target_span = target.span;
-                match target.deref_item().item {
-                    Node::Variable(name) => {
-                        let index = self.get_var(&name, target_span)?;
-                        self.node_gen(value.deref_item())?;
-                        self.add_op(Op::Store(index));
-                        Ok(())
-                    }
-                    Node::Index { target, index } => todo!(),
-
-                    _ => todo!(),
-                }
-            }
+            Node::VarDecl(decl) => self.gen_vardecl(decl)?,
+            Node::Assignment { target, value } => self.gen_assignment(target, value)?,
+            Node::DoBlock(block) => self.gen_block(block)?,
             Node::Variable(name) => {
-                let index = self.get_var(&name, span)?;
+                let index = self.get_var(&name)?;
                 self.add_op(Op::Load(index));
-                Ok(())
             }
             _ => {
                 todo!()
             }
+        };
+        Ok(())
+    }
+    fn gen_assignment(&mut self, target: Spanned<Box<Node>>, value: Spanned<Box<Node>>) -> Result {
+        let target_span = target.span;
+        match target.deref_item().item {
+            Node::Variable(name) => {
+                let index = self.get_var(&name)?;
+                self.node_gen(value.deref_item())?;
+                self.add_op(Op::Store(index));
+                Ok(())
+            }
+            Node::Index { target, index } => todo!(),
+
+            _ => todo!(),
         }
     }
 }

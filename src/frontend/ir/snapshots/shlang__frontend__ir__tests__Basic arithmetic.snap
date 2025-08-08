@@ -1,0 +1,38 @@
+---
+source: src/frontend/ir/tests.rs
+description: ir_expr
+expression: "test_ir (\"1+(2-(3*(4/5)))\")"
+---
+Ok(
+    [
+        Push(
+            Int(
+                1,
+            ),
+        ),
+        Push(
+            Int(
+                2,
+            ),
+        ),
+        Push(
+            Int(
+                3,
+            ),
+        ),
+        Push(
+            Int(
+                4,
+            ),
+        ),
+        Push(
+            Int(
+                5,
+            ),
+        ),
+        Div,
+        Mult,
+        Sub,
+        Add,
+    ],
+)

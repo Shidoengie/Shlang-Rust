@@ -1,10 +1,12 @@
+#[derive(Debug, Clone)]
+
 pub enum OpCode {
     Push(Value),
     Load(usize),
     Store(usize),
     Pop,
-    Goto(usize),
-    Branch(usize, bool),
+    Goto(i16),
+    Branch(i16),
 
     Add,
     Mult,
@@ -23,7 +25,9 @@ pub enum OpCode {
     NullCo,
     Not,
     Neg,
+    Stop,
 }
+#[derive(Debug, Clone)]
 pub enum Value {
     Int(i64),
     Float(f64),

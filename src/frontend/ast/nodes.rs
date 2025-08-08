@@ -1,4 +1,3 @@
-use crate::frontend::tokens::TokenType;
 use crate::spans::*;
 
 use std::collections::*;
@@ -21,58 +20,6 @@ pub enum Precedence {
     Member,      // my_obj.field
 }
 
-/// Helper to get the precedence of a given token type.
-impl From<&TokenType> for Precedence {
-    fn from(kind: &TokenType) -> Self {
-        match kind {
-            TokenType::Equal
-            | TokenType::QuestionEqual
-            | TokenType::PlusEqual
-            | TokenType::MinusEqual
-            | TokenType::StarEqual
-            | TokenType::SlashEqual => Precedence::Assign,
-            TokenType::Or | TokenType::DualPipe => Precedence::Or,
-            TokenType::And | TokenType::DualAmpersand => Precedence::And,
-            TokenType::DoubleEqual | TokenType::BangEqual => Precedence::Equality,
-            TokenType::Greater
-            | TokenType::GreaterEqual
-            | TokenType::Lesser
-            | TokenType::LesserEqual => Precedence::Comparison,
-            TokenType::DualQuestion => Precedence::Nullish,
-            TokenType::Plus | TokenType::Minus => Precedence::Sum,
-            TokenType::Slash | TokenType::Star | TokenType::Percent => Precedence::Product,
-            TokenType::LParen => Precedence::Call,
-            TokenType::LBrace => Precedence::Constructor,
-            TokenType::LBracket => Precedence::Index,
-            TokenType::Dot => Precedence::Member,
-            _ => Precedence::Lowest,
-        }
-    }
-}
-
-/// Helper to convert a token type into its corresponding BinaryOp.
-impl From<TokenType> for BinaryOp {
-    fn from(kind: TokenType) -> Self {
-        match kind {
-            TokenType::Plus => BinaryOp::Add,
-            TokenType::Minus => BinaryOp::Subtract,
-            TokenType::Slash => BinaryOp::Divide,
-            TokenType::Star => BinaryOp::Multiply,
-            TokenType::Percent => BinaryOp::Modulo,
-            TokenType::And | TokenType::DualAmpersand => BinaryOp::And,
-            TokenType::Or | TokenType::DualPipe => BinaryOp::Or,
-            TokenType::DoubleEqual => BinaryOp::IsEqual,
-            TokenType::BangEqual => BinaryOp::IsDifferent,
-            TokenType::Greater => BinaryOp::Greater,
-            TokenType::Lesser => BinaryOp::Lesser,
-            TokenType::GreaterEqual => BinaryOp::GreaterOrEqual,
-            TokenType::LesserEqual => BinaryOp::LesserOrEqual,
-            TokenType::DualQuestion => BinaryOp::NullCoalescing,
-            // This panic should ideally never be reached if the parser logic is correct.
-            _ => panic!("Cannot convert token type {:?} to a BinaryOp", kind),
-        }
-    }
-}
 #[derive(Clone, Debug, PartialEq)]
 pub struct FuncDef {
     pub block: NodeStream,
@@ -347,7 +294,7 @@ pub struct VarDecl {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub enum DeclType {
-    Decl(VarDecl),
+    VarDecl(VarDecl),
 }
 enum ConstExpr {
     String(String),

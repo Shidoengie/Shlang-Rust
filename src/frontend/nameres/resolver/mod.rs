@@ -1,17 +1,15 @@
-use std::{collections::HashMap, fmt::Display, hash::Hash, num::NonZeroU32};
-
+mod error;
 use crate::{
     frontend::{
-        ast::{self, *},
-        nameres::{
-            error::NameErr,
-            scope::{Scope, VarInfo},
-        },
+        ast::nodes::{self, *},
+        nameres::scope::{Scope, VarInfo},
     },
     hashmap,
     spans::{IntoSpanned, Span, Spanned},
 };
-type Res<T = NodeSpan> = Result<T, Spanned<NameErr>>;
+pub use error::NameErr;
+use std::{collections::HashMap, num::NonZeroU32};
+pub type Result<T = NodeSpan> = std::result::Result<T, Spanned<NameErr>>;
 type DeclStream = Vec<Spanned<DeclType>>;
 #[derive(Debug, Default)]
 pub struct NameRes {
@@ -19,11 +17,11 @@ pub struct NameRes {
     globals: HashMap<String, usize>,
 }
 impl NameRes {
-    pub fn resolve(ast: DeclStream) -> Res<DeclStream> {
+    pub fn resolve(ast: DeclStream) -> Result<DeclStream> {
         let mut globals = HashMap::<String, usize>::new();
         for (index, val) in ast.iter().enumerate() {
             match &val.item {
-                DeclType::Decl(decl) => globals.insert(decl.name.to_string(), index),
+                DeclType::VarDecl(decl) => globals.insert(decl.name.to_string(), index),
             };
         }
         let mut resolver = Self {
@@ -32,16 +30,19 @@ impl NameRes {
         };
         resolver.resolve_toplevel(ast)
     }
-    fn resolve_toplevel(&mut self, decls: DeclStream) -> Res<DeclStream> {
+    pub fn resolve_expr(expr: NodeSpan) -> Result<NodeSpan> {
+        Self::default().resolve_node(expr, &mut Scope::default())
+    }
+    fn resolve_toplevel(&mut self, decls: DeclStream) -> Result<DeclStream> {
         let mut root = Scope::default();
         let mut new_decls = vec![];
         for i in decls {
             match i.item {
-                DeclType::Decl(mut decl) => {
+                DeclType::VarDecl(mut decl) => {
                     decl.expr = self
                         .resolve_node(decl.expr.deref_item(), &mut root)?
                         .box_item();
-                    new_decls.push(DeclType::Decl(decl).to_spanned(i.span));
+                    new_decls.push(DeclType::VarDecl(decl).to_spanned(i.span));
                 }
             };
         }
@@ -59,7 +60,12 @@ impl NameRes {
         *count = new_count;
         return format!("{name}@{old_count}");
     }
-    fn get_var(&mut self, name: impl AsRef<str>, parent: &mut Scope, span: Span) -> Res<VarInfo> {
+    fn get_var(
+        &mut self,
+        name: impl AsRef<str>,
+        parent: &mut Scope,
+        span: Span,
+    ) -> Result<VarInfo> {
         let name = name.as_ref();
 
         if let Some(info) = parent.get_var(&name) {
@@ -74,7 +80,7 @@ impl NameRes {
         };
         Ok(info)
     }
-    fn resolve_var_decl(&mut self, mut decl: VarDecl, parent: &mut Scope) -> Res<VarDecl> {
+    fn resolve_var_decl(&mut self, mut decl: VarDecl, parent: &mut Scope) -> Result<VarDecl> {
         let new_name = self.gen_name(&decl.name);
         decl.expr = self
             .resolve_node(decl.expr.deref_item(), parent)?
@@ -83,7 +89,7 @@ impl NameRes {
         decl.name = new_name;
         return Ok(decl);
     }
-    pub fn resolve_node(&mut self, node: NodeSpan, parent: &mut Scope) -> Res {
+    pub fn resolve_node(&mut self, node: NodeSpan, parent: &mut Scope) -> Result {
         let span = node.span;
         match node.item {
             Node::VarDecl(decl) => {
@@ -120,7 +126,7 @@ impl NameRes {
                     .resolve_node(node.condition.deref_item(), parent)?
                     .box_item();
                 let proc = self.resolve_block(node.proc, parent)?;
-                return Ok(ast::While { condition, proc }.to_nodespan(span));
+                return Ok(While { condition, proc }.to_nodespan(span));
             }
             Node::Loop(block) => {
                 let block = self.resolve_block(block, parent)?;
@@ -136,7 +142,7 @@ impl NameRes {
                 } else {
                     None
                 };
-                return Ok(ast::Branch {
+                return Ok(nodes::Branch {
                     condition,
                     else_block,
                     if_block,
@@ -263,7 +269,7 @@ impl NameRes {
         ast: NodeStream,
         parent: &mut Scope,
         mut base: Scope,
-    ) -> Res<NodeStream> {
+    ) -> Result<NodeStream> {
         base.parent = Some(Box::new(parent.clone()));
         let mut buffer: NodeStream = vec![];
         for node in ast {
@@ -276,7 +282,7 @@ impl NameRes {
         *parent = *mod_parent;
         return Ok(buffer);
     }
-    fn resolve_block(&mut self, ast: NodeStream, parent: &mut Scope) -> Res<NodeStream> {
+    fn resolve_block(&mut self, ast: NodeStream, parent: &mut Scope) -> Result<NodeStream> {
         return self.resolve_block_with(ast, parent, Scope::default());
     }
 }

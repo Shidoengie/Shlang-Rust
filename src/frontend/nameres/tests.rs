@@ -1,25 +1,19 @@
-use std::{any::Any, collections::HashMap, fmt::Debug};
-
 use crate::{
     frontend::{
-        Parser,
-        ast::{DeclType, Node, NodeSpan, NodeStream},
-        nameres::{error::NameErr, resolver::NameRes, scope::Scope},
+        ast::{nodes::*, parser::Parser},
+        nameres::{resolver, resolver::NameRes, scope::Scope},
     },
-    hashmap,
-    spans::{IntoSpanned, Span, Spanned},
+    spans::Spanned,
     test_func,
 };
 
-fn test_nameres(body: &str) -> Result<NodeSpan, Spanned<NameErr>> {
+fn test_nameres(body: &str) -> resolver::Result {
     let input = format!("do {{ {body} }}");
-    let mut parser = Parser::new(&input);
-    let ast = parser.parse_expr(false).unwrap();
-    NameRes::default().resolve_node(ast, &mut Scope::default())
+    let ast = Parser::parse_expr(&input).unwrap();
+    NameRes::resolve_expr(ast)
 }
-fn test_global_nameres(body: &str) -> Result<Vec<Spanned<DeclType>>, Spanned<NameErr>> {
-    let mut parser = Parser::new(body);
-    let ast = parser.parse().unwrap();
+fn test_global_nameres(body: &str) -> resolver::Result<Vec<Spanned<DeclType>>> {
+    let ast = Parser::parse(body).unwrap();
     NameRes::resolve(ast)
 }
 

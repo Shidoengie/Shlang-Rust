@@ -1,6 +1,6 @@
 use super::tokens::*;
 use crate::charvec::CharVec;
-use crate::frontend::tokens;
+use crate::frontend::lexemes::*;
 use crate::spans::Span;
 use std::str::Chars;
 

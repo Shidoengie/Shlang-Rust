@@ -7,15 +7,18 @@ use clap::Parser;
 
 use shlang::frontend::ast::parser::Parser as LangParser;
 
+use shlang::frontend::FileStore;
 use shlang::frontend::lexemes::lexer::Lexer;
 use shlang::*;
-use slotmap::SlotMap;
+use slab::Slab;
+
 use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
+use std::usize;
 use std::*;
 
 #[derive(Parser, Debug)]
@@ -48,83 +51,17 @@ fn input(message: &str) -> String {
 }
 
 fn main() {
+    todo!();
     let args = Args::parse();
     let Some(mode) = args.mode else {
-        repl();
+        todo!();
         return;
     };
 
     match mode {
-        Mode::Input { input } => execute_source(input),
-        Mode::Ast { path } => ast_mode(path),
-        Mode::Lexer { path } => lex_mode(path),
-        Mode::Run { path } => execute_file(&path),
-    }
-}
-
-fn ast_mode(maybe_path: Option<PathBuf>) {
-    let Some(file_path) = maybe_path else {
-        print_intro();
-        loop {
-            let source = input(">: ");
-            let err_out = ErrorBuilder::new(source.clone());
-            match LangParser::parse(source.as_str()) {
-                Ok(ast) => println!("{ast:#?}"),
-                Err(err) => err.print_msg(err_out),
-            };
-        }
-    };
-    let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
-    let ast = LangParser::parse(source.as_str());
-
-    println!("{ast:#?}");
-}
-fn execute_source(source: String) {
-    let err_out = ErrorBuilder::new(source.clone());
-    //let mut parser = LangParser::new(&source);
-    todo!()
-}
-fn execute_file(path: &path::Path) {
-    let source = fs::read_to_string(path).expect("Should have been able to read the file");
-    let err_out = ErrorBuilder::new(source.clone());
-    //let mut parser = LangParser::new(&source);
-    todo!()
-}
-
-fn print_intro() {
-    const HR: &str = "----------------------------------";
-    println!(
-        "{l1}\n Welcome to shlang version {ver}!\n{l2} ",
-        l1 = HR.blue(),
-        l2 = HR.blue(),
-        ver = env!("CARGO_PKG_VERSION")
-    );
-}
-fn repl() {
-    print_intro();
-    loop {
-        let source = input(">: ");
-        let err_out = ErrorBuilder::new(source.clone());
-        //let mut parser = LangParser::new(source.as_str());
-        todo!()
-    }
-}
-fn lex_mode(maybe_path: Option<PathBuf>) {
-    let Some(file_path) = maybe_path else {
-        print_intro();
-        loop {
-            let source = input(">: ");
-            lex_from(source);
-        }
-    };
-    let source = fs::read_to_string(file_path).expect("Should have been able to read the file");
-    lex_from(source);
-}
-
-fn lex_from(source: String) {
-    let lexer = Lexer::new(&source);
-
-    for token in lexer {
-        println!("{} <-> {token:#?}", &source[token.span.0..token.span.1]);
+        Mode::Input { input } => todo!(),
+        Mode::Ast { path } => todo!(),
+        Mode::Lexer { path } => todo!(),
+        Mode::Run { path } => todo!(),
     }
 }

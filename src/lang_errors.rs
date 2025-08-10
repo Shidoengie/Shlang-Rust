@@ -1,63 +1,23 @@
+use std::fmt::Display;
+
 use crate::spans::*;
+use ariadne::{Cache, Label, Report, ReportBuilder};
 use colored::*;
-#[derive(Clone)]
 
-pub struct ErrorBuilder {
-    pub input: String,
-}
-impl ErrorBuilder {
-    pub fn new(input: String) -> Self {
-        Self { input }
+pub trait LangError
+where
+    Self: SpanUtil,
+{
+    fn msg(&self) -> Report<Span>;
+    fn print_err(&self, source: impl Cache<usize>) {
+        self.msg().print(source).expect("Could not print msg");
     }
-    pub fn emit(&self, msg: &str, span: Span) {
-        eprintln!("{}", self.build(msg, span, false));
+    fn build_err(&self, msg: impl Display) -> ariadne::ReportBuilder<'_, Span> {
+        Report::build(ariadne::ReportKind::Error, self.get_span()).with_message(msg)
     }
-    pub fn emit_panic(&self, msg: &str, span: Span) {
-        eprintln!("{}", self.build(msg, span, true));
-    }
-    pub fn build(&self, msg: &str, span: Span, panicked: bool) -> String {
-        let position = self.line_pos(span);
-        let (start, stop) = (
-            self.input[..span.0].to_string(),
-            self.input[span.1..].to_string(),
-        );
-        let marked = format!(
-            "{start}{}{stop}",
-            self.input[span.0..span.1].to_string().red()
-        );
-        let lines: Vec<&str> = marked.lines().collect();
-        let line = lines[position - 1];
-        format!(
-            "{} {msg}\n{position} {} {line}",
-            if panicked {
-                "PANICKED!".blue()
-            } else {
-                "ERROR!".red()
-            },
-            "|".blue(),
-        )
-    }
-    pub fn line_pos(&self, span: Span) -> usize {
-        self.input[..span.0]
-            .chars()
-            .filter(|ch| *ch == '\n')
-            .count()
-            + 1
-    }
-}
-pub trait LangError {
-    fn msg(&self) -> String;
-
-    fn print_msg(&self, err_out: ErrorBuilder)
-    where
-        Self: SpanUtil,
-    {
-        err_out.emit(self.msg().as_str(), self.get_span());
-    }
-    fn err<T>(self) -> Result<T, Self>
-    where
-        Self: Sized,
-    {
-        Err(self)
+    fn err_label(&self, msg: String) -> Label<Span> {
+        Label::new(self.get_span())
+            .with_message(msg)
+            .with_color(ariadne::Color::Red)
     }
 }

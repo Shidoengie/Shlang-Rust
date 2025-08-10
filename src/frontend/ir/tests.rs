@@ -7,10 +7,10 @@ use crate::test_func;
 use ast::parser::Parser;
 use nameres::resolver;
 use nameres::resolver::NameErr;
-use std::*;
+use std::{usize, *};
 
 fn test_ir(input: &str) -> codegen::Result<Vec<OpCode>> {
-    let expr = Parser::parse_expr(input).unwrap();
+    let expr = Parser::parse_expr(input, usize::MAX).unwrap();
     let expr = resolver::NameRes::resolve_expr(expr).unwrap();
     IRgen::generate_expr(expr)
 }

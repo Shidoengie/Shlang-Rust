@@ -2,6 +2,7 @@ use std::{
     fmt::Debug,
     ops::{self, Add, Deref, Range, RangeFrom},
 };
+
 pub trait SpanUtil {
     fn get_span(&self) -> Span;
     fn take_span(self) -> Span;
@@ -28,7 +29,7 @@ impl<T> Spanned<T> {
 }
 impl<T: Debug> Debug for Spanned<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:#?}[{:?},{:?}]", self.item, self.span.0, self.span.1)
+        write!(f, "{:#?}{:?}", self.item, self.span)
     }
 }
 impl<T> Spanned<Box<T>> {
@@ -63,36 +64,74 @@ pub trait IntoSpanned {
     }
 }
 impl<T> IntoSpanned for T {}
+pub type FileID = usize;
 #[derive(Clone, PartialEq, Eq, Hash, Copy)]
-pub struct Span(pub usize, pub usize);
-
-impl SpanUtil for Range<usize> {
-    fn get_span(&self) -> Span {
-        return Span(self.start, self.end);
-    }
-    fn take_span(self) -> Span {
-        return Span(self.start, self.end);
-    }
+pub struct Span {
+    pub file_id: FileID,
+    pub start: usize,
+    pub end: usize,
 }
-
 impl Span {
-    pub const EMPTY: Self = Self(0, 0);
+    pub fn new(file_id: FileID, start: usize, end: usize) -> Self {
+        return Self {
+            file_id,
+            start,
+            end,
+        };
+    }
+    pub fn line_bounds(&self, source: &str) -> Self {
+        let bytes = source.as_bytes();
+
+        // Find line start
+        let mut line_start = self.start;
+        while line_start > 0 && bytes[line_start - 1] != b'\n' {
+            line_start -= 1;
+        }
+
+        // Find line end
+        let mut line_end = self.end;
+        while line_end < bytes.len() && bytes[line_end] != b'\n' {
+            line_end += 1;
+        }
+
+        Self::new(self.file_id, line_start, line_end)
+    }
+    pub fn from_last_line(source: &str, file_id: FileID) -> Span {
+        let bytes = source.as_bytes();
+        let end = bytes.len();
+
+        // Find where the last line starts
+        let mut start = end;
+        while start > 0 && bytes[start - 1] != b'\n' {
+            start -= 1;
+        }
+
+        Span::new(file_id, start, end)
+    }
 }
 impl Debug for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.0, self.1)
+        write!(f, "{}:{}", self.start, self.end)
     }
 }
 impl Add<Self> for Span {
     type Output = Span;
     fn add(self, rhs: Span) -> Self::Output {
-        Span(self.0, rhs.1)
+        Self {
+            start: self.start,
+            file_id: self.file_id,
+            end: rhs.end,
+        }
     }
 }
 impl Add<usize> for Span {
     type Output = Span;
     fn add(self, rhs: usize) -> Self::Output {
-        Span(self.0, self.1 + rhs)
+        Self {
+            start: self.start,
+            file_id: self.file_id,
+            end: self.end + rhs,
+        }
     }
 }
 
@@ -102,5 +141,26 @@ impl SpanUtil for Span {
     }
     fn take_span(self) -> Span {
         self
+    }
+}
+impl ariadne::Span for Span {
+    type SourceId = FileID;
+    fn source(&self) -> &Self::SourceId {
+        return &self.file_id;
+    }
+    fn is_empty(&self) -> bool {
+        return self.start == self.end;
+    }
+    fn contains(&self, offset: usize) -> bool {
+        offset <= self.end && offset >= self.start
+    }
+    fn end(&self) -> usize {
+        self.end
+    }
+    fn start(&self) -> usize {
+        self.start
+    }
+    fn len(&self) -> usize {
+        self.start - self.end
     }
 }

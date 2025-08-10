@@ -60,6 +60,38 @@ pub enum Node {
     DontResult,
 }
 impl Node {
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            Node::Null => "Null",
+            Node::Bool(_) => "Bool",
+            Node::Str(_) => "Str",
+            Node::Float(_) => "Float",
+            Node::Int(_) => "Int",
+            Node::BinaryNode(_) => "BinaryNode",
+            Node::UnaryNode(_) => "UnaryNode",
+            Node::ResultNode(_) => "ResultNode",
+            Node::ReturnNode(_) => "ReturnNode",
+            Node::BreakNode => "BreakNode",
+            Node::ContinueNode => "ContinueNode",
+            Node::VarDecl(_) => "VarDecl",
+            Node::Assignment { .. } => "Assignment",
+            Node::Variable(_) => "Variable",
+            Node::Index { .. } => "Index",
+            Node::FuncDef(_) => "FuncDef",
+            Node::ListLit(_) => "ListLit",
+            Node::Call(_) => "Call",
+            Node::Branch(_) => "Branch",
+            Node::Loop(_) => "Loop",
+            Node::While(_) => "While",
+            Node::ForLoop(_) => "ForLoop",
+            Node::DoBlock(_) => "DoBlock",
+            Node::Constructor(_) => "Constructor",
+            Node::StructDef(_) => "StructDef",
+            Node::RecordLit(_) => "RecordLit",
+            Node::FieldAccess(_) => "FieldAccess",
+            Node::DontResult => "DontResult",
+        }
+    }
     pub fn can_result(&self) -> bool {
         !matches!(
             self.clone(),
@@ -248,7 +280,7 @@ pub enum AccessType {
 #[derive(Clone, Debug, PartialEq)]
 
 pub struct Constructor {
-    pub name: String,
+    pub target: NodeRef,
     pub params: HashMap<String, NodeSpan>,
 }
 #[derive(Clone, Debug, PartialEq)]

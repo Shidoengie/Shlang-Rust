@@ -1,3 +1,5 @@
+use std::usize;
+
 use crate::{
     frontend::{
         ast::{nodes::*, parser::Parser},
@@ -9,11 +11,11 @@ use crate::{
 
 fn test_nameres(body: &str) -> resolver::Result {
     let input = format!("do {{ {body} }}");
-    let ast = Parser::parse_expr(&input).unwrap();
+    let ast = Parser::parse_expr(&input, usize::MAX).unwrap();
     NameRes::resolve_expr(ast)
 }
 fn test_global_nameres(body: &str) -> resolver::Result<Vec<Spanned<DeclType>>> {
-    let ast = Parser::parse(body).unwrap();
+    let ast = Parser::parse(body, usize::MAX).unwrap();
     NameRes::resolve(ast)
 }
 

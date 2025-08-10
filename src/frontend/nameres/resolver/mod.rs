@@ -8,6 +8,7 @@ use crate::{
     spans::{IntoSpanned, Span, Spanned},
 };
 pub use error::NameErr;
+use slab::Slab;
 use std::{collections::HashMap, num::NonZeroU32};
 pub type Result<T = NodeSpan> = std::result::Result<T, Spanned<NameErr>>;
 type DeclStream = Vec<Spanned<DeclType>>;
@@ -15,6 +16,7 @@ type DeclStream = Vec<Spanned<DeclType>>;
 pub struct NameRes {
     name_count: HashMap<String, NonZeroU32>,
     globals: HashMap<String, usize>,
+    file_store: Slab<String>,
 }
 impl NameRes {
     pub fn resolve(ast: DeclStream) -> Result<DeclStream> {
@@ -74,7 +76,7 @@ impl NameRes {
         let Some(info) = parent.get_var(&name).or_else(|| {
             self.globals
                 .get(name)
-                .map(|_| return VarInfo::new(&name, true))
+                .map(|_| return VarInfo::new(name.to_owned(), true))
         }) else {
             return Err(NameErr::UndefinedVar(name.to_string()).to_spanned(span));
         };
@@ -85,11 +87,11 @@ impl NameRes {
         decl.expr = self
             .resolve_node(decl.expr.deref_item(), parent)?
             .box_item();
-        parent.define(decl.name, VarInfo::new(&new_name, false));
+        parent.define(decl.name, VarInfo::new(new_name.to_owned(), false));
         decl.name = new_name;
         return Ok(decl);
     }
-    pub fn resolve_node(&mut self, node: NodeSpan, parent: &mut Scope) -> Result {
+    fn resolve_node(&mut self, node: NodeSpan, parent: &mut Scope) -> Result {
         let span = node.span;
         match node.item {
             Node::VarDecl(decl) => {
@@ -110,7 +112,7 @@ impl NameRes {
                 let mut args = vec![];
                 for arg in func.args {
                     let new_name = self.gen_name(arg.clone());
-                    func_scope.define(arg, VarInfo::new(&new_name, false));
+                    func_scope.define(arg, VarInfo::new(new_name.to_owned(), false));
                     args.push(new_name);
                 }
                 let block = self.resolve_block_with(func.block, parent, func_scope)?;
@@ -245,7 +247,9 @@ impl NameRes {
                 return Ok(un.to_nodespan(span));
             }
             Node::Constructor(mut con) => {
-                con.name = self.get_var(&con.name, parent, span)?.name;
+                con.target = self
+                    .resolve_node(con.target.deref_item(), parent)?
+                    .box_item();
                 let mut buf = HashMap::<String, NodeSpan>::new();
                 for (name, value) in con.params {
                     let value = self.resolve_node(value, parent)?;

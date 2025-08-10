@@ -1,11 +1,12 @@
 use super::tokens::*;
 use crate::charvec::CharVec;
 use crate::frontend::lexemes::*;
-use crate::spans::Span;
+use crate::spans::{FileID, Span};
 use std::str::Chars;
 
 #[derive(Debug, Clone)]
 pub struct Lexer<'a> {
+    file_id: FileID,
     chars: Chars<'a>,
     source: String,
     index: usize,
@@ -31,7 +32,9 @@ impl<'a> Lexer<'a> {
     fn current_is(&mut self, expected: char) -> bool {
         self.peek() == Some(expected)
     }
-
+    fn new_span(&self, start: usize, end: usize) -> Span {
+        Span::new(self.file_id, start, end)
+    }
     fn num(&mut self) -> Token {
         let mut dot_count: u16 = 0;
         let start = self.index;
@@ -57,9 +60,9 @@ impl<'a> Lexer<'a> {
         }
         let is_float = dot_count != 0;
         if is_float {
-            return Token::new(TokenType::Float, Span(start - 1, self.index));
+            return Token::new(TokenType::Float, self.new_span(start - 1, self.index));
         }
-        Token::new(TokenType::Int, Span(start - 1, self.index))
+        Token::new(TokenType::Int, self.new_span(start - 1, self.index))
     }
     fn ident(&mut self) -> Token {
         let start = self.index - 1;
@@ -77,9 +80,9 @@ impl<'a> Lexer<'a> {
             panic!("Identifiers can only be ASCII");
         };
         let Some(keyword) = tokens::map_keyword(span) else {
-            return Token::new(TokenType::Identifier, Span(start, stop));
+            return Token::new(TokenType::Identifier, self.new_span(start, stop));
         };
-        Token::new(keyword, Span(start, stop))
+        Token::new(keyword, self.new_span(start, stop))
     }
     fn str(&mut self, quote: char) -> Option<Token> {
         let start = self.index;
@@ -118,7 +121,7 @@ impl<'a> Lexer<'a> {
 
         Some(Token::new(
             TokenType::Str(CharVec(buffer)),
-            Span(start, self.index),
+            self.new_span(start, self.index),
         ))
     }
     fn push_advance(&mut self, kind: TokenType, range: Span) -> Token {
@@ -133,9 +136,12 @@ impl<'a> Lexer<'a> {
         range_start: usize,
     ) -> Option<Token> {
         if self.current_is(expected) {
-            return Some(self.push_advance(long_token, Span(range_start, self.index)));
+            return Some(self.push_advance(long_token, self.new_span(range_start, self.index)));
         }
-        Some(Token::new(short_token, Span(range_start, range_start + 1)))
+        Some(Token::new(
+            short_token,
+            self.new_span(range_start, range_start + 1),
+        ))
     }
 
     fn ident_or_num(&mut self, expected: char) -> Option<Token> {
@@ -185,11 +191,11 @@ impl<'a> Lexer<'a> {
         }
         self.next()
     }
-    pub fn new(src: &'a str) -> Self {
+    pub fn new(src: &'a str, file_id: FileID) -> Self {
         Self {
+            file_id,
             chars: src.chars(),
             source: String::from(src),
-
             index: 0,
         }
     }
@@ -200,7 +206,7 @@ impl Iterator for Lexer<'_> {
     fn next(&mut self) -> Option<Self::Item> {
         let start = self.index;
         let last = self.advance()?;
-        let range = Span(start, start + 1);
+        let range = self.new_span(start, start + 1);
         match last {
             '.' => Some(Token::new(TokenType::Dot, range)),
             ',' => Some(Token::new(TokenType::Comma, range)),

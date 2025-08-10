@@ -68,6 +68,7 @@ pub struct Parser<'input, I>
 where
     I: Iterator<Item = Token>,
 {
+    file_id: FileID,
     input: &'input str,
     tokens: Peekable<I>,
 }
@@ -76,20 +77,20 @@ where
 impl<'input> Parser<'input, Lexer<'input>> {
     /// converts token spans into text
     fn text(&mut self, token: &Token) -> String {
-        self.input[token.span.0..token.span.1].to_string()
+        self.input[token.span.start..token.span.end].to_string()
     }
     fn filtered_text(&mut self, token: &Token, filter: char) -> String {
         String::from_iter(self.text(token).chars().filter(|c| c != &filter))
     }
     fn parse_int(&mut self, token: &Token) -> Node {
-        let mut text = self.input[token.span.0..token.span.1].to_string();
+        let mut text = self.input[token.span.start..token.span.end].to_string();
         let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
         text = String::from_iter(idk);
         Node::Int(text.parse().unwrap())
     }
 
     fn parse_float(&mut self, token: &Token) -> Node {
-        let mut text = self.input[token.span.0..token.span.1].to_string();
+        let mut text = self.input[token.span.start..token.span.end].to_string();
         let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
         text = String::from_iter(idk);
         Node::Float(text.parse().unwrap())
@@ -102,7 +103,8 @@ impl<'input> Parser<'input, Lexer<'input>> {
     /// this is used for expressions that require the existence of a current token
     fn peek_some(&mut self) -> Result<Token> {
         let Some(peeked) = self.tokens.peek().cloned() else {
-            return Err(ParseError::UnexpectedStreamEnd.to_spanned(Span::EMPTY));
+            return Err(ParseError::UnexpectedStreamEnd
+                .to_spanned(Span::from_last_line(self.input, self.file_id)));
         };
         Ok(peeked)
     }
@@ -205,7 +207,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
     fn var_decl(&mut self, name: String, name_ident: &Token) -> Result {
         self.next(); // Consume '='
-        let val = self.parse_pratt_expression(Precedence::Lowest, false)?;
+        let val = self.parse_only_expr(false)?;
         let span = name_ident.span + val.span;
         Ok(VarDecl {
             name,
@@ -608,7 +610,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             TokenType::Minus => self.unary_operator(UnaryOp::Negative),
             TokenType::LParen => self.parse_paren(),
             //TokenType::New => self.parse_constructor(),
-            TokenType::Semicolon => Ok(Spanned::new(Node::DontResult, Span(0, 0))),
+            TokenType::Semicolon => Ok(Node::DontResult.to_spanned(token.span)),
             _ => unexpected_token(token.clone()),
         }
     }
@@ -616,6 +618,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     /// Handles parsing for tokens that appear *between* two expressions (infix)
     /// or after an expression (postfix-like calls/indexing).
     fn parse_infix(&mut self, left: NodeSpan, op_token: Token, in_conditional: bool) -> Result {
+        expect_expr(&left)?;
         match op_token.kind {
             TokenType::LParen => {
                 self.next(); // Consume '('
@@ -775,17 +778,15 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
 
     fn parse_constructor(&mut self, target: NodeSpan) -> Result {
-        let Node::Variable(name) = target.item else {
-            return ParseError::Unspecified("Unexpected expression for constructor".to_owned())
-                .to_spanned(target)
-                .err();
-        };
-
         let params = self.struct_params()?;
         let last = self.peek_some()?;
         self.next();
         let span = target.span + last.span;
-        Ok(Constructor { name, params }.to_nodespan(span))
+        Ok(Constructor {
+            target: target.box_item(),
+            params,
+        }
+        .to_nodespan(span))
     }
 }
 
@@ -798,7 +799,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         self.next();
 
         let arg_span = if method_params.is_empty() {
-            Span(ident.span.1 + 1, ident.span.1 + 2)
+            Span::new(self.file_id, ident.span.end + 1, ident.span.end + 2)
         } else {
             method_params.first().unwrap().span + method_params.last().unwrap().span
         };
@@ -832,17 +833,19 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
 ///base parser
 impl<'input> Parser<'input, Lexer<'input>> {
-    pub fn parse_expr(input: &'input str) -> Result {
+    pub fn parse_expr(input: &'input str, file_id: FileID) -> Result {
         let mut parser = Parser {
+            file_id,
             input,
-            tokens: Lexer::new(input).peekable(),
+            tokens: Lexer::new(input, file_id).peekable(),
         };
         parser.parse_node(false)
     }
-    pub fn parse(input: &'input str) -> Result<Vec<Spanned<DeclType>>> {
+    pub fn parse(input: &'input str, file_id: FileID) -> Result<Vec<Spanned<DeclType>>> {
         let mut parser = Parser {
+            file_id,
             input,
-            tokens: Lexer::new(input).peekable(),
+            tokens: Lexer::new(input, file_id).peekable(),
         };
         parser.parse_toplevel()
     }
@@ -857,10 +860,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             match expr.item {
                 Node::VarDecl(decl) => body.push(DeclType::VarDecl(decl).to_spanned(expr.span)),
                 _ => {
-                    return Err(ParseError::Unspecified(format!(
-                        "Invalid expression in top scope, only declarations are allowed."
-                    ))
-                    .to_spanned(expr.span));
+                    return Err(ParseError::UnexpectedToplevel.to_spanned(expr.span));
                 }
             };
         }

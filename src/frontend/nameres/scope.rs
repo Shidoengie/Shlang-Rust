@@ -6,7 +6,7 @@ pub struct VarInfo {
     pub global: bool,
 }
 impl VarInfo {
-    pub fn new(name: impl Display, global: bool) -> Self {
+    pub fn new(name: String, global: bool) -> Self {
         Self {
             name: name.to_string(),
             global,
@@ -37,8 +37,8 @@ impl Scope {
         }
         out
     }
-    pub fn define(&mut self, var_name: impl Display, value: VarInfo) {
-        self.vars.insert(var_name.to_string(), value);
+    pub fn define(&mut self, var_name: String, value: VarInfo) {
+        self.vars.insert(var_name, value);
     }
 
     pub fn new(parent: Option<Box<Scope>>, vars: HashMap<String, VarInfo>) -> Self {

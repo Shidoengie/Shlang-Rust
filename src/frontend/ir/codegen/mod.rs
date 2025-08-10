@@ -1,25 +1,15 @@
+mod error;
+pub use error::GenErr;
+
 use std::collections::HashMap;
 
 use super::instructions::{OpCode as Op, *};
 
 use crate::*;
 use frontend::ast::nodes::*;
-
-use lang_errors::LangError;
 use spans::Spanned;
-use spans::*;
+
 pub type Result<T = ()> = std::result::Result<T, Spanned<GenErr>>;
-#[derive(Debug)]
-pub enum GenErr {
-    Unspecified(String),
-}
-impl LangError for Spanned<GenErr> {
-    fn msg(&self) -> String {
-        match &self.item {
-            GenErr::Unspecified(msg) => msg.to_owned(),
-        }
-    }
-}
 impl From<BinaryOp> for Op {
     fn from(value: BinaryOp) -> Self {
         use BinaryOp as Bin;

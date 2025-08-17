@@ -23,41 +23,39 @@ type DeclStream = Vec<Spanned<DeclType>>;
 pub struct NameRes {
     ident_counter: usize,
     globals: HashMap<String, (usize, VarInfo)>,
-    file_store: FileStore,
+    pub(crate) file_store: FileStore,
     node_pool: NodePool,
 }
 impl NameRes {
-    pub fn resolve(ast: DeclStream) -> Result<ResolvedAst> {
-        let mut globals = HashMap::<String, (usize, VarInfo)>::new();
-        let mut counter: usize = 0;
-        for (index, val) in ast.iter().enumerate() {
-            match &val.item {
-                DeclType::VarDecl(decl) => {
-                    let info = VarInfo::new(decl.name.to_string(), true, counter);
-                    globals.insert(decl.name.to_string(), (index, info));
-                    counter += 1;
-                }
-            };
-        }
-        let mut resolver = Self {
-            globals,
-            ident_counter: counter,
+    pub fn new(file_store: FileStore) -> Self {
+        Self {
+            file_store,
             ..Default::default()
-        };
-        let decls = resolver.resolve_toplevel(ast)?;
-        Ok(ResolvedAst(decls, resolver.node_pool))
+        }
     }
-    pub fn resolve_expr(expr: NodeSpan) -> Result<ResolvedAstNode> {
-        let mut resolver = Self::default();
-        let node = resolver.resolve_node(expr, &mut Scope::default())?;
-        Ok(ResolvedAstNode(node, resolver.node_pool))
+    pub fn resolve(&mut self, ast: DeclStream) -> Result<ResolvedAst> {
+        let decls = self.resolve_toplevel(ast)?;
+        Ok(ResolvedAst(decls, self.node_pool.clone()))
+    }
+    pub fn resolve_expr(&mut self, expr: NodeSpan) -> Result<ResolvedAstNode> {
+        let node = self.resolve_node(expr, &mut Scope::default())?;
+        Ok(ResolvedAstNode(node, self.node_pool.clone()))
     }
     fn add_node(&mut self, node: ResolvedNode, span: Span) -> Result {
         let idx = RNodeRef(self.node_pool.len());
         self.node_pool.push(node.to_spanned(span));
         Ok(idx)
     }
-    fn resolve_toplevel(&mut self, decls: DeclStream) -> Result<Vec<Spanned<ResDeclType>>> {
+    pub fn resolve_toplevel(&mut self, decls: DeclStream) -> Result<Vec<Spanned<ResDeclType>>> {
+        for (index, val) in decls.iter().enumerate() {
+            match &val.item {
+                DeclType::VarDecl(decl) => {
+                    let info = VarInfo::new(decl.name.to_string(), true, self.ident_counter);
+                    self.globals.insert(decl.name.to_string(), (index, info));
+                    self.ident_counter += 1;
+                }
+            };
+        }
         let mut root = Scope::default();
         let mut new_decls = vec![];
         for i in decls {

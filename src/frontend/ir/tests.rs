@@ -10,8 +10,10 @@ use nameres::resolver::NameErr;
 use std::{usize, *};
 
 fn test_ir(input: &str) -> codegen::Result<Vec<OpCode>> {
-    let expr = Parser::parse_expr(input, usize::MAX).unwrap();
-    let expr = resolver::NameRes::resolve_expr(expr).unwrap();
+    let mut file_store = FileStore::new();
+    let file_id = file_store.add(input.to_owned());
+    let ast = Parser::parse_expr(&input, file_id).unwrap();
+    let expr = NameRes::new(file_store).resolve_expr(ast).unwrap();
     IRgen::generate_expr(expr)
 }
 

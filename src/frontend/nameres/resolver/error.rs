@@ -2,7 +2,7 @@ use ariadne::Report;
 
 use crate::{
     frontend::ast::parser::*,
-    lang_errors::LangError,
+    lang_errors::{LangError, MsgBuilder},
     spans::{IntoSpanned, Span, Spanned},
 };
 #[derive(Debug)]
@@ -15,18 +15,17 @@ pub enum NameErr {
 impl LangError for Spanned<NameErr> {
     fn msg(&self) -> Report<Span> {
         match &self.item {
-            NameErr::Unspecified(err) => self
-                .build_err(err)
-                .with_label(self.err_label(format!("On this expression")))
+            NameErr::Unspecified(err) => {
+                MsgBuilder::build_unspecified_err(err.to_string(), self.span)
+            }
+            NameErr::UnexpectedSemi => MsgBuilder::build_err("Invalid expression", self.span)
+                .with_err_label("This does not make an expression.")
                 .finish(),
-            NameErr::UnexpectedSemi => self
-                .build_err("Invalid expression")
-                .with_label(self.err_label(format!("This does not make an expression.")))
-                .finish(),
-            NameErr::UndefinedVar(name) => self
-                .build_err(format!("Undefined variable with name '{name}'"))
-                .with_label(self.err_label(format!("This does not exist")))
-                .finish(),
+            NameErr::UndefinedVar(name) => {
+                MsgBuilder::build_err(format!("Undefined variable with name '{name}'"), self.span)
+                    .with_err_label("This does not exist")
+                    .finish()
+            }
         }
     }
 }

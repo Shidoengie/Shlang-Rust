@@ -1,7 +1,10 @@
 use std::usize;
 
+use slab::Slab;
+
 use crate::{
     frontend::{
+        FileStore,
         ast::{nodes::*, parser::Parser},
         nameres::{
             resolved_nodes::{ResolvedAst, ResolvedAstNode},
@@ -15,12 +18,16 @@ use crate::{
 
 fn test_nameres(body: &str) -> resolver::Result<ResolvedAstNode> {
     let input = format!("do {{ {body} }}");
-    let ast = Parser::parse_expr(&input, usize::MAX).unwrap();
-    NameRes::resolve_expr(ast)
+    let mut file_store = FileStore::new();
+    let file_id = file_store.add(input.clone());
+    let ast = Parser::parse_expr(&input, file_id).unwrap();
+    NameRes::new(file_store).resolve_expr(ast)
 }
 fn test_global_nameres(body: &str) -> resolver::Result<ResolvedAst> {
-    let ast = Parser::parse(body, usize::MAX).unwrap();
-    NameRes::resolve(ast)
+    let mut file_store = FileStore::new();
+    let file_id = file_store.add(body.to_owned());
+    let ast = Parser::parse(&body, file_id).unwrap();
+    NameRes::new(file_store).resolve(ast)
 }
 
 test_func!(

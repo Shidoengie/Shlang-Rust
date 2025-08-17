@@ -21,7 +21,7 @@ impl LangError for Spanned<ParseError> {
         use ParseError as Pe;
         match &self.item {
             Pe::UnexpectedFieldNode(node) => self
-                .build_err("Unexpected field expression.")
+                .build_err("Unexpected field expression")
                 .with_label(self.err_label(format!(
                     "This {} expression is not allowed here.",
                     node.variant_name()
@@ -30,13 +30,13 @@ impl LangError for Spanned<ParseError> {
                 .finish(),
             Pe::UnexpectedVoidExpression => self
                 .build_err("Unexpected void expression")
-                .with_label(self.err_label(format!("This expression is not allowed here")))
+                .with_label(self.err_label(format!("This expression is not allowed here.")))
                 .with_note(format!(
                     "Declarations and assignments are types of void expressions."
                 ))
                 .finish(),
             Pe::UnexpectedStreamEnd => self
-                .build_err("Expected to be more tokens.")
+                .build_err("Expected to be more tokens")
                 .with_label(self.err_label(format!("On this expression.")))
                 .finish(),
             Pe::InvalidToken(expected, got) => self
@@ -49,13 +49,13 @@ impl LangError for Spanned<ParseError> {
                 .with_label(self.err_label(format!("This should not be here.")))
                 .finish(),
             Pe::UnexpectedToplevel => self
-                .build_err(format!("Invalid top level expression."))
+                .build_err(format!("Invalid top level expression"))
                 .with_label(self.err_label(format!("Only declarations are allowed.")))
                 .with_help(format!("Try putting this expression on the main function."))
                 .finish(),
             Pe::Unspecified(err) => self
                 .build_err(err.to_string())
-                .with_label(self.err_label(format!("On this expression")))
+                .with_label(self.err_label(format!("On this expression.")))
                 .finish(),
         }
     }

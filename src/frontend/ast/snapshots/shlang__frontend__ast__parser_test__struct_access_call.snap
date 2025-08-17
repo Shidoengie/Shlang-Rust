@@ -7,12 +7,11 @@ Ok(
     FieldAccess {
         target: FieldAccess {
             target: Var(a)[0,1],
-            requested: Method(
-                Call {
-                    callee: Var(b)[2,3],
-                    args: [],
-                },
-            )[4,5],
+            requested: Method {
+                callee: "b",
+                callee_span: 2:3,
+                args: [],
+            }[4,5],
         }[2,5],
         requested: Property(
             "c",

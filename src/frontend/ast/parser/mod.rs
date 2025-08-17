@@ -806,10 +806,11 @@ impl<'input> Parser<'input, Lexer<'input>> {
 
         Ok(FieldAccess {
             target: target.box_item(),
-            requested: AccessType::Method(Call {
-                callee: Node::Variable(requested).to_spanned(ident.span).box_item(),
+            requested: AccessType::Method {
+                callee: requested,
+                callee_span: ident.span,
                 args: method_params,
-            })
+            }
             .to_spanned(arg_span),
         }
         .to_nodespan(ident.span + arg_span))

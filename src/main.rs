@@ -7,6 +7,7 @@ use clap::Parser;
 
 use shlang::frontend::ast::parser::Parser as LangParser;
 
+use shlang::frontend::nameres::resolver::NameRes;
 use shlang::frontend::FileStore;
 use shlang::frontend::lexemes::lexer::Lexer;
 use shlang::*;
@@ -51,7 +52,7 @@ fn input(message: &str) -> String {
 }
 
 fn main() {
-    todo!();
+
     let args = Args::parse();
     let Some(mode) = args.mode else {
         todo!();

@@ -3,13 +3,15 @@ use std::{collections::HashMap, fmt::Display};
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct VarInfo {
     pub name: String,
+    pub id: usize,
     pub global: bool,
 }
 impl VarInfo {
-    pub fn new(name: String, global: bool) -> Self {
+    pub fn new(name: String, global: bool, id: usize) -> Self {
         Self {
             name: name.to_string(),
             global,
+            id,
         }
     }
 }

@@ -4,10 +4,23 @@ description: test_locals
 expression: "test_nameres\n(r#\"\n            var b = 10; \n            func a(c) {\n                var d = b;\n            }\n        \"#)"
 ---
 Ok(
-    Do{
-        VarDecl(b@0 = Int(10)[26,28])[18,28],
-        VarDecl(a@0 = Function(c@0){
-            VarDecl(d@0 = Var(b@0)[79,80])[71,80],
-        }[48,54])[48,54],
+    DoBlock{
+      Decl(
+        id: 0,
+        expr: Int(10)[26,28]
+      )[18,28];
+      Decl(
+        id: 1,
+        expr: FuncDef(
+          captures: false,
+          idents: [2],
+          block:{
+            Decl(
+              id: 3,
+              expr: Variable(id: 0)[79,80]
+            )[71,80];
+          }
+        )[48,54]
+      )[48,54];
     }[3,106],
 )

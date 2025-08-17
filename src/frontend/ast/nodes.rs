@@ -274,7 +274,11 @@ pub struct FieldAccess {
 #[derive(Clone, Debug, PartialEq)]
 pub enum AccessType {
     Property(String),
-    Method(Call),
+    Method {
+        callee: String,
+        callee_span: Span,
+        args: NodeStream,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -327,11 +331,4 @@ pub struct VarDecl {
 #[derive(Clone, Debug, PartialEq)]
 pub enum DeclType {
     VarDecl(VarDecl),
-}
-enum ConstExpr {
-    String(String),
-    Null,
-    Bool(bool),
-    Float(f64),
-    Int(i64),
 }

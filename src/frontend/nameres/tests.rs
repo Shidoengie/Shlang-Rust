@@ -3,18 +3,22 @@ use std::usize;
 use crate::{
     frontend::{
         ast::{nodes::*, parser::Parser},
-        nameres::{resolver, resolver::NameRes, scope::Scope},
+        nameres::{
+            resolved_nodes::{ResolvedAst, ResolvedAstNode},
+            resolver::{self, NameRes},
+            scope::Scope,
+        },
     },
     spans::Spanned,
     test_func,
 };
 
-fn test_nameres(body: &str) -> resolver::Result {
+fn test_nameres(body: &str) -> resolver::Result<ResolvedAstNode> {
     let input = format!("do {{ {body} }}");
     let ast = Parser::parse_expr(&input, usize::MAX).unwrap();
     NameRes::resolve_expr(ast)
 }
-fn test_global_nameres(body: &str) -> resolver::Result<Vec<Spanned<DeclType>>> {
+fn test_global_nameres(body: &str) -> resolver::Result<ResolvedAst> {
     let ast = Parser::parse(body, usize::MAX).unwrap();
     NameRes::resolve(ast)
 }

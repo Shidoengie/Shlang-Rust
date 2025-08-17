@@ -12,8 +12,7 @@ use std::{usize, *};
 fn test_ir(input: &str) -> codegen::Result<Vec<OpCode>> {
     let expr = Parser::parse_expr(input, usize::MAX).unwrap();
     let expr = resolver::NameRes::resolve_expr(expr).unwrap();
-    todo!()
-    //IRgen::generate_expr(expr)
+    IRgen::generate_expr(expr)
 }
 
 test_func!(

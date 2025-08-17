@@ -1,0 +1,29 @@
+---
+source: src/frontend/nameres/tests.rs
+description: test_globals
+expression: "test_global_nameres\n(r#\"\n        func main(){\n            var a = 10;\n            do {\n                var a = a;\n            }\n        }\n    \n    \"#)"
+---
+Ok(
+    Decl {
+        id: 0,
+        expr: FuncDef(
+          captures: false,
+          idents: [],
+          block:{
+            Decl(
+              id: 1,
+              expr: Int(10)[42,44]
+            )[34,44];
+            ResultNode(
+              DoBlock{
+                Decl(
+                  id: 2,
+                  expr: Variable(id: 1)[87,88]
+                )[79,88];
+              }[61,103]
+            )[61,103];
+          }
+        )[14,21],
+    }[14,21]
+    ,
+)

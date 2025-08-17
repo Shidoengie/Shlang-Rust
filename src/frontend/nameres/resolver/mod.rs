@@ -41,6 +41,7 @@ impl NameRes {
         }
         let mut resolver = Self {
             globals,
+            ident_counter: counter,
             ..Default::default()
         };
         let decls = resolver.resolve_toplevel(ast)?;
@@ -98,8 +99,8 @@ impl NameRes {
         Ok(info)
     }
     fn resolve_var_decl(&mut self, decl: VarDecl, parent: &mut Scope) -> Result<ResolvedDecl> {
-        let id = self.def_local(decl.name, parent);
         let expr = self.resolve_node(decl.expr.deref_item(), parent)?;
+        let id = self.def_local(decl.name, parent);
 
         return Ok(ResolvedDecl { expr, id });
     }

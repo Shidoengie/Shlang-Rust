@@ -45,6 +45,15 @@ test_func!(
     func a() {
         return 10;
     } 
-    "#
+    "#,
+    "with_scopes" => r#"
+        func main(){
+            var a = 10;
+            do {
+                var a = a;
+            }
+        }
+    
+    "#,
     }
 );

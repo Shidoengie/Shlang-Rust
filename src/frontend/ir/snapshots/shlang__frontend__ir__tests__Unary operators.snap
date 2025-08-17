@@ -1,0 +1,22 @@
+---
+source: src/frontend/ir/tests.rs
+description: ir_expr
+expression: "test_ir (\"-1 != !true\")"
+---
+Ok(
+    [
+        Push(
+            Int(
+                1,
+            ),
+        ),
+        Neg,
+        Push(
+            Bool(
+                true,
+            ),
+        ),
+        Not,
+        NotEq,
+    ],
+)

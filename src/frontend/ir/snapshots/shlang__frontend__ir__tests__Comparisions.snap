@@ -1,7 +1,7 @@
 ---
 source: src/frontend/ir/tests.rs
 description: ir_expr
-expression: "test_ir (\"1+(2-(3*(4/(5 % 6))))\")"
+expression: "test_ir (\"1 != (2 > (3 >= ( 4 < ( 5 <= (6 == (8 ?? 9) ) ) ) ) )\")"
 ---
 Ok(
     [
@@ -35,10 +35,22 @@ Ok(
                 6,
             ),
         ),
-        Mod,
-        Div,
-        Mult,
-        Sub,
-        Add,
+        Push(
+            Int(
+                8,
+            ),
+        ),
+        Push(
+            Int(
+                9,
+            ),
+        ),
+        NullCo,
+        Eq,
+        LesserEq,
+        Lesser,
+        GreaterEq,
+        Greater,
+        NotEq,
     ],
 )

@@ -10,13 +10,13 @@ Ok(
         expr: Int(10)[26,28]
       )[18,28];
       Decl(
-        id: 1,
+        id: 3,
         expr: FuncDef(
           captures: false,
-          idents: [2],
+          idents: [1],
           block:{
             Decl(
-              id: 3,
+              id: 2,
               expr: Variable(id: 0)[79,80]
             )[71,80];
           }

@@ -1,0 +1,26 @@
+---
+source: src/frontend/ir/tests.rs
+description: ir_expr
+expression: "test_ir (\"true || (false && true)\")"
+---
+Ok(
+    [
+        Push(
+            Bool(
+                true,
+            ),
+        ),
+        Push(
+            Bool(
+                false,
+            ),
+        ),
+        Push(
+            Bool(
+                true,
+            ),
+        ),
+        And,
+        Or,
+    ],
+)

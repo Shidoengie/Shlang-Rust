@@ -7,7 +7,6 @@ pub enum OpCode {
     Pop,
     Goto(i16),
     Branch(i16),
-
     Add,
     Mult,
     Div,
@@ -21,11 +20,14 @@ pub enum OpCode {
     LesserEq,
     NotEq,
     Eq,
-    ///Null coalescing binary instruction
+    /// Null coalescing binary instruction
     NullCo,
     Not,
     Neg,
     Stop,
+    Ret,
+    /// Deletes a range of values from the stack
+    FreeRange(usize, usize),
 }
 #[derive(Debug, Clone)]
 pub enum Value {

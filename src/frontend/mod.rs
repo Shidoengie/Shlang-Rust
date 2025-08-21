@@ -6,7 +6,7 @@ use slab::Slab;
 use crate::{
     frontend::{
         ast::{
-            nodes::{DeclType, Node},
+            nodes::{Item, Node},
             parser::Parser,
         },
         ir::{codegen::IRgen, instructions::OpCode},
@@ -55,7 +55,7 @@ pub struct Compiler {
     file_store: FileStore,
 }
 impl Compiler {
-    pub fn parse(input: &str) -> Result<Vec<Spanned<DeclType>>, Box<dyn LangError>> {
+    pub fn parse(input: &str) -> Result<Vec<Spanned<Item>>, Box<dyn LangError>> {
         let source = Source::from(input.to_owned());
         let mut files = Slab::new();
         let file_id = files.insert(source);

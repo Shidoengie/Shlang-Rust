@@ -1,5 +1,6 @@
 mod error;
-use core::panic;
+#[cfg(test)]
+mod tests;
 
 use crate::frontend::ir::instructions::*;
 
@@ -28,7 +29,7 @@ impl StackVM {
                 break;
             }
         }
-        todo!()
+        Ok(())
     }
     fn offset_ip(&mut self, ammount: i16) -> Result {
         let new_ip = self.ip as isize + ammount as isize;
@@ -61,13 +62,21 @@ impl StackVM {
                 self.ip += 1;
                 Ok(())
             }
-
+            OpCode::Add => {
+                // TESTING PORPOSES ONLY PLEASE REFACTOR
+                let (Value::Int(left), Value::Int(right)) = self.pop_pair()? else {
+                    todo!()
+                };
+                self.push(Value::Int(left + right));
+                self.ip += 1;
+                Ok(())
+            }
             OpCode::Goto(offset) => self.offset_ip(offset),
             OpCode::Branch(offset) => {
                 let Value::Bool(b) = self.pop()? else {
                     panic!("Invalid type")
                 };
-                if b {
+                if !b {
                     self.offset_ip(offset)?;
                 }
                 Ok(())

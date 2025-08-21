@@ -329,6 +329,6 @@ pub struct VarDecl {
     pub readonly: bool,
 }
 #[derive(Clone, Debug, PartialEq)]
-pub enum DeclType {
-    VarDecl(VarDecl),
+pub enum Item {
+    Decl(VarDecl),
 }

@@ -841,7 +841,7 @@ impl<'input> Parser<'input> {
         };
         parser.parse_node(false)
     }
-    pub fn parse(input: &'input str, file_id: FileID) -> Result<Vec<Spanned<DeclType>>> {
+    pub fn parse(input: &'input str, file_id: FileID) -> Result<Vec<Spanned<Item>>> {
         let mut parser = Parser {
             file_id,
             input,
@@ -850,15 +850,15 @@ impl<'input> Parser<'input> {
         parser.parse_toplevel()
     }
     /// Parses input as expressions and collects it into a block
-    fn parse_toplevel(&mut self) -> Result<Vec<Spanned<DeclType>>> {
-        let mut body: Vec<Spanned<DeclType>> = vec![];
+    fn parse_toplevel(&mut self) -> Result<Vec<Spanned<Item>>> {
+        let mut body: Vec<Spanned<Item>> = vec![];
         while self.peek_opt()?.is_some() {
             let expr = self.parse_node(false)?;
             if expr.item == Node::DontResult {
                 continue;
             }
             match expr.item {
-                Node::VarDecl(decl) => body.push(DeclType::VarDecl(decl).to_spanned(expr.span)),
+                Node::VarDecl(decl) => body.push(Item::Decl(decl).to_spanned(expr.span)),
                 _ => {
                     return err(ParseError::UnexpectedToplevel.to_spanned(expr.span));
                 }

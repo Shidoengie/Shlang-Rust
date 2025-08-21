@@ -1,8 +1,5 @@
 use core::fmt;
-use std::{
-    collections::HashMap,
-    fmt::{Debug, Display, write},
-};
+use std::{collections::HashMap, fmt::Debug};
 
 use crate::{
     frontend::ast::nodes::{BinaryOp, UnaryOp},
@@ -79,7 +76,6 @@ pub enum ResolvedNode {
 #[derive(Clone)]
 pub struct ResolvedDecl {
     pub id: usize,
-
     pub expr: RNodeRef,
 }
 
@@ -93,7 +89,7 @@ pub enum ResAccessType {
     },
 }
 #[derive(Clone)]
-pub enum ResDeclType {
+pub enum ResItem {
     Decl(ResolvedDecl),
 }
 fn display_block<'a>(
@@ -400,12 +396,12 @@ impl Debug for ResolvedAstNode {
     }
 }
 
-pub struct ResolvedAst(pub Vec<Spanned<ResDeclType>>, pub NodePool);
+pub struct ResolvedAst(pub Vec<Spanned<ResItem>>, pub NodePool);
 impl Debug for ResolvedAst {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for Spanned { item, span } in self.0.iter() {
             match item {
-                ResDeclType::Decl(ResolvedDecl { id, expr }) => f
+                ResItem::Decl(ResolvedDecl { id, expr }) => f
                     .debug_struct("Decl")
                     .field("id", &id)
                     .field("expr", &ResolvedAstNode(*expr, self.1.clone()))

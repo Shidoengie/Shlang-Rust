@@ -15,5 +15,6 @@ test_func!(
         "Comparisions" => "1 != (2 > (3 >= ( 4 < ( 5 <= (6 == (8 ?? 9) ) ) ) ) )",
         "Boolean operators" => "true || (false && true)"
         "Unary operators" => "-1 != !true"
+        "Branches" => "if true {1+2;3+4;} else {2+4;}"
     }
 );

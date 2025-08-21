@@ -5,7 +5,7 @@ use crate::{
         ast::nodes::*,
         nameres::{
             resolved_nodes::{
-                NodePool, RNodeRef, ResAccessType, ResDeclType, ResolvedAst, ResolvedAstNode,
+                NodePool, RNodeRef, ResAccessType, ResItem, ResolvedAst, ResolvedAstNode,
                 ResolvedDecl, ResolvedNode,
             },
             scope::{self, Scope, VarInfo},
@@ -18,7 +18,7 @@ pub use error::NameErr;
 
 use std::collections::HashMap;
 pub type Result<T = RNodeRef> = std::result::Result<T, Spanned<NameErr>>;
-type DeclStream = Vec<Spanned<DeclType>>;
+type DeclStream = Vec<Spanned<Item>>;
 #[derive(Default)]
 pub struct NameRes {
     ident_counter: usize,
@@ -46,10 +46,10 @@ impl NameRes {
         self.node_pool.push(node.to_spanned(span));
         Ok(idx)
     }
-    pub fn resolve_toplevel(&mut self, decls: DeclStream) -> Result<Vec<Spanned<ResDeclType>>> {
+    pub fn resolve_toplevel(&mut self, decls: DeclStream) -> Result<Vec<Spanned<ResItem>>> {
         for (index, val) in decls.iter().enumerate() {
             match &val.item {
-                DeclType::VarDecl(decl) => {
+                Item::Decl(decl) => {
                     let info = VarInfo::new(decl.name.to_string(), true, self.ident_counter);
                     self.globals.insert(decl.name.to_string(), (index, info));
                     self.ident_counter += 1;
@@ -60,13 +60,12 @@ impl NameRes {
         let mut new_decls = vec![];
         for i in decls {
             match i.item {
-                DeclType::VarDecl(decl) => {
+                Item::Decl(decl) => {
                     let expr = self.resolve_node(decl.expr.deref_item(), &mut root)?;
                     let (_, info) = &self.globals[&decl.name];
 
-                    new_decls.push(
-                        ResDeclType::Decl(ResolvedDecl { id: info.id, expr }).to_spanned(i.span),
-                    );
+                    new_decls
+                        .push(ResItem::Decl(ResolvedDecl { id: info.id, expr }).to_spanned(i.span));
                 }
             };
         }

@@ -57,10 +57,10 @@ impl IRgen {
         codegen.gen_top_level(prog.0)?;
         Ok(codegen.stack)
     }
-    pub fn gen_top_level(&mut self, prog: Vec<Spanned<ResDeclType>>) -> Result {
+    pub fn gen_top_level(&mut self, prog: Vec<Spanned<ResItem>>) -> Result {
         for decl in prog {
             match decl.item {
-                ResDeclType::Decl(decl) => {
+                ResItem::Decl(decl) => {
                     self.node_gen(decl.expr)?;
                     self.add_op(Op::Store(decl.id));
                 }
@@ -84,6 +84,34 @@ impl IRgen {
         for node in block {
             self.node_gen(node)?;
         }
+        Ok(())
+    }
+    fn gen_branch(
+        &mut self,
+        condition: RNodeRef,
+        if_block: Vec<RNodeRef>,
+        else_block: Option<Vec<RNodeRef>>,
+    ) -> Result {
+        self.node_gen(condition)?;
+        let branch_op_index = self.stack.len();
+        self.add_op(Op::Branch(0));
+        self.gen_block(if_block)?;
+        if let Some(else_block) = else_block {
+            let goto_op_index = self.stack.len();
+            self.add_op(Op::Goto(0));
+            let else_start_pos = self.stack.len();
+            let branch_offset = (else_start_pos as i16) - ((branch_op_index + 1) as i16);
+            self.stack[branch_op_index] = Op::Branch(branch_offset);
+            self.gen_block(else_block)?;
+            let end_pos = self.stack.len();
+            let goto_offset = (end_pos as i16) - ((goto_op_index + 1) as i16);
+            self.stack[goto_op_index] = Op::Goto(goto_offset);
+        } else {
+            let end_pos = self.stack.len();
+            let branch_offset = (end_pos as i16) - ((branch_op_index + 1) as i16);
+            self.stack[branch_op_index] = Op::Branch(branch_offset);
+        }
+
         Ok(())
     }
     fn node_gen(&mut self, node: RNodeRef) -> Result {
@@ -112,6 +140,11 @@ impl IRgen {
             RNode::Variable(id) => {
                 self.add_op(Op::Load(id));
             }
+            RNode::Branch {
+                condition,
+                if_block,
+                else_block,
+            } => self.gen_branch(condition, if_block, else_block)?,
             _ => {
                 todo!()
             }

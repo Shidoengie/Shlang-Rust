@@ -1,0 +1,54 @@
+---
+source: src/frontend/ir/tests.rs
+assertion_line: 12
+description: ir_expr
+expression: "test_ir (\"if true {1+2;3+4;} else {2+4;}\")"
+---
+Ok(
+    [
+        Push(
+            Bool(
+                true,
+            ),
+        ),
+        Branch(
+            7,
+        ),
+        Push(
+            Int(
+                1,
+            ),
+        ),
+        Push(
+            Int(
+                2,
+            ),
+        ),
+        Add,
+        Push(
+            Int(
+                3,
+            ),
+        ),
+        Push(
+            Int(
+                4,
+            ),
+        ),
+        Add,
+        Goto(
+            3,
+        ),
+        Push(
+            Int(
+                2,
+            ),
+        ),
+        Push(
+            Int(
+                4,
+            ),
+        ),
+        Add,
+    ],
+)

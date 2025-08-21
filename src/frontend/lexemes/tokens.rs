@@ -80,6 +80,12 @@ pub enum TokenType {
     As,
     Import,
     From,
+    Eof,
+}
+impl TokenType {
+    pub fn to_token(self, span: Span) -> Token {
+        return Token::new(self, span);
+    }
 }
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Token {

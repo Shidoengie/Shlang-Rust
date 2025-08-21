@@ -2,7 +2,7 @@ mod error;
 use crate::frontend::ast::nodes::*;
 pub use error::ParseError;
 
-use crate::frontend::lexemes::lexer::Lexer;
+use crate::frontend::lexemes::lexer::{self, Lexer};
 use crate::frontend::lexemes::tokens::*;
 use crate::hashmap;
 use crate::lang_errors::*;
@@ -10,8 +10,10 @@ use crate::spans::*;
 use std::collections::HashMap;
 use std::iter::Peekable;
 
-pub type Result<T = NodeSpan> = std::result::Result<T, Spanned<ParseError>>;
-
+pub type Result<T = NodeSpan> = std::result::Result<T, Box<dyn LangError>>;
+fn err<T>(val: impl LangError + 'static) -> Result<T> {
+    Err(Box::new(val))
+}
 impl From<&TokenType> for Precedence {
     fn from(kind: &TokenType) -> Self {
         match kind {
@@ -64,17 +66,14 @@ impl From<TokenType> for BinaryOp {
     }
 }
 #[derive(Clone)]
-pub struct Parser<'input, I>
-where
-    I: Iterator<Item = Token>,
-{
+pub struct Parser<'input> {
     file_id: FileID,
     input: &'input str,
-    tokens: Peekable<I>,
+    tokens: Lexer<'input>,
 }
 
 ///utils and block parsing
-impl<'input> Parser<'input, Lexer<'input>> {
+impl<'input> Parser<'input> {
     /// converts token spans into text
     fn text(&mut self, token: &Token) -> String {
         self.input[token.span.start..token.span.end].to_string()
@@ -96,29 +95,37 @@ impl<'input> Parser<'input, Lexer<'input>> {
         Node::Float(text.parse().unwrap())
     }
     /// peeks the current token
-    fn peek(&mut self) -> Option<Token> {
-        self.tokens.peek().cloned()
+    fn peek(&mut self) -> Result<Token> {
+        self.tokens.peek().map_err(|err| Box::new(err) as Box<_>)
+    }
+    /// peeks the current token, and, if theres any token that is not [`TokenType::Eof`] it will return [`Some`] else [`None`]
+    fn peek_opt(&mut self) -> Result<Option<Token>> {
+        let ok = self.tokens.peek().map_err(|err| Box::new(err) as Box<_>)?;
+        if ok.is(&TokenType::Eof) {
+            return Ok(None);
+        }
+        return Ok(Some(ok));
     }
     /// peeks the current token and if none was found it prints and returns an error
     /// this is used for expressions that require the existence of a current token
     fn peek_some(&mut self) -> Result<Token> {
-        let Some(peeked) = self.tokens.peek().cloned() else {
-            return Err(ParseError::UnexpectedStreamEnd
-                .to_spanned(Span::from_last_line(self.input, self.file_id)));
-        };
+        let peeked = self.peek()?;
+        if peeked.is(&TokenType::Eof) {
+            return err(ParseError::UnexpectedStreamEnd.to_spanned(peeked.span));
+        }
         Ok(peeked)
     }
     /// advances to the next token
-    fn next(&mut self) -> Option<Token> {
-        self.tokens.next()
+    fn next(&mut self) -> Result<Token> {
+        self.tokens.next().map_err(|err| Box::new(err) as Box<_>)
     }
     fn expect_next(&mut self) -> Result<Token> {
         let token = self.peek_some()?;
-        self.next();
+        self.next()?;
         Ok(token)
     }
     fn skip_some(&mut self) -> Result<Token> {
-        self.next();
+        self.next()?;
         self.peek_some()
     }
     /// checks if a token is the expected token and if it isnt returns an error
@@ -127,7 +134,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         if token.is(&expected) {
             return Ok(());
         }
-        Err(ParseError::InvalidToken(expected, token.kind).to_spanned(token.span))
+        err(ParseError::InvalidToken(expected, token.kind).to_spanned(token.span))
     }
     /// peeks the current token and checks if it is the same as the expected token returning an error if it isnt
     /// this is also used for validating expressions
@@ -136,12 +143,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
         self.check_valid(expected, token.clone())?;
         Ok(token)
     }
-    fn is_expected(&mut self, expected: TokenType) -> Option<Token> {
+    fn is_expected(&mut self, expected: TokenType) -> Result<Option<Token>> {
         let token = self.peek()?;
         if token.is(&expected) {
-            return Some(token);
+            return Ok(Some(token));
         }
-        None
+        Ok(None)
     }
     fn consume(&mut self, expected: TokenType) -> Result<Token> {
         let token = self.expect(expected)?;
@@ -150,7 +157,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
     fn consume_ident(&mut self) -> Result<String> {
         let token = self.expect(TokenType::Identifier)?;
-        self.next();
+        self.next()?;
         Ok(self.text(&token))
     }
     /// Filter DontResult nodes in order to determine if the last expression should or shouldnt result
@@ -174,7 +181,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     /// this is used for expressions with blocks like if
     fn parse_block(&mut self) -> Result<NodeStream> {
         let mut body: NodeStream = vec![];
-        self.next();
+        self.next()?;
         let token = self.peek_some()?;
 
         if token.is(&TokenType::RBrace) {
@@ -183,7 +190,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         loop {
             let expr = self.parse_node(false)?;
             body.push(expr);
-            if self.peek().is(&TokenType::RBrace) {
+            if self.peek()?.is(&TokenType::RBrace) {
                 break;
             }
         }
@@ -193,7 +200,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 }
 
 ///variable and assignment parsing
-impl<'input> Parser<'input, Lexer<'input>> {
+impl<'input> Parser<'input> {
     /// These Parse variable definitions/declarations
     fn empty_var_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
         let name = self.text(&var_ident);
@@ -206,7 +213,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         .to_nodespan(span)
     }
     fn var_decl(&mut self, name: String, name_ident: &Token) -> Result {
-        self.next(); // Consume '='
+        self.next()?; // Consume '='
         let val = self.parse_only_expr(false)?;
         let span = name_ident.span + val.span;
         Ok(VarDecl {
@@ -219,8 +226,8 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn parse_vardef(&mut self, first: &Token) -> Result {
         let ident = self.expect(TokenType::Identifier)?;
         let var_name = self.text(&ident);
-        self.next();
-        let Some(last) = self.peek() else {
+        self.next()?;
+        let Some(last) = self.peek_opt()? else {
             return Ok(self.empty_var_decl(first, ident));
         };
         match last.kind {
@@ -231,7 +238,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
     /// Parses tokens into an assignment node
     fn parse_assignment(&mut self, target: NodeSpan, op_token: Token) -> Result {
         let op_precedence = Precedence::from(&op_token.kind);
-        self.next(); // Consume the assignment operator
+        self.next()?; // Consume the assignment operator
         let value = self.parse_pratt_expression(op_precedence, false)?;
         let span = target.span + value.span;
 
@@ -276,7 +283,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 }
 
 ///function parsing
-impl<'input> Parser<'input, Lexer<'input>> {
+impl<'input> Parser<'input> {
     fn parse_closure(&mut self) -> Result {
         let first_span = self.peek_some()?.span;
         let args = self.parse_func_params()?;
@@ -308,7 +315,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let mut token = self.peek_some()?;
         let mut params: Vec<String> = vec![];
         while token.isnt(&TokenType::RParen) {
-            if self.peek().is(&TokenType::RParen) {
+            if self.peek()?.is(&TokenType::RParen) {
                 break;
             }
             let ident: Token = self.expect(TokenType::Identifier)?;
@@ -385,14 +392,14 @@ impl<'input> Parser<'input, Lexer<'input>> {
 }
 
 ///function call parsing
-impl<'input> Parser<'input, Lexer<'input>> {
+impl<'input> Parser<'input> {
     /// Parses a list of expresions like a list or call parameters
     fn parse_expr_list(&mut self, token: &Token, closing_tok: TokenType) -> Result<NodeStream> {
         let mut token = token.clone();
         let mut params: NodeStream = vec![];
 
         while token.isnt(&closing_tok) {
-            if self.peek().is(&closing_tok) {
+            if self.peek()?.is(&closing_tok) {
                 break;
             }
 
@@ -427,7 +434,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 }
 
 ///loop parsing
-impl<'input> Parser<'input, Lexer<'input>> {
+impl<'input> Parser<'input> {
     fn parse_while_loop(&mut self) -> Result {
         let first = self.peek_some()?;
         let condition = self.parse_only_expr(true)?.box_item();
@@ -452,21 +459,21 @@ impl<'input> Parser<'input, Lexer<'input>> {
     fn parse_do(&mut self) -> Result {
         let first = self.expect(TokenType::LBrace)?;
         let block = self.parse_block()?;
-        let last = self.next().unwrap();
+        let last = self.next()?;
         let span = first.span + last.span;
         Ok(Node::DoBlock(block).to_spanned(span))
     }
     fn parse_loop(&mut self) -> Result {
         let first = self.expect(TokenType::LBrace)?;
         let block = self.parse_block()?;
-        let last = self.next().unwrap();
+        let last = self.next()?;
         let span = first.span + last.span;
         Ok(Node::Loop(block).to_spanned(span))
     }
 }
 
 ///branch parsing
-impl<'input> Parser<'input, Lexer<'input>> {
+impl<'input> Parser<'input> {
     fn parse_elif(&mut self, condition: NodeSpan, if_block: NodeStream, span: Span) -> Result {
         self.next();
         let elif = self.parse_branch()?;
@@ -493,7 +500,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let if_block = self.parse_block()?;
         self.next();
         let span = first.span + last.span;
-        let Some(else_branch) = self.peek() else {
+        let Some(else_branch) = self.peek_opt()? else {
             self.next();
             return Ok(Branch::new_single(condition, if_block).to_nodespan(span));
         };
@@ -511,7 +518,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 }
 
 ///list parsing
-impl<'input> Parser<'input, Lexer<'input>> {
+impl<'input> Parser<'input> {
     fn parse_index(&mut self, target: NodeSpan) -> Result {
         let first = self.peek_some()?;
 
@@ -532,13 +539,13 @@ impl<'input> Parser<'input, Lexer<'input>> {
 }
 
 // This entire section replaces the old precedence climbing functions.
-impl<'input> Parser<'input, Lexer<'input>> {
+impl<'input> Parser<'input> {
     /// Gets the precedence of the upcoming token.
-    fn peek_precedence(&mut self) -> Precedence {
-        if let Some(t) = self.peek() {
-            Precedence::from(&t.kind)
+    fn peek_precedence(&mut self) -> Result<Precedence> {
+        if let Some(t) = self.peek_opt()? {
+            Ok(Precedence::from(&t.kind))
         } else {
-            Precedence::Lowest
+            Ok(Precedence::Lowest)
         }
     }
 
@@ -560,12 +567,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let token = self.expect_next()?;
         let mut left = self.parse_prefix(&token)?;
 
-        if self.peek().is(&TokenType::LBrace) && in_conditional {
+        if self.peek()?.is(&TokenType::LBrace) && in_conditional {
             return Ok(left);
         }
-        while precedence < self.peek_precedence() {
+        while precedence < self.peek_precedence()? {
             let op_token = self.peek_some()?;
-            if self.peek().is(&TokenType::LBrace) && in_conditional {
+            if self.peek()?.is(&TokenType::LBrace) && in_conditional {
                 return Ok(left);
             }
             left = self.parse_infix(left, op_token, in_conditional)?;
@@ -684,13 +691,13 @@ impl<'input> Parser<'input, Lexer<'input>> {
 }
 
 ///struct parsing
-impl<'input> Parser<'input, Lexer<'input>> {
+impl<'input> Parser<'input> {
     fn node_to_field(&mut self, node: NodeSpan) -> Result<(String, NodeSpan)> {
         match node.item {
             Node::VarDecl(decl) => {
                 return Ok((decl.name, decl.expr.deref_item()));
             }
-            _ => return Err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span)),
+            _ => return err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span)),
         }
     }
     fn map_literal(&mut self) -> Result {
@@ -707,19 +714,19 @@ impl<'input> Parser<'input, Lexer<'input>> {
             let span = expr.span;
             let field_name = self.text(&target);
             entries.insert(field_name, expr);
-            if self.peek().is(&TokenType::Comma) {
+            if self.peek()?.is(&TokenType::Comma) {
                 self.next();
             }
-            if self.peek().is(&TokenType::RBrace) {
+            if self.peek()?.is(&TokenType::RBrace) {
                 break;
             }
         }
-        let span = token.span + self.next().unwrap().span;
+        let span = token.span + self.next()?.span;
         Ok(Node::RecordLit(entries).to_spanned(span))
     }
     fn parse_struct(&mut self) -> Result {
         let first = self.peek_some()?;
-        let maybe_named = self.is_expected(TokenType::Identifier);
+        let maybe_named = self.is_expected(TokenType::Identifier)?;
         if let Some(name_ident) = maybe_named {
             return self.named_struct(&name_ident);
         }
@@ -730,14 +737,14 @@ impl<'input> Parser<'input, Lexer<'input>> {
             fields.insert(field.0, field.1);
         }
 
-        let last = self.next().unwrap();
+        let last = self.next()?;
         let span = first.span + last.span;
         Ok(Node::StructDef(fields).to_spanned(span))
     }
     fn named_struct(&mut self, name_ident: &Token) -> Result {
         self.next();
         let block = self.parse_block()?;
-        let last = self.next().unwrap();
+        let last = self.next()?;
         let name = self.text(name_ident);
         let span = name_ident.span + last.span;
         let mut fields: HashMap<String, NodeSpan> = hashmap!();
@@ -767,10 +774,10 @@ impl<'input> Parser<'input, Lexer<'input>> {
             self.consume(TokenType::Colon)?;
             let expr = self.parse_only_expr(false)?;
             body.insert(self.text(&target), expr);
-            if self.peek().is(&TokenType::Comma) {
+            if self.peek()?.is(&TokenType::Comma) {
                 self.next();
             }
-            if self.peek().is(&TokenType::RBrace) {
+            if self.peek()?.is(&TokenType::RBrace) {
                 break;
             }
         }
@@ -791,7 +798,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
 }
 
 ///struct field access parsing
-impl<'input> Parser<'input, Lexer<'input>> {
+impl<'input> Parser<'input> {
     fn parse_method(&mut self, target: NodeSpan, requested: String, ident: Token) -> Result {
         self.expect_next()?; // Consume '('
         let token = self.peek_some()?;
@@ -817,10 +824,9 @@ impl<'input> Parser<'input, Lexer<'input>> {
     }
     fn parse_field_access(&mut self, target: NodeSpan, _span: Span) -> Result {
         let ident = self.expect(TokenType::Identifier)?;
-        self.next();
+        self.next()?;
         let requested = self.text(&ident);
-
-        if self.is_expected(TokenType::LParen).is_none() {
+        if self.is_expected(TokenType::LParen)?.is_none() {
             Ok(FieldAccess {
                 target: target.clone().box_item(),
                 requested: AccessType::Property(requested).to_spanned(ident.span),
@@ -833,12 +839,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
 }
 
 ///base parser
-impl<'input> Parser<'input, Lexer<'input>> {
+impl<'input> Parser<'input> {
     pub fn parse_expr(input: &'input str, file_id: FileID) -> Result {
         let mut parser = Parser {
             file_id,
             input,
-            tokens: Lexer::new(input, file_id).peekable(),
+            tokens: Lexer::new(input, file_id),
         };
         parser.parse_node(false)
     }
@@ -846,14 +852,14 @@ impl<'input> Parser<'input, Lexer<'input>> {
         let mut parser = Parser {
             file_id,
             input,
-            tokens: Lexer::new(input, file_id).peekable(),
+            tokens: Lexer::new(input, file_id),
         };
         parser.parse_toplevel()
     }
     /// Parses input as expressions and collects it into a block
     fn parse_toplevel(&mut self) -> Result<Vec<Spanned<DeclType>>> {
         let mut body: Vec<Spanned<DeclType>> = vec![];
-        while self.peek().is_some() {
+        while self.peek_opt()?.is_some() {
             let expr = self.parse_node(false)?;
             if expr.item == Node::DontResult {
                 continue;
@@ -861,7 +867,7 @@ impl<'input> Parser<'input, Lexer<'input>> {
             match expr.item {
                 Node::VarDecl(decl) => body.push(DeclType::VarDecl(decl).to_spanned(expr.span)),
                 _ => {
-                    return Err(ParseError::UnexpectedToplevel.to_spanned(expr.span));
+                    return err(ParseError::UnexpectedToplevel.to_spanned(expr.span));
                 }
             };
         }
@@ -870,12 +876,12 @@ impl<'input> Parser<'input, Lexer<'input>> {
 }
 
 fn unexpected_token<T>(token: Token) -> Result<T> {
-    Err(ParseError::UnexpectedToken(token.kind).to_spanned(token.span))
+    err(ParseError::UnexpectedToken(token.kind).to_spanned(token.span))
 }
 
 fn expect_expr(expr: &NodeSpan) -> Result<&NodeSpan> {
     if !expr.item.can_result() {
-        return Err(ParseError::UnexpectedVoidExpression.to_spanned(expr.span));
+        return err(ParseError::UnexpectedVoidExpression.to_spanned(expr.span));
     }
     Ok(expr)
 }

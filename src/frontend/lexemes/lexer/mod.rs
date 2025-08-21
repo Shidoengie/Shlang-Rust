@@ -1,9 +1,11 @@
 use super::tokens::*;
 use crate::charvec::CharVec;
 use crate::frontend::lexemes::*;
-use crate::spans::{FileID, Span};
+use crate::spans::{FileID, IntoSpanned, Span, Spanned};
 use std::str::Chars;
+mod error;
 
+pub use error::*;
 #[derive(Debug, Clone)]
 pub struct Lexer<'a> {
     file_id: FileID,
@@ -11,14 +13,18 @@ pub struct Lexer<'a> {
     source: String,
     index: usize,
 }
+pub type Result<T = Token> = std::result::Result<T, Spanned<LexError>>;
 impl<'a> Lexer<'a> {
-    fn peek(&self) -> Option<char> {
+    fn peek_char(&self) -> Option<char> {
         self.chars.clone().next()
     }
     fn peek_advance(&mut self) -> Option<char> {
         self.advance();
 
-        self.peek()
+        self.peek_char()
+    }
+    fn make_err<T>(&self, err: LexError, start: usize, stop: usize) -> Result<T> {
+        return Err(err.to_spanned(self.new_span(start, stop)));
     }
     fn peek_next(&mut self) -> Option<char> {
         let mut cur_chars = self.chars.clone();
@@ -30,15 +36,15 @@ impl<'a> Lexer<'a> {
         self.chars.next()
     }
     fn current_is(&mut self, expected: char) -> bool {
-        self.peek() == Some(expected)
+        self.peek_char() == Some(expected)
     }
     fn new_span(&self, start: usize, end: usize) -> Span {
         Span::new(self.file_id, start, end)
     }
-    fn num(&mut self) -> Token {
+    fn num(&mut self) -> Result {
         let mut dot_count: u16 = 0;
         let start = self.index;
-        let mut current = self.peek();
+        let mut current = self.peek_char();
         while let Some(val) = current {
             if !val.is_numeric() && val != '.' && val != '_' {
                 break;
@@ -46,7 +52,7 @@ impl<'a> Lexer<'a> {
 
             if val == '.' {
                 let Some(next) = self.peek_next() else {
-                    panic!("Invalid Number");
+                    return self.make_err(LexError::InvalidNumber, start, self.index);
                 };
                 if !next.is_ascii_digit() {
                     break;
@@ -56,17 +62,23 @@ impl<'a> Lexer<'a> {
             current = self.peek_advance();
         }
         if dot_count > 1 {
-            panic!("Invalid Number");
+            return self.make_err(LexError::InvalidNumber, start, self.index);
         }
         let is_float = dot_count != 0;
         if is_float {
-            return Token::new(TokenType::Float, self.new_span(start - 1, self.index));
+            return Ok(Token::new(
+                TokenType::Float,
+                self.new_span(start - 1, self.index),
+            ));
         }
-        Token::new(TokenType::Int, self.new_span(start - 1, self.index))
+        Ok(Token::new(
+            TokenType::Int,
+            self.new_span(start - 1, self.index),
+        ))
     }
-    fn ident(&mut self) -> Token {
+    fn ident(&mut self) -> Result {
         let start = self.index - 1;
-        let mut current = self.peek();
+        let mut current = self.peek_char();
         while let Some(val) = current {
             if val.is_alphanumeric() || val == '_' {
                 current = self.peek_advance();
@@ -77,20 +89,21 @@ impl<'a> Lexer<'a> {
         }
         let stop = self.index;
         let Some(span) = self.source.get(start..stop) else {
-            panic!("Identifiers can only be ASCII");
+            return self.make_err(LexError::InvalidIdent, start, stop);
         };
-        let Some(keyword) = tokens::map_keyword(span) else {
-            return Token::new(TokenType::Identifier, self.new_span(start, stop));
-        };
-        Token::new(keyword, self.new_span(start, stop))
+        let kind = tokens::map_keyword(span).unwrap_or(TokenType::Identifier);
+        Ok(Token::new(kind, self.new_span(start, stop)))
     }
-    fn str(&mut self, quote: char) -> Option<Token> {
+    fn str(&mut self, quote: char) -> Result {
         let start = self.index;
         let mut last = self.advance();
         let mut escaped = false;
         let mut buffer: Vec<char> = vec![];
         loop {
-            match (escaped, last?) {
+            let Some(unwrapped) = last else {
+                return self.make_err(LexError::UnterminatedStr(quote), start, self.index);
+            };
+            match (escaped, unwrapped) {
                 (false, '\\') => escaped = true,
                 (false, q) => {
                     if q == quote {
@@ -109,7 +122,7 @@ impl<'a> Lexer<'a> {
                         '"' => '\"',
                         '\'' => '\'',
 
-                        _ => panic!("invalid escape sequence"),
+                        _ => return self.make_err(LexError::InvalidEscape, start, self.index),
                     };
                     buffer.push(escape_map);
                     escaped = false;
@@ -119,9 +132,12 @@ impl<'a> Lexer<'a> {
             last = self.advance();
         }
 
-        Some(Token::new(
-            TokenType::Str(CharVec(buffer)),
-            self.new_span(start, self.index),
+        Ok(TokenType::Str(CharVec(buffer)).to_token(self.new_span(start, self.index)))
+    }
+    fn make_eof_token(&self) -> Result {
+        Ok(Token::new(
+            TokenType::Eof,
+            self.new_span(self.index - 1, self.index),
         ))
     }
     fn push_advance(&mut self, kind: TokenType, range: Span) -> Token {
@@ -134,24 +150,25 @@ impl<'a> Lexer<'a> {
         short_token: TokenType,
         long_token: TokenType,
         range_start: usize,
-    ) -> Option<Token> {
+    ) -> Result {
         if self.current_is(expected) {
-            return Some(self.push_advance(long_token, self.new_span(range_start, self.index)));
+            return Ok(self.push_advance(long_token, self.new_span(range_start, self.index)));
         }
-        Some(Token::new(
+        Ok(Token::new(
             short_token,
             self.new_span(range_start, range_start + 1),
         ))
     }
 
-    fn ident_or_num(&mut self, expected: char) -> Option<Token> {
+    fn ident_or_num(&mut self, expected: char) -> Result {
+        let start = self.index;
         if expected.is_ascii_digit() {
-            return Some(self.num());
+            return self.num();
         }
         if expected.is_alphanumeric() || expected == '_' {
-            return Some(self.ident());
+            return self.ident();
         }
-        None
+        return self.make_err(LexError::UnexpectedChar(expected), start - 1, start);
     }
     fn matches_comment(&mut self, mut nest: i32, advanced: char, next: char) -> i32 {
         match (advanced, next) {
@@ -168,21 +185,25 @@ impl<'a> Lexer<'a> {
         self.advance();
         nest
     }
-    fn multi_comment(&mut self) -> Option<Token> {
+    fn multi_comment(&mut self) -> Result {
         self.advance();
         let mut nest = 1;
         while nest >= 1 {
-            let advanced = self.peek_advance()?;
+            let Some(advanced) = self.peek_advance() else {
+                return self.make_eof_token();
+            };
             match advanced {
                 '*' | '/' => {}
                 _ => continue,
             }
-            let next = self.peek_advance()?;
+            let Some(next) = self.peek_advance() else {
+                return self.make_eof_token();
+            };
             nest = self.matches_comment(nest, advanced, next);
         }
         self.next()
     }
-    fn single_comment(&mut self) -> Option<Token> {
+    fn single_comment(&mut self) -> Result {
         loop {
             self.advance();
             if self.current_is('\n') {
@@ -199,28 +220,22 @@ impl<'a> Lexer<'a> {
             index: 0,
         }
     }
-}
-impl Iterator for Lexer<'_> {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let start = self.index;
-        let last = self.advance()?;
+    fn token_from_char(&mut self, ch: char, start: usize) -> Result {
         let range = self.new_span(start, start + 1);
-        match last {
-            '.' => Some(Token::new(TokenType::Dot, range)),
-            ',' => Some(Token::new(TokenType::Comma, range)),
-            '{' => Some(Token::new(TokenType::LBrace, range)),
-            '}' => Some(Token::new(TokenType::RBrace, range)),
-            '(' => Some(Token::new(TokenType::LParen, range)),
-            ')' => Some(Token::new(TokenType::RParen, range)),
-            '[' => Some(Token::new(TokenType::LBracket, range)),
-            ']' => Some(Token::new(TokenType::RBracket, range)),
-            '%' => Some(Token::new(TokenType::Percent, range)),
-            ':' => Some(Token::new(TokenType::Colon, range)),
-            ';' => Some(Token::new(TokenType::Semicolon, range)),
-            '$' => Some(Token::new(TokenType::Dollar, range)),
-            '@' => Some(Token::new(TokenType::At, range)),
+        match ch {
+            '.' => Ok(Token::new(TokenType::Dot, range)),
+            ',' => Ok(Token::new(TokenType::Comma, range)),
+            '{' => Ok(Token::new(TokenType::LBrace, range)),
+            '}' => Ok(Token::new(TokenType::RBrace, range)),
+            '(' => Ok(Token::new(TokenType::LParen, range)),
+            ')' => Ok(Token::new(TokenType::RParen, range)),
+            '[' => Ok(Token::new(TokenType::LBracket, range)),
+            ']' => Ok(Token::new(TokenType::RBracket, range)),
+            '%' => Ok(Token::new(TokenType::Percent, range)),
+            ':' => Ok(Token::new(TokenType::Colon, range)),
+            ';' => Ok(Token::new(TokenType::Semicolon, range)),
+            '$' => Ok(Token::new(TokenType::Dollar, range)),
+            '@' => Ok(Token::new(TokenType::At, range)),
             '|' => self.multi_char_token('|', TokenType::Pipe, TokenType::DualPipe, start),
             '&' => {
                 self.multi_char_token('&', TokenType::Ampersand, TokenType::DualAmpersand, start)
@@ -231,31 +246,31 @@ impl Iterator for Lexer<'_> {
             '?' => {
                 let advanced = self.advance();
                 let Some(advanced) = advanced else {
-                    return Some(Token::new(TokenType::Question, range));
+                    return Ok(Token::new(TokenType::Question, range));
                 };
                 if advanced != '?' {
-                    return Some(Token::new(TokenType::Question, range));
+                    return Ok(Token::new(TokenType::Question, range));
                 }
                 let advanced = self.advance();
                 let Some(advanced) = advanced else {
-                    return Some(Token::new(TokenType::DualQuestion, range + 1));
+                    return Ok(Token::new(TokenType::DualQuestion, range + 1));
                 };
                 if advanced != '=' {
-                    return Some(Token::new(TokenType::DualQuestion, range + 1));
+                    return Ok(Token::new(TokenType::DualQuestion, range + 1));
                 }
-                Some(Token::new(TokenType::QuestionEqual, range + 2))
+                Ok(Token::new(TokenType::QuestionEqual, range + 2))
             }
             '+' => self.multi_char_token('=', TokenType::Plus, TokenType::PlusEqual, start),
             '*' => self.multi_char_token('=', TokenType::Star, TokenType::StarEqual, start),
             '/' => {
-                let Some(peeked) = self.peek() else {
-                    return Some(Token::new(TokenType::Slash, range));
+                let Some(peeked) = self.peek_char() else {
+                    return Ok(Token::new(TokenType::Slash, range));
                 };
                 match peeked {
                     '/' => self.single_comment(),
-                    '=' => Some(Token::new(TokenType::SlashEqual, range)),
+                    '=' => Ok(Token::new(TokenType::SlashEqual, range)),
                     '*' => self.multi_comment(),
-                    _ => Some(Token::new(TokenType::Slash, range)),
+                    _ => Ok(Token::new(TokenType::Slash, range)),
                 }
             }
             '-' => self.multi_char_token('=', TokenType::Minus, TokenType::MinusEqual, start),
@@ -266,10 +281,17 @@ impl Iterator for Lexer<'_> {
             '#' => self.single_comment(),
 
             ' ' | '\t' | '\r' | '\n' => self.next(),
-            last => Some(
-                self.ident_or_num(last)
-                    .unwrap_or_else(|| panic!("Unexpected Char {last}")),
-            ),
+            last => self.ident_or_num(last),
         }
+    }
+    pub fn peek(&mut self) -> Result {
+        return self.clone().next();
+    }
+    pub fn next(&mut self) -> Result {
+        let start = self.index;
+        let Some(last) = self.advance() else {
+            return self.make_eof_token();
+        };
+        self.token_from_char(last, start)
     }
 }

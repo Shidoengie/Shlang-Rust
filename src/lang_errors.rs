@@ -1,10 +1,10 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
 use crate::spans::*;
 use ariadne::{Label, Report, ReportBuilder};
 pub trait LangError
 where
-    Self: SpanUtil,
+    Self: SpanUtil + Debug,
 {
     fn msg(&self) -> Report<Span>;
 }

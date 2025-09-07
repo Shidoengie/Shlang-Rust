@@ -10,7 +10,6 @@ pub enum ParseError {
     InvalidToken(TokenType, TokenType),
     UnexpectedToken(TokenType),
     UnexpectedToplevel,
-
     UnexpectedStreamEnd,
     UnexpectedFieldNode(Node),
     UnexpectedVoidExpression,

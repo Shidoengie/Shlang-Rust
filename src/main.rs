@@ -5,10 +5,12 @@ use lang_errors::*;
 
 use clap::Parser;
 
+use shlang::backend::Runtime;
+use shlang::backend::vm::StackVM;
 use shlang::frontend::ast::parser::Parser as LangParser;
 
 use shlang::frontend::Compiler;
-use shlang::frontend::FileStore;
+
 use shlang::frontend::lexemes::lexer::Lexer;
 use shlang::frontend::nameres::resolver::NameRes;
 use shlang::*;
@@ -61,13 +63,12 @@ fn main() {
 
     match mode {
         Mode::Input { input } => {
-            // match Compiler::compile(input) {
-            //     Ok(ok) => ,
-            //     Err(err)  => err.msg().eprint(cache)
-            // }
+            Runtime::new().execute(&input);
         }
         Mode::Ast { path } => todo!(),
         Mode::Lexer { path } => todo!(),
-        Mode::Run { path } => todo!(),
-    }
+        Mode::Run { path } => {
+            Runtime::new().execute(&std::fs::read_to_string(path).expect("File does not exist"));
+        }
+    };
 }

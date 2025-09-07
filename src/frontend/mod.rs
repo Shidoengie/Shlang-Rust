@@ -16,6 +16,7 @@ use crate::{
         },
     },
     lang_errors::LangError,
+    spanmap::SpanMap,
     spans::{FileID, Spanned},
 };
 
@@ -51,80 +52,69 @@ impl Cache<FileID> for FileStore {
         return Some(id);
     }
 }
+#[derive(Debug, Default)]
 pub struct Compiler {
     file_store: FileStore,
 }
 impl Compiler {
-    pub fn parse(input: &str) -> Result<Vec<Spanned<Item>>, Box<dyn LangError>> {
-        let source = Source::from(input.to_owned());
-        let mut files = Slab::new();
-        let file_id = files.insert(source);
+    pub fn new(file_store: FileStore) -> Self {
+        Self { file_store }
+    }
+    pub fn parse(&mut self, input: &str) -> Result<Vec<Spanned<Item>>, Box<dyn LangError>> {
+        let file_id = self.file_store.add(input.to_owned());
         Parser::parse(input, file_id)
     }
-    pub fn parse_expr(input: &str) -> Result<Spanned<Node>, Box<dyn LangError>> {
-        let source = Source::from(input.to_owned());
-        let mut files = Slab::new();
-        let file_id = files.insert(source);
+    pub fn print_langerr(
+        &self,
+        err: Box<dyn LangError>,
+    ) -> std::result::Result<(), std::io::Error> {
+        err.msg().eprint(self.file_store.clone())
+    }
+    pub fn parse_expr(&mut self, input: &str) -> Result<Spanned<Node>, Box<dyn LangError>> {
+        let file_id = self.file_store.add(input.to_owned());
         Parser::parse_expr(input, file_id)
     }
-    pub fn resolve(input: &str) -> Result<ResolvedAst, Box<dyn LangError>> {
-        let source = Source::from(input.to_owned());
-        let mut files = Slab::new();
-        let file_id = files.insert(source);
-        let mut compiler = Self {
-            file_store: files.into(),
-        };
+    pub fn resolve(&mut self, input: &str) -> Result<ResolvedAst, Box<dyn LangError>> {
+        let file_id = self.file_store.add(input.to_owned());
         let parsed = Parser::parse(input, file_id)?;
-        let mut nameres = NameRes::new(compiler.file_store);
+        let mut nameres = NameRes::new(self.file_store.clone());
         let resolved = nameres
             .resolve(parsed)
             .map_err(|err| Box::new(err) as Box<dyn LangError>)?;
-        compiler.file_store = nameres.file_store;
+        self.file_store = nameres.file_store;
         Ok(resolved)
     }
-    pub fn resolve_expr(input: &str) -> Result<ResolvedAstNode, Box<dyn LangError>> {
-        let source = Source::from(input.to_owned());
-        let mut files = Slab::new();
-        let file_id = files.insert(source);
-        let mut compiler = Self {
-            file_store: files.into(),
-        };
+    pub fn resolve_expr(&mut self, input: &str) -> Result<ResolvedAstNode, Box<dyn LangError>> {
+        let file_id = self.file_store.add(input.to_owned());
         let parsed = Parser::parse_expr(input, file_id)?;
-        let mut nameres = NameRes::new(compiler.file_store);
+        let mut nameres = NameRes::new(self.file_store.clone());
         let resolved = nameres
             .resolve_expr(parsed)
             .map_err(|err| Box::new(err) as Box<dyn LangError>)?;
-        compiler.file_store = nameres.file_store;
+        self.file_store = nameres.file_store;
         Ok(resolved)
     }
-    pub fn compile(input: &str) -> Result<Vec<OpCode>, Box<dyn LangError>> {
-        let source = Source::from(input.to_owned());
-        let mut files = Slab::new();
-        let file_id = files.insert(source);
-        let mut compiler = Self {
-            file_store: files.into(),
-        };
+    pub fn compile(&mut self, input: &str) -> Result<(Vec<OpCode>, SpanMap), Box<dyn LangError>> {
+        let file_id = self.file_store.add(input.to_owned());
         let parsed = Parser::parse(input, file_id)?;
-        let mut nameres = NameRes::new(compiler.file_store);
+        let mut nameres = NameRes::new(self.file_store.clone());
         let resolved = nameres
             .resolve(parsed)
             .map_err(|err| Box::new(err) as Box<dyn LangError>)?;
-        compiler.file_store = nameres.file_store;
+        self.file_store = nameres.file_store;
         IRgen::generate(resolved).map_err(|err| Box::new(err) as Box<dyn LangError>)
     }
-    pub fn compile_expr(input: &str) -> Result<Vec<OpCode>, Box<dyn LangError>> {
-        let source = Source::from(input.to_owned());
-        let mut files = Slab::new();
-        let file_id = files.insert(source);
-        let mut compiler = Self {
-            file_store: files.into(),
-        };
+    pub fn compile_expr(
+        &mut self,
+        input: &str,
+    ) -> Result<(Vec<OpCode>, SpanMap), Box<dyn LangError>> {
+        let file_id = self.file_store.add(input.to_owned());
         let parsed = Parser::parse_expr(input, file_id)?;
-        let mut nameres = NameRes::new(compiler.file_store);
+        let mut nameres = NameRes::new(self.file_store.clone());
         let resolved = nameres
             .resolve_expr(parsed)
             .map_err(|err| Box::new(err) as Box<dyn LangError>)?;
-        compiler.file_store = nameres.file_store;
+        self.file_store = nameres.file_store;
         IRgen::generate_expr(resolved).map_err(|err| Box::new(err) as Box<dyn LangError>)
     }
 }

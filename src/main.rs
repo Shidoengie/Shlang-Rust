@@ -7,9 +7,10 @@ use clap::Parser;
 
 use shlang::frontend::ast::parser::Parser as LangParser;
 
-use shlang::frontend::nameres::resolver::NameRes;
+use shlang::frontend::Compiler;
 use shlang::frontend::FileStore;
 use shlang::frontend::lexemes::lexer::Lexer;
+use shlang::frontend::nameres::resolver::NameRes;
 use shlang::*;
 use slab::Slab;
 
@@ -52,7 +53,6 @@ fn input(message: &str) -> String {
 }
 
 fn main() {
-
     let args = Args::parse();
     let Some(mode) = args.mode else {
         todo!();
@@ -60,7 +60,12 @@ fn main() {
     };
 
     match mode {
-        Mode::Input { input } => todo!(),
+        Mode::Input { input } => {
+            // match Compiler::compile(input) {
+            //     Ok(ok) => ,
+            //     Err(err)  => err.msg().eprint(cache)
+            // }
+        }
         Mode::Ast { path } => todo!(),
         Mode::Lexer { path } => todo!(),
         Mode::Run { path } => todo!(),

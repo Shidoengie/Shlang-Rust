@@ -4,9 +4,9 @@ use crate::{
     test_func,
 };
 
-pub fn run_expr(input: &str) -> vm::Result<Vec<Value>> {
-    let ops = Compiler::compile_expr(input).unwrap();
-    let mut vm = StackVM::new(ops);
+pub fn run_expr(input: &str) -> vm::Result<Vec<(Value, usize)>> {
+    let ops = Compiler::default().compile_expr(input).unwrap();
+    let mut vm = StackVM::new(ops.0);
     vm.exec()?;
     return Ok(vm.values);
 }

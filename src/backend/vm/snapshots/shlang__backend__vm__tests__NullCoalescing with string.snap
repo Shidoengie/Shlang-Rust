@@ -1,0 +1,15 @@
+---
+source: src/backend/vm/tests.rs
+description: vm_expr
+expression: "run_expr (\"\\\"hello\\\" ?? \\\"world\\\"\")"
+---
+Ok(
+    [
+        (
+            String(
+                "hello",
+            ),
+            2,
+        ),
+    ],
+)

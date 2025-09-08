@@ -1,7 +1,7 @@
 ---
 source: src/backend/vm/tests.rs
 description: vm_expr
-expression: "run_expr (\"1+2+3\")"
+expression: "run_expr (\"10 - 4\")"
 ---
 Ok(
     [
@@ -9,7 +9,7 @@ Ok(
             Int(
                 6,
             ),
-            4,
+            2,
         ),
     ],
 )

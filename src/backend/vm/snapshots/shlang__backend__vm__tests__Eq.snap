@@ -1,13 +1,13 @@
 ---
 source: src/backend/vm/tests.rs
 description: vm_expr
-expression: "run_expr (\"1+2+3\")"
+expression: "run_expr (\"1.0/2.0 == 0.5\")"
 ---
 Ok(
     [
         (
-            Int(
-                6,
+            Bool(
+                true,
             ),
             4,
         ),

@@ -101,7 +101,7 @@ impl<'a> Lexer<'a> {
         let mut buffer: Vec<char> = vec![];
         loop {
             let Some(unwrapped) = last else {
-                return self.make_err(LexError::UnterminatedStr(quote), start, self.index);
+                return self.make_err(LexError::UnterminatedStr(quote), start, start + 1);
             };
             match (escaped, unwrapped) {
                 (false, '\\') => escaped = true,

@@ -4,23 +4,64 @@ description: ir_expr
 expression: "test_ir (\"true || (false && true)\")"
 ---
 Ok(
-    [
-        Push(
-            Bool(
-                true,
+    (
+        [
+            Push(
+                Bool(
+                    true,
+                ),
             ),
-        ),
-        Push(
-            Bool(
-                false,
+            Push(
+                Bool(
+                    false,
+                ),
             ),
-        ),
-        Push(
-            Bool(
-                true,
+            Push(
+                Bool(
+                    true,
+                ),
             ),
-        ),
-        And,
-        Or,
-    ],
+            And,
+            Or,
+        ],
+        SpanMap {
+            map: [
+                (
+                    (
+                        0,
+                        1,
+                    ),
+                    0:4,
+                ),
+                (
+                    (
+                        1,
+                        2,
+                    ),
+                    9:14,
+                ),
+                (
+                    (
+                        2,
+                        3,
+                    ),
+                    18:22,
+                ),
+                (
+                    (
+                        3,
+                        4,
+                    ),
+                    9:22,
+                ),
+                (
+                    (
+                        4,
+                        5,
+                    ),
+                    0:22,
+                ),
+            ],
+        },
+    ),
 )

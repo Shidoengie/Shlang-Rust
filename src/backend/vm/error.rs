@@ -14,6 +14,8 @@ pub enum ErrCode {
     EmptyStack,
     InvalidType { expected: Type, got: Type },
     MixedTypes { first: Type, last: Type },
+    UnsupportedOperation { op: String, target: Type },
+    InvalidStackIndex(usize),
 }
 impl LangError for Spanned<ErrCode> {
     fn msg(&self) -> ariadne::Report<Span> {
@@ -34,9 +36,27 @@ impl LangError for Spanned<ErrCode> {
                     .with_err_label(format!("Expected type {expected:?} but got {got:?}."))
                     .finish()
             }
+            ErrCode::UnsupportedOperation { op, target } => {
+                MsgBuilder::build_err("Invalid operand", self.span)
+                    .with_err_label(format!("Cant use operator {op} on type {target:?}"))
+                    .finish()
+            }
             ErrCode::Unspecified(unspec) => {
                 MsgBuilder::build_unspecified_err(unspec.to_string(), self.span)
             }
+            ErrCode::InvalidStackIndex(idx) => {
+                MsgBuilder::build_err(format!("Invalid stack index {idx}"), self.span)
+                    .with_err_label(format!("This points to an invalid address."))
+                    .finish()
+            }
+        }
+    }
+}
+impl ErrCode {
+    pub fn into_vmerr(self, index: usize) -> VmErr {
+        VmErr {
+            index: index,
+            code: self,
         }
     }
 }
@@ -61,14 +81,6 @@ impl From<Value> for Type {
             Value::Int(_) => Self::Int,
             Value::Null => Self::Null,
             Value::String(_) => Self::String,
-        }
-    }
-}
-impl ErrCode {
-    pub fn into_vmerr(self, index: usize) -> VmErr {
-        VmErr {
-            index: index,
-            code: self,
         }
     }
 }

@@ -4,19 +4,60 @@ description: ir_expr
 expression: "test_ir (\"-1 != !true\")"
 ---
 Ok(
-    [
-        Push(
-            Int(
-                1,
+    (
+        [
+            Push(
+                Int(
+                    1,
+                ),
             ),
-        ),
-        Neg,
-        Push(
-            Bool(
-                true,
+            Neg,
+            Push(
+                Bool(
+                    true,
+                ),
             ),
-        ),
-        Not,
-        NotEq,
-    ],
+            Not,
+            NotEq,
+        ],
+        SpanMap {
+            map: [
+                (
+                    (
+                        0,
+                        1,
+                    ),
+                    1:2,
+                ),
+                (
+                    (
+                        1,
+                        2,
+                    ),
+                    1:2,
+                ),
+                (
+                    (
+                        2,
+                        3,
+                    ),
+                    7:11,
+                ),
+                (
+                    (
+                        3,
+                        4,
+                    ),
+                    7:11,
+                ),
+                (
+                    (
+                        4,
+                        5,
+                    ),
+                    1:11,
+                ),
+            ],
+        },
+    ),
 )

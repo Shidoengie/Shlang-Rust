@@ -136,7 +136,7 @@ impl IRgen {
     }
 
     fn node_gen(&mut self, node_ref: RNodeRef) -> Result {
-        let node = self.node_pool[node_ref.0].clone();
+        let node = self.node_pool[node_ref].clone();
         let span = node.span;
 
         match node.item {
@@ -190,14 +190,15 @@ impl IRgen {
                 self.add_op(Op::Ret, span);
             }
             _ => {
-                return Err(GenErr::InvalidExpr.to_spanned(span));
+                let repr = self.node_pool.stringify_node(node_ref);
+                todo!("{repr}");
             }
         };
         Ok(())
     }
 
     fn gen_assignment(&mut self, target_ref: RNodeRef, value_ref: RNodeRef, span: Span) -> Result {
-        match self.node_pool[target_ref.0].item.clone() {
+        match self.node_pool[target_ref].item.clone() {
             RNode::Variable(id) => {
                 self.node_gen(value_ref)?;
                 self.add_op(Op::Store(id), span);

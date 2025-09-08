@@ -1,13 +1,42 @@
 use core::fmt;
-use std::{collections::HashMap, fmt::Debug};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Formatter},
+    ops::{Deref, DerefMut, Index},
+};
 
 use crate::{
     frontend::ast::nodes::{BinaryOp, UnaryOp},
     spans::{Span, Spanned},
 };
-pub type NodePool = Vec<Spanned<ResolvedNode>>;
 #[derive(Clone, Copy)]
 pub struct RNodeRef(pub usize);
+#[derive(Clone, Default)]
+pub struct NodePool(Vec<Spanned<ResolvedNode>>);
+
+impl NodePool {
+    pub fn stringify_node(&self, node_ref: RNodeRef) -> String {
+        let node = ResolvedAstNode(node_ref, self.clone());
+        format!("{node:?}")
+    }
+}
+impl Deref for NodePool {
+    type Target = Vec<Spanned<ResolvedNode>>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for NodePool {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+impl Index<RNodeRef> for NodePool {
+    type Output = Spanned<ResolvedNode>;
+    fn index(&self, index: RNodeRef) -> &Self::Output {
+        &self.0[index.0]
+    }
+}
 #[derive(Clone)]
 pub enum ResolvedNode {
     Null,
@@ -95,7 +124,7 @@ pub enum ResItem {
 fn display_block<'a>(
     f: &mut fmt::Formatter<'a>,
     block: &[RNodeRef],
-    node_pool: &[Spanned<ResolvedNode>],
+    node_pool: &NodePool,
     depth: usize,
 ) -> fmt::Result {
     let indent = "  ".repeat(depth);
@@ -115,7 +144,7 @@ fn display_block<'a>(
 fn node_debug_display<'a>(
     f: &mut fmt::Formatter<'a>,
     node_ref: RNodeRef,
-    node_pool: &[Spanned<ResolvedNode>],
+    node_pool: &NodePool,
     depth: usize,
     start_of_line: bool,
 ) -> fmt::Result {
@@ -140,7 +169,7 @@ fn node_debug_display<'a>(
         f.write_str(title)?;
         Ok(())
     };
-    let expr = &node_pool[node_ref.0];
+    let expr = &node_pool[node_ref];
 
     match &expr.item {
         // --- Simple Nodes ---
@@ -155,7 +184,7 @@ fn node_debug_display<'a>(
 
         // --- Nodes with a single inline-able expression ---
         RNode::ResultNode(expr) | RNode::ReturnNode(expr) => {
-            let name = if matches!(node_pool[node_ref.0].item, RNode::ResultNode(_)) {
+            let name = if matches!(node_pool[node_ref].item, RNode::ResultNode(_)) {
                 "ResultNode"
             } else {
                 "ReturnNode"
@@ -281,7 +310,7 @@ fn node_debug_display<'a>(
             write!(f, "{indent})")?;
         }
         RNode::Loop(block) | RNode::DoBlock(block) => {
-            let name = if matches!(node_pool[node_ref.0].item, RNode::Loop(_)) {
+            let name = if matches!(node_pool[node_ref].item, RNode::Loop(_)) {
                 "Loop"
             } else {
                 "DoBlock"
@@ -336,7 +365,7 @@ fn node_debug_display<'a>(
             write!(f, "{indent})")?;
         }
         RNode::StructDef(fields) | RNode::RecordLit(fields) => {
-            let name = if matches!(node_pool[node_ref.0].item, RNode::StructDef(_)) {
+            let name = if matches!(node_pool[node_ref].item, RNode::StructDef(_)) {
                 "StructDef"
             } else {
                 "RecordLit"

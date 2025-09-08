@@ -1,49 +1,38 @@
 use clap::Subcommand;
 
-use colored::Colorize;
-use lang_errors::*;
-
 use clap::Parser;
 
+use clap::ValueEnum;
 use shlang::backend::Runtime;
-use shlang::backend::vm::StackVM;
-use shlang::frontend::ast::parser::Parser as LangParser;
 
 use shlang::frontend::Compiler;
 
-use shlang::frontend::lexemes::lexer::Lexer;
-use shlang::frontend::nameres::resolver::NameRes;
-use shlang::*;
-use slab::Slab;
-
-use std::collections::HashMap;
-use std::env;
-use std::fs;
 use std::io;
 use std::io::Write;
-use std::path::PathBuf;
-use std::usize;
+
 use std::*;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    //Optional Mode
-    #[command(subcommand)]
-    mode: Option<Mode>,
+    /// Determines if the input is code or a filepath
+    #[arg(short, long)]
+    input: bool,
+    /// Optional argument that specifies which compiler stage to output
+    #[arg(short, long, value_enum)]
+    stage: Option<Stage>,
+
+    content: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Subcommand)]
-enum Mode {
-    /// Reports the input as an AST
-    Ast { path: Option<PathBuf> },
-    /// Takes in an input and runs it
-    Input { input: String },
-    /// Reports the input as tokens
-    Lexer { path: Option<PathBuf> },
-    /// Runs the file
-    Run { path: PathBuf },
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum Stage {
+    Lexer,
+    Ast,
+    Nameres,
+    Codegen,
 }
+
 fn input(message: &str) -> String {
     print!("{message} ");
     io::stdout().flush().unwrap();
@@ -56,19 +45,74 @@ fn input(message: &str) -> String {
 
 fn main() {
     let args = Args::parse();
-    let Some(mode) = args.mode else {
-        todo!();
-        return;
-    };
+    let mut compiler = Compiler::new();
+    let Some(content) = args.content else {
+        loop {
+            let content = input(">:");
+            let Some(stage) = &args.stage else {
+                let _ = Runtime::new().execute_expr(&content);
+                continue;
+            };
 
-    match mode {
-        Mode::Input { input } => {
-            Runtime::new().execute(&input);
-        }
-        Mode::Ast { path } => todo!(),
-        Mode::Lexer { path } => todo!(),
-        Mode::Run { path } => {
-            Runtime::new().execute(&std::fs::read_to_string(path).expect("File does not exist"));
+            match stage {
+                Stage::Lexer => {
+                    let Ok(tokens) = compiler.lex(&content) else {
+                        continue;
+                    };
+                    println!("{tokens:#?}")
+                }
+                Stage::Ast => {
+                    let Ok(ast) = compiler.parse_expr(&content) else {
+                        continue;
+                    };
+                    println!("{ast:#?}")
+                }
+                Stage::Codegen => {
+                    let Ok((out, _)) = compiler.compile_expr(&content) else {
+                        continue;
+                    };
+                    println!("{out:#?}")
+                }
+                Stage::Nameres => {
+                    let Ok(out) = compiler.resolve_expr(&content) else {
+                        continue;
+                    };
+                    println!("{out:#?}")
+                }
+            }
         }
     };
+    let content = if args.input {
+        content
+    } else {
+        std::fs::read_to_string(content).expect("File does not exist")
+    };
+    let Some(stage) = args.stage else { todo!() };
+    match stage {
+        Stage::Lexer => {
+            let Ok(tokens) = compiler.lex(&content) else {
+                return;
+            };
+            println!("{tokens:#?}")
+        }
+        Stage::Ast => {
+            let Ok(ast) = compiler.parse(&content) else {
+                return;
+            };
+            println!("{ast:#?}")
+        }
+        Stage::Codegen => {
+            let Ok((out, _)) = compiler.compile(&content) else {
+                return;
+            };
+            println!("{out:#?}")
+        }
+        Stage::Nameres => {
+            let Ok(out) = compiler.resolve(&content) else {
+                return;
+            };
+            println!("{out:#?}")
+        }
+    }
+    let _ = Runtime::new().execute(&content);
 }

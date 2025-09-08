@@ -11,6 +11,10 @@ use crate::{
             parser::Parser,
         },
         ir::{codegen::IRgen, instructions::OpCode},
+        lexemes::{
+            lexer::Lexer,
+            tokens::{Token, TokenEq, TokenType},
+        },
         nameres::{
             resolved_nodes::{ResolvedAst, ResolvedAstNode},
             resolver::NameRes,
@@ -29,66 +33,113 @@ pub mod nameres;
 #[derive(Debug, Default)]
 pub struct Compiler {
     file_store: FileStore,
+    silent: bool,
 }
 impl Compiler {
-    pub fn from_store(file_store: FileStore) -> Self {
-        Self { file_store }
+    pub fn get_filestore(self) -> FileStore {
+        return self.file_store;
+    }
+    pub fn make(file_store: FileStore, silent: bool) -> Self {
+        Self { file_store, silent }
     }
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            silent: false,
+            file_store: FileStore::new(),
+        }
+    }
+    pub fn lex(&mut self, input: &str) -> Result<Vec<Token>, Box<dyn LangError>> {
+        let file_id = self.file_store.add(input.to_owned());
+        let mut lexer = Lexer::new(input, file_id);
+        let mut buf = vec![];
+        loop {
+            let tok = lexer
+                .next()
+                .map_err(|err| Box::new(err) as Box<dyn LangError>)?;
+            if tok.is(&TokenType::Eof) {
+                break;
+            }
+            buf.push(tok);
+        }
+        Ok(buf)
     }
     pub fn parse(&mut self, input: &str) -> Result<Vec<Spanned<Item>>, Box<dyn LangError>> {
         let file_id = self.file_store.add(input.to_owned());
-        Parser::parse(input, file_id)
+        Parser::parse(input, file_id).inspect_err(|err| {
+            if !self.silent {
+                err.msg()
+                    .eprint(self.file_store.clone())
+                    .expect("Could not print error.");
+            }
+        })
     }
-    pub fn print_langerr(&self, err: &dyn LangError) -> std::result::Result<(), std::io::Error> {
+    pub fn print_langerr(&self, err: &dyn LangError) -> std::io::Result<()> {
         err.msg().eprint(self.file_store.clone())
     }
     pub fn parse_expr(&mut self, input: &str) -> Result<Spanned<Node>, Box<dyn LangError>> {
         let file_id = self.file_store.add(input.to_owned());
-        Parser::parse_expr(input, file_id)
+        Parser::parse_expr(input, file_id).inspect_err(|err| {
+            if !self.silent {
+                err.msg()
+                    .eprint(self.file_store.clone())
+                    .expect("Could not print error.");
+            }
+        })
     }
     pub fn resolve(&mut self, input: &str) -> Result<ResolvedAst, Box<dyn LangError>> {
-        let file_id = self.file_store.add(input.to_owned());
-        let parsed = Parser::parse(input, file_id)?;
+        let parsed = self.parse(input)?;
         let mut nameres = NameRes::new(self.file_store.clone());
         let resolved = nameres
             .resolve(parsed)
+            .inspect_err(|err| {
+                if !self.silent {
+                    self.print_langerr(err).expect("Could not print error.");
+                }
+            })
+            .inspect_err(|err| {
+                if !self.silent {
+                    self.print_langerr(err).expect("Could not print error.");
+                }
+            })
             .map_err(|err| Box::new(err) as Box<dyn LangError>)?;
         self.file_store = nameres.file_store;
         Ok(resolved)
     }
     pub fn resolve_expr(&mut self, input: &str) -> Result<ResolvedAstNode, Box<dyn LangError>> {
-        let file_id = self.file_store.add(input.to_owned());
-        let parsed = Parser::parse_expr(input, file_id)?;
+        let parsed = self.parse_expr(input)?;
         let mut nameres = NameRes::new(self.file_store.clone());
         let resolved = nameres
             .resolve_expr(parsed)
+            .inspect_err(|err| {
+                if !self.silent {
+                    self.print_langerr(err).expect("Could not print error.");
+                }
+            })
             .map_err(|err| Box::new(err) as Box<dyn LangError>)?;
         self.file_store = nameres.file_store;
         Ok(resolved)
     }
     pub fn compile(&mut self, input: &str) -> Result<(Vec<OpCode>, SpanMap), Box<dyn LangError>> {
-        let file_id = self.file_store.add(input.to_owned());
-        let parsed = Parser::parse(input, file_id)?;
-        let mut nameres = NameRes::new(self.file_store.clone());
-        let resolved = nameres
-            .resolve(parsed)
-            .map_err(|err| Box::new(err) as Box<dyn LangError>)?;
-        self.file_store = nameres.file_store;
-        IRgen::generate(resolved).map_err(|err| Box::new(err) as Box<dyn LangError>)
+        let resolved = self.resolve(input)?;
+        IRgen::generate(resolved)
+            .inspect_err(|err| {
+                if !self.silent {
+                    self.print_langerr(err).expect("Could not print error.");
+                }
+            })
+            .map_err(|err| Box::new(err) as Box<dyn LangError>)
     }
     pub fn compile_expr(
         &mut self,
         input: &str,
     ) -> Result<(Vec<OpCode>, SpanMap), Box<dyn LangError>> {
-        let file_id = self.file_store.add(input.to_owned());
-        let parsed = Parser::parse_expr(input, file_id)?;
-        let mut nameres = NameRes::new(self.file_store.clone());
-        let resolved = nameres
-            .resolve_expr(parsed)
-            .map_err(|err| Box::new(err) as Box<dyn LangError>)?;
-        self.file_store = nameres.file_store;
-        IRgen::generate_expr(resolved).map_err(|err| Box::new(err) as Box<dyn LangError>)
+        let resolved = self.resolve_expr(input)?;
+        IRgen::generate_expr(resolved)
+            .inspect_err(|err| {
+                if !self.silent {
+                    self.print_langerr(err).expect("Could not print error.");
+                }
+            })
+            .map_err(|err| Box::new(err) as Box<dyn LangError>)
     }
 }

@@ -6,7 +6,7 @@ use crate::spans::Spanned;
 use crate::test_func;
 
 fn test_ir(input: &str) -> Result<(Vec<OpCode>, SpanMap), Box<dyn LangError>> {
-    Compiler::default().compile_expr(input)
+    Compiler::new().compile_expr(input)
 }
 
 test_func!(

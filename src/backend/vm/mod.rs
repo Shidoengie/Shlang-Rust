@@ -1,11 +1,17 @@
 mod error;
+mod frame;
 #[cfg(test)]
 mod tests;
 
-use std::mem;
+use std::{collections::VecDeque, mem};
+
+use rayon::vec;
 
 use crate::{
-    backend::vm::error::{ErrCode, Type, VmErr},
+    backend::vm::{
+        error::{ErrCode, Type, VmErr},
+        frame::Frame,
+    },
     frontend::ir::instructions::*,
 };
 
@@ -76,9 +82,14 @@ pub struct StackVM {
     proc: Vec<OpCode>,
     /// Instruction pointer
     ip: usize,
+
+    call_stack: Vec<Frame>,
+
     /// The runtime value stack. Each value is paired with the instruction pointer
     /// that pushed it, for accurate error reporting.
     pub values: Vec<(Value, usize)>,
+    pub locals: Vec<Value>,
+    pub globals: Vec<Value>,
 }
 
 pub type Result<T = ()> = std::result::Result<T, VmErr>;
@@ -87,7 +98,23 @@ impl StackVM {
         Self {
             proc,
             ip: 0,
+            call_stack: vec![],
             values: vec![],
+            locals: vec![],
+            globals: vec![Value::NativeFunction(NativeFunction {
+                func: |_, args| {
+                    if args.is_empty() {
+                        println!();
+                        return Value::Null;
+                    }
+                    for i in args {
+                        println!("{:?}", i);
+                    }
+
+                    return Value::Null;
+                },
+                param_count: 1,
+            })],
         }
     }
     pub fn exec(&mut self) -> Result {
@@ -243,7 +270,23 @@ impl StackVM {
         self.inc_ip();
         Ok(())
     }
-
+    fn exec_call(&mut self, arg_len: usize) -> Result {
+        let value = self.pop()?;
+        if let (Value::NativeFunction(func), _) = value {
+            if arg_len != func.param_count {
+                panic!("invalid args");
+            }
+            let mut args = vec![];
+            for i in 0..arg_len {
+                args.push(self.pop()?.0);
+            }
+            let res = (func.func)(self, args);
+            self.push(res);
+            self.inc_ip();
+            return Ok(());
+        }
+        todo!()
+    }
     fn exec_op(&mut self, op: OpCode) -> Result<()> {
         match op {
             OpCode::Add => self.exec_add(),
@@ -268,22 +311,45 @@ impl StackVM {
                 self.inc_ip();
                 Ok(())
             }
-            OpCode::Load(index) => {
+            OpCode::Call(args) => self.exec_call(args),
+            OpCode::LoadGlobal(index) => {
                 // Using .get() for safe access in case of invalid index from codegen
                 let val = self
-                    .values
+                    .globals
                     .get(index)
                     .cloned()
                     .ok_or(ErrCode::InvalidStackIndex(index).into_vmerr(self.ip))?;
-                self.push(val.0);
+                self.push(val);
                 self.inc_ip();
                 Ok(())
             }
-            OpCode::Store(index) => {
-                let val = self.pop()?;
+            OpCode::StoreGlobal(index) => {
+                let (val, _) = self.pop()?;
                 // Ensure the index exists before storing
-                if self.values.get_mut(index).is_some() {
-                    self.values[index] = val;
+                if self.globals.get_mut(index).is_some() {
+                    self.globals[index] = val;
+                } else {
+                    return Err(ErrCode::InvalidStackIndex(index).into_vmerr(self.ip));
+                }
+                self.inc_ip();
+                Ok(())
+            }
+            OpCode::LoadLocal(index) => {
+                // Using .get() for safe access in case of invalid index from codegen
+                let val = self
+                    .locals
+                    .get(index)
+                    .cloned()
+                    .ok_or(ErrCode::InvalidStackIndex(index).into_vmerr(self.ip))?;
+                self.push(val);
+                self.inc_ip();
+                Ok(())
+            }
+            OpCode::StoreLocal(index) => {
+                let (val, _) = self.pop()?;
+                // Ensure the index exists before storing
+                if self.locals.get_mut(index).is_some() {
+                    self.locals[index] = val;
                 } else {
                     return Err(ErrCode::InvalidStackIndex(index).into_vmerr(self.ip));
                 }
@@ -323,6 +389,9 @@ impl StackVM {
     }
     fn push(&mut self, value: Value) {
         self.values.push((value, self.ip));
+    }
+    fn pop_chunk(&mut self, len: usize) -> Vec<Value> {
+        self.locals.drain(..len).collect()
     }
     fn pop_pair(&mut self) -> Result<((Value, usize), (Value, usize))> {
         let right = self.pop()?;

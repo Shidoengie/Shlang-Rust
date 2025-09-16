@@ -40,8 +40,10 @@ impl Runtime {
         })
     }
     pub fn execute_expr(&mut self, input: &str) -> Result<(), Box<dyn LangError>> {
-        let (ir, spanmap) = self.compiler.compile_expr(input)?;
-        let res = StackVM::new(ir).exec();
+        let input = format!("do {{ {input} }}");
+        let (ir, spanmap) = self.compiler.compile_expr(&input)?;
+        let mut vm = StackVM::new(ir);
+        let res = vm.exec();
         res.map_err(|err| {
             let code = err.to_spanned_code(&spanmap);
 
@@ -54,5 +56,6 @@ impl Runtime {
                     .expect("Could not print error.");
             }
         })
+        .inspect(|_| println!("{:?}", vm.values))
     }
 }

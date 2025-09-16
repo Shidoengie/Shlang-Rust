@@ -1,9 +1,15 @@
+use std::sync::Arc;
+
+use crate::backend::vm::StackVM;
+
 #[derive(Debug, Clone)]
 
 pub enum OpCode {
     Push(Value),
-    Load(usize),
-    Store(usize),
+    LoadLocal(usize),
+    StoreLocal(usize),
+    LoadGlobal(usize),
+    StoreGlobal(usize),
     Pop,
     Goto(i16),
     Branch(i16),
@@ -24,10 +30,16 @@ pub enum OpCode {
     NullCo,
     Not,
     Neg,
+    /// Halts program execution
     Stop,
     Ret,
-    /// Deletes a range of values from the stack
-    FreeRange(usize, usize),
+    /// Pops a function out of stack, and their arguments, then calling iy
+    Call(usize),
+    /// Frees stack slots at a given index with a given length
+    PopSlots {
+        start: usize,
+        len: usize,
+    },
 }
 #[derive(Debug, Clone)]
 pub enum Value {
@@ -36,4 +48,19 @@ pub enum Value {
     Bool(bool),
     String(String),
     Null,
+    Function(Arc<Function>),
+    NativeFunction(NativeFunction),
+}
+#[derive(Debug, Clone)]
+pub struct Function {
+    pub proc: Vec<OpCode>,
+    pub num_locals: usize,
+    pub param_count: usize,
+}
+
+pub type FuncPtr = fn(ctx: &mut StackVM, args: Vec<Value>) -> Value;
+#[derive(Debug, Clone)]
+pub struct NativeFunction {
+    pub func: FuncPtr,
+    pub param_count: usize,
 }

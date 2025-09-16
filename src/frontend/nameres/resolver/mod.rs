@@ -38,7 +38,12 @@ impl NameRes {
         Ok(ResolvedAst(decls, self.node_pool.clone()))
     }
     pub fn resolve_expr(&mut self, expr: NodeSpan) -> Result<ResolvedAstNode> {
-        let node = self.resolve_node(expr, &mut Scope::default())?;
+        let node = self.resolve_node(
+            expr,
+            &mut Scope::from_vars(hashmap!(
+                print => VarInfo::new("print".to_owned(), true, 0)
+            )),
+        )?;
         Ok(ResolvedAstNode(node, self.node_pool.clone()))
     }
     fn add_node(&mut self, node: ResolvedNode, span: Span) -> Result {
@@ -50,13 +55,14 @@ impl NameRes {
         for (index, val) in decls.iter().enumerate() {
             match &val.item {
                 Item::Decl(decl) => {
-                    let info = VarInfo::new(decl.name.to_string(), true, self.ident_counter);
+                    let info = VarInfo::new(decl.name.to_string(), true, index);
                     self.globals.insert(decl.name.to_string(), (index, info));
-                    self.ident_counter += 1;
                 }
             };
         }
-        let mut root = Scope::default();
+        let mut root = Scope::from_vars(hashmap!(
+            print => VarInfo::new("print".to_owned(), true, 0)
+        ));
         let mut new_decls = vec![];
         for i in decls {
             match i.item {
@@ -66,6 +72,7 @@ impl NameRes {
 
                     new_decls
                         .push(ResItem::Decl(ResolvedDecl { id: info.id, expr }).to_spanned(i.span));
+                    self.ident_counter = 0;
                 }
             };
         }
@@ -127,7 +134,14 @@ impl NameRes {
             }
             Node::Variable(name) => {
                 let info = self.get_var(name, parent, span)?;
-                return self.add_node(ResolvedNode::Variable(info.id), span);
+
+                return self.add_node(
+                    ResolvedNode::Variable {
+                        id: info.id,
+                        is_global: info.global,
+                    },
+                    span,
+                );
             }
 
             Node::FuncDef(func) => {

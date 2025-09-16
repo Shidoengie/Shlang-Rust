@@ -59,8 +59,13 @@ pub enum ResolvedNode {
         target: RNodeRef,
         value: RNodeRef,
     },
-    Variable(usize),
+    Variable {
+        id: usize,
+        is_global: bool,
+    },
+
     Decl(ResolvedDecl),
+
     Index {
         target: RNodeRef,
         index: RNodeRef,
@@ -96,6 +101,7 @@ pub enum ResolvedNode {
         list: RNodeRef,
         block: Vec<RNodeRef>,
     },
+
     DoBlock(Vec<RNodeRef>),
     StructDef(HashMap<String, RNodeRef>),
     RecordLit(HashMap<String, RNodeRef>),
@@ -178,7 +184,9 @@ fn node_debug_display<'a>(
         RNode::Str(s) => write_title(f, &format!("Str({s:?})"))?,
         RNode::Float(fl) => write_title(f, &format!("Float({fl})"))?,
         RNode::Int(i) => write_title(f, &format!("Int({i})"))?,
-        RNode::Variable(id) => write_title(f, &format!("Variable(id: {id})"))?,
+        RNode::Variable { id, is_global } => {
+            write_title(f, &format!("Variable(id: {id}, global: {is_global})"))?
+        }
         RNode::BreakNode => write_title(f, "BreakNode")?,
         RNode::ContinueNode => write_title(f, "ContinueNode")?,
 

@@ -81,6 +81,8 @@ impl From<Value> for Type {
             Value::Int(_) => Self::Int,
             Value::Null => Self::Null,
             Value::String(_) => Self::String,
+            Value::Function(_) => Self::Function,
+            Value::NativeFunction(_) => Self::Function,
         }
     }
 }

@@ -34,7 +34,7 @@ pub enum OpCode {
     Stop,
     Ret,
     /// Pops a function out of stack, and their arguments, then calling iy
-    Call(usize),
+    Call(u8),
     /// Frees stack slots at a given index with a given length
     PopSlots {
         start: usize,
@@ -62,5 +62,15 @@ pub type FuncPtr = fn(ctx: &mut StackVM, args: Vec<Value>) -> Value;
 #[derive(Debug, Clone)]
 pub struct NativeFunction {
     pub func: FuncPtr,
-    pub param_count: usize,
+    pub param_count: i16,
+}
+impl NativeFunction {
+    pub fn new(func: FuncPtr, param_count: i16) -> Self {
+        Self { func, param_count }
+    }
+}
+impl From<NativeFunction> for Value {
+    fn from(value: NativeFunction) -> Self {
+        Self::NativeFunction(value)
+    }
 }

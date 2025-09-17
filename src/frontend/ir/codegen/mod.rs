@@ -233,11 +233,15 @@ impl IRgen {
             }
             RNode::Call { callee, args } => {
                 let arg_len = args.len();
+                if arg_len > u8::MAX.into() {
+                    return Err(GenErr::TooManyArguments(arg_len).to_spanned(span));
+                }
                 for node in args {
                     self.node_gen(node, bytecode)?;
                 }
+
                 self.node_gen(callee, bytecode)?;
-                bytecode.push(OpCode::Call(arg_len))
+                bytecode.push(OpCode::Call(arg_len as u8))
             }
             RNode::ReturnNode(expr) => {
                 self.node_gen(expr, bytecode)?;

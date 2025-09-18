@@ -1,7 +1,4 @@
-use std::{
-    fmt::Debug,
-    ops::{Add},
-};
+use std::{fmt::Debug, ops::Add};
 
 pub trait SpanUtil {
     fn get_span(&self) -> Span;
@@ -33,7 +30,7 @@ impl<T: Debug> Debug for Spanned<T> {
     }
 }
 impl<T> Spanned<Box<T>> {
-    pub fn deref_item<'a>(self) -> Spanned<T> {
+    pub fn deref_item(self) -> Spanned<T> {
         Spanned::new(*self.item, self.span)
     }
 }

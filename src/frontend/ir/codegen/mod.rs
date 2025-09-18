@@ -90,8 +90,11 @@ impl IRgen {
     fn gen_top_level(&mut self, prog: Vec<Spanned<ResItem>>, bytecode: &mut Vec<OpCode>) -> Result {
         for decl in prog {
             let decl_span = decl.span;
-            if let ResItem::Decl(resolved_decl) = decl.item {
-                self.gen_vardecl(resolved_decl, decl_span, bytecode)?;
+            //This isnt a let else or if let because ResItem will have more variants in the future
+            match decl.item {
+                ResItem::Decl(resolved_decl) => {
+                    self.gen_vardecl(resolved_decl, decl_span, bytecode)?;
+                }
             }
         }
         Ok(())

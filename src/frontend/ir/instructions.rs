@@ -63,7 +63,7 @@ impl fmt::Display for Value {
             Self::String(v) => write!(f, "{v}"),
             Self::Null => write!(f, "null"),
             Self::Function(v) => write!(f, "<function@{}>", v.address),
-            Self::NativeFunction(v) => write!(f, "<nativefunction>"),
+            Self::NativeFunction(_) => write!(f, "<nativefunction>"),
         }
     }
 }

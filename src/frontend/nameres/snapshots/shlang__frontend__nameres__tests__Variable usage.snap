@@ -4,14 +4,21 @@ description: test_locals
 expression: "test_nameres (\"var a = 1; var b = a;\")"
 ---
 Ok(
-    DoBlock{
-      Decl(
-        id: 0,
-        expr: Int(1)[13,14]
-      )[5,14];
-      Decl(
-        id: 1,
-        expr: Variable(id: 0)[24,25]
-      )[16,25];
-    }[3,28],
+    ResolvedNode(
+      global_count: 1,
+      local_count: 2,
+    ){
+      DoBlock{
+        Decl(
+          id: 0,
+          global: false
+          expr: Int(1)[13,14]
+        )[5,14];
+        Decl(
+          id: 1,
+          global: false
+          expr: Variable(id: 0, global: false)[24,25]
+        )[16,25];
+      }[3,28]
+    },
 )

@@ -15,11 +15,6 @@ use crate::{
     frontend::ir::instructions::*,
 };
 
-// --- MACROS to reduce boilerplate for binary operations ---
-
-/// Implements a binary operation for Ints and Floats.
-/// Pops two values, checks they are the same numeric type, performs the operation,
-/// and pushes the result.
 macro_rules! impl_binary_op {
     ($self:ident, $op:tt) => {{
         let (lhs, rhs) = $self.pop_pair()?;
@@ -39,9 +34,6 @@ macro_rules! impl_binary_op {
 }
 
 /// Implements a comparison operation for Ints and Floats.
-/// Pops two values, checks they are the same numeric type, performs the comparison,
-
-/// and pushes a Bool result.
 macro_rules! impl_comparison_op {
     ($self:ident, $op:tt) => {{
         let (lhs, rhs) = $self.pop_pair()?;
@@ -61,8 +53,6 @@ macro_rules! impl_comparison_op {
 }
 
 /// Implements a logical operation for Bools.
-/// Pops two values, ensures they are both Bools, performs the operation,
-/// and pushes the Bool result.
 macro_rules! impl_logical_op {
     ($self:ident, $op:tt) => {{
         let (lhs, rhs) = $self.pop_pair()?;
@@ -82,68 +72,61 @@ pub struct StackVM {
     /// Instruction pointer
     ip: usize,
 
+    proc: Vec<OpCode>,
     call_stack: Vec<Frame>,
 
     /// The runtime value stack. Each value is paired with the instruction pointer
     /// that pushed it, for accurate error reporting.
     pub values: Vec<(Value, usize)>,
 
-    pub globals: Vec<Value>,
+    pub globals: Box<[Value]>,
 }
 
 pub type Result<T = ()> = std::result::Result<T, VmErr>;
 impl StackVM {
-    pub fn new(proc: Vec<OpCode>) -> Self {
+    pub fn new(proc: Vec<OpCode>, global_count: usize, local_count: usize) -> Self {
         let mut vm = Self {
             ip: 0,
+            proc,
             call_stack: vec![],
             values: vec![],
-            globals: vec![],
+            globals: vec![Value::Null; global_count].into_boxed_slice(),
         };
 
-        vm.add_global(
-            NativeFunction::new(
-                |_, args| {
-                    if args.is_empty() {
-                        println!();
-                        return Value::Null;
-                    }
-                    for i in args {
-                        println!("{:?}", i);
-                    }
-
+        vm.globals[0] = NativeFunction::new(
+            |_, args| {
+                if args.is_empty() {
+                    println!();
                     return Value::Null;
-                },
-                1,
-            )
-            .into(),
-        );
+                }
+                for (value, _) in args {
+                    print!("{} ", value);
+                }
+                println!();
+                return Value::Null;
+            },
+            -1,
+        )
+        .into();
         let synthetic = Function {
-            num_locals: 0,
-            proc,
+            local_count: local_count,
+            address: 0,
             param_count: 0,
         };
         let frame = Frame::new(Arc::new(synthetic), 0);
         vm.call_stack = vec![frame];
         vm
     }
-    pub fn add_global(&mut self, value: Value) {
-        self.globals.push(value)
-    }
+
     pub fn exec(&mut self) -> Result {
-        // Use a while loop for safer boundary checking.
-        let Some(mut frame) = self.call_stack.pop() else {
-            return Ok(());
-        };
-        // RUN ITS THE OPS!!
-        let ops = frame.func.proc.clone();
-        for op in ops {
-            self.exec_op(op, &mut frame);
+        while let Some(op) = self.proc.get(self.ip) {
+            self.exec_op(op.clone())?;
         }
+
         Ok(())
     }
-    fn offset_ip(&mut self, ammount: i16) -> Result {
-        let new_ip = self.ip as isize + ammount as isize;
+    fn offset_ip(&mut self, ammount: i32) -> Result {
+        let new_ip = self.ip as i32 + ammount as i32;
         if new_ip.is_negative() {
             return Err(ErrCode::InvalidOffset.into_vmerr(self.ip));
         }
@@ -227,8 +210,6 @@ impl StackVM {
             (Value::Bool(l), Value::Bool(r)) => l == r,
             (Value::String(l), Value::String(r)) => l == r,
             (Value::Null, Value::Null) => true,
-            // Allow comparison between different types if one is Null
-            (Value::Null, _) | (_, Value::Null) => false,
             _ => unreachable!(),
         };
         self.push(Value::Bool(result));
@@ -288,13 +269,13 @@ impl StackVM {
         self.inc_ip();
         Ok(())
     }
-    fn exec_call(&mut self, arg_len: u8, frame: &mut Frame) -> Result {
+    fn exec_call(&mut self, arg_len: u8) -> Result {
         let value = self.pop()?;
         if let (Value::NativeFunction(func), _) = value {
             if arg_len as i16 != func.param_count && func.param_count != -1 {
                 panic!("invalid args");
             }
-            let args = self.pop_chunk(arg_len.into(), frame);
+            let args = self.pop_chunk(arg_len.into());
 
             let res = (func.func)(self, args);
             self.push(res);
@@ -303,7 +284,31 @@ impl StackVM {
         }
         todo!()
     }
-    fn exec_op(&mut self, op: OpCode, frame: &mut Frame) -> Result<()> {
+    fn expect_frame(&mut self) -> Result<&mut Frame> {
+        let Some(frame) = self.call_stack.last_mut() else {
+            return Err(ErrCode::ExpectedStackFrame.into_vmerr(self.ip));
+        };
+        return Ok(frame);
+    }
+    fn load_local(&mut self, id: usize) -> Result {
+        let val = self
+            .expect_frame()?
+            .get(id)
+            .cloned()
+            .ok_or(ErrCode::InvalidStackIndex(id).into_vmerr(self.ip))?;
+        self.push(val);
+        self.inc_ip();
+        Ok(())
+    }
+    fn store_local(&mut self, id: usize) -> Result {
+        let (val, _) = self.pop()?;
+        // Ensure the index exists before storing
+        let frame = self.expect_frame()?;
+        frame[id] = val;
+        self.inc_ip();
+        Ok(())
+    }
+    fn exec_op(&mut self, op: OpCode) -> Result<()> {
         match op {
             OpCode::Add => self.exec_add(),
             OpCode::Sub => self.exec_sub(),
@@ -327,7 +332,7 @@ impl StackVM {
                 self.inc_ip();
                 Ok(())
             }
-            OpCode::Call(args) => self.exec_call(args, frame),
+            OpCode::Call(args) => self.exec_call(args),
             OpCode::LoadGlobal(index) => {
                 // Using .get() for safe access in case of invalid index from codegen
                 let val = self
@@ -350,29 +355,8 @@ impl StackVM {
                 self.inc_ip();
                 Ok(())
             }
-            OpCode::LoadLocal(index) => {
-                // Using .get() for safe access in case of invalid index from codegen
-                let val = frame
-                    .locals
-                    .get(index)
-                    .cloned()
-                    .ok_or(ErrCode::InvalidStackIndex(index).into_vmerr(self.ip))?;
-                self.push(val);
-                self.inc_ip();
-
-                Ok(())
-            }
-            OpCode::StoreLocal(index) => {
-                let (val, _) = self.pop()?;
-                // Ensure the index exists before storing
-                if frame.get_mut(index).is_some() {
-                    frame[index] = val;
-                } else {
-                    return Err(ErrCode::InvalidStackIndex(index).into_vmerr(self.ip));
-                }
-                self.inc_ip();
-                Ok(())
-            }
+            OpCode::LoadLocal(index) => self.load_local(index),
+            OpCode::StoreLocal(index) => self.store_local(index),
             OpCode::Pop => {
                 self.pop()?;
                 self.inc_ip();
@@ -407,8 +391,8 @@ impl StackVM {
     fn push(&mut self, value: Value) {
         self.values.push((value, self.ip));
     }
-    fn pop_chunk(&mut self, len: usize, frame: &mut Frame) -> Vec<Value> {
-        frame.locals.drain(len - 1..).collect()
+    fn pop_chunk(&mut self, len: usize) -> Vec<(Value, usize)> {
+        self.values.drain(len - 1..).collect()
     }
     fn pop_pair(&mut self) -> Result<((Value, usize), (Value, usize))> {
         let right = self.pop()?;

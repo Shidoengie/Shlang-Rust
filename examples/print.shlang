@@ -1,0 +1,8 @@
+var main = do {
+    var a = 10;
+    print(1+a);
+}
+var main2 = do {
+    var a = 10;
+    print(1+a);
+}

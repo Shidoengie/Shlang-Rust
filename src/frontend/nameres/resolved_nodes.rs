@@ -16,7 +16,7 @@ pub struct NodePool(Vec<Spanned<ResolvedNode>>);
 
 impl NodePool {
     pub fn stringify_node(&self, node_ref: RNodeRef) -> String {
-        let node = ResolvedAstNode(node_ref, self.clone());
+        let node = ResolvedAstNode::new(node_ref, self.clone(), 0, 0);
         format!("{node:?}")
     }
 }
@@ -70,11 +70,7 @@ pub enum ResolvedNode {
         target: RNodeRef,
         index: RNodeRef,
     },
-    FuncDef {
-        captures: bool,
-        idents: Vec<usize>,
-        block: Vec<RNodeRef>,
-    },
+    FuncLit(FuncLit),
     ListLit(Vec<RNodeRef>),
     Call {
         callee: RNodeRef,
@@ -112,8 +108,15 @@ pub enum ResolvedNode {
 pub struct ResolvedDecl {
     pub id: usize,
     pub expr: RNodeRef,
+    pub is_global: bool,
 }
-
+#[derive(Clone)]
+pub struct FuncLit {
+    pub captures: bool,
+    pub idents: Vec<usize>,
+    pub block: Vec<RNodeRef>,
+    pub local_count: usize,
+}
 #[derive(Clone)]
 pub enum ResAccessType {
     Property(String),
@@ -234,10 +237,15 @@ fn node_debug_display<'a>(
             node_debug_display(f, *operand, node_pool, depth + 2, false)?;
             write!(f, "\n{indent})")?;
         }
-        RNode::Decl(ResolvedDecl { id, expr }) => {
+        RNode::Decl(ResolvedDecl {
+            id,
+            expr,
+            is_global,
+        }) => {
             write_title(f, "Decl(")?;
             writeln!(f)?;
             writeln!(f, "{child_indent}id: {id},")?;
+            writeln!(f, "{child_indent}global: {is_global}")?;
             write!(f, "{child_indent}expr: ")?;
             node_debug_display(f, *expr, node_pool, depth + 1, false)?; // The key inline call
             writeln!(f)?;
@@ -253,17 +261,14 @@ fn node_debug_display<'a>(
             node_debug_display(f, *index, node_pool, depth + 1, false)?;
             write!(f, "\n{indent})")?;
         }
-        RNode::FuncDef {
-            captures,
-            idents,
-            block,
-        } => {
+        RNode::FuncLit(func) => {
             write_title(f, "FuncDef(")?;
             writeln!(f)?;
-            writeln!(f, "{child_indent}captures: {captures},")?;
-            writeln!(f, "{child_indent}idents: {idents:?},")?;
+            writeln!(f, "{child_indent}captures: {},", func.captures)?;
+            writeln!(f, "{child_indent}idents: {:?},", func.idents)?;
+            writeln!(f, "{child_indent}local_count: {:?},", func.local_count)?;
             write!(f, "{child_indent}block:")?;
-            display_block(f, block, node_pool, depth + 1)?;
+            display_block(f, &func.block, node_pool, depth + 1)?;
             writeln!(f)?;
             write!(f, "{indent})")?;
         }
@@ -323,7 +328,7 @@ fn node_debug_display<'a>(
             } else {
                 "DoBlock"
             };
-            write_title(f, &format!("{name}",))?;
+            write_title(f, &name)?;
             display_block(f, block, node_pool, depth)?;
         }
         RNode::While { condition, block } => {
@@ -426,26 +431,80 @@ fn node_debug_display<'a>(
 
     Ok(())
 }
-pub struct ResolvedAstNode(pub RNodeRef, pub NodePool);
+pub struct ResolvedAstNode {
+    pub node: RNodeRef,
+    pub pool: NodePool,
+    pub global_count: usize,
+    pub local_count: usize,
+}
 impl Debug for ResolvedAstNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        node_debug_display(f, self.0, &self.1, 0, true)
+        writeln!(f, "ResolvedNode(")?;
+        writeln!(f, "  global_count: {},", self.global_count)?;
+        writeln!(f, "  local_count: {},", self.local_count)?;
+        writeln!(f, "){{")?;
+        node_debug_display(f, self.node, &self.pool, 1, true)?;
+        write!(f, "\n}}")
     }
 }
 
-pub struct ResolvedAst(pub Vec<Spanned<ResItem>>, pub NodePool);
+impl ResolvedAstNode {
+    pub fn new(node: RNodeRef, pool: NodePool, global_count: usize, local_count: usize) -> Self {
+        Self {
+            node,
+            pool,
+            global_count,
+            local_count,
+        }
+    }
+}
+pub struct ResolvedAst {
+    pub proc: Vec<Spanned<ResItem>>,
+    pub pool: NodePool,
+    pub global_count: usize,
+    pub local_count: usize,
+}
+impl ResolvedAst {
+    pub fn new(
+        proc: Vec<Spanned<ResItem>>,
+        pool: NodePool,
+        global_count: usize,
+        local_count: usize,
+    ) -> Self {
+        Self {
+            proc,
+            pool,
+            global_count,
+            local_count,
+        }
+    }
+}
 impl Debug for ResolvedAst {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for Spanned { item, span } in self.0.iter() {
+        writeln!(f, "Ast(")?;
+        writeln!(f, "  global_count: {},", self.global_count)?;
+        writeln!(f, "  local_count: {},", self.local_count)?;
+        writeln!(f, ") = {{")?;
+        for Spanned { item, span } in self.proc.iter() {
             match item {
-                ResItem::Decl(ResolvedDecl { id, expr }) => f
-                    .debug_struct("Decl")
-                    .field("id", &id)
-                    .field("expr", &ResolvedAstNode(*expr, self.1.clone()))
-                    .finish()?,
+                ResItem::Decl(ResolvedDecl {
+                    id,
+                    expr,
+                    is_global,
+                }) => {
+                    writeln!(f, "  Decl(")?;
+                    writeln!(f, "    id: {id}")?;
+                    writeln!(f, "    global: {is_global}")?;
+
+                    write!(f, "    expr: ",)?;
+                    node_debug_display(f, *expr, &self.pool, 2, false)?;
+                    writeln!(f)?;
+                    write!(f, "  )")?;
+                }
             };
-            writeln!(f, "[{:?},{:?}]", span.start, span.end)?
+            writeln!(f, "[{:?},{:?}];", span.start, span.end)?
         }
+        write!(f, "}}")?;
         Ok(())
     }
 }

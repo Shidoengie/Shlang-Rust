@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use core::fmt;
+use std::{fmt::write, path::Display, sync::Arc};
 
 use crate::backend::vm::StackVM;
 
@@ -11,8 +12,8 @@ pub enum OpCode {
     LoadGlobal(usize),
     StoreGlobal(usize),
     Pop,
-    Goto(i16),
-    Branch(i16),
+    Goto(i32),
+    Branch(i32),
     Add,
     Mult,
     Div,
@@ -41,24 +42,40 @@ pub enum OpCode {
         len: usize,
     },
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
+#[repr(u8)]
 pub enum Value {
+    #[default]
+    Null = 0,
     Int(i64),
     Float(f64),
     Bool(bool),
     String(String),
-    Null,
     Function(Arc<Function>),
     NativeFunction(NativeFunction),
 }
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bool(v) => write!(f, "{v}"),
+            Self::Int(v) => write!(f, "{v}"),
+            Self::Float(v) => write!(f, "{v}"),
+            Self::String(v) => write!(f, "{v}"),
+            Self::Null => write!(f, "null"),
+            Self::Function(v) => write!(f, "<function@{}>", v.address),
+            Self::NativeFunction(v) => write!(f, "<nativefunction>"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Function {
-    pub proc: Vec<OpCode>,
-    pub num_locals: usize,
+    pub address: usize,
+    pub local_count: usize,
     pub param_count: usize,
 }
 
-pub type FuncPtr = fn(ctx: &mut StackVM, args: Vec<Value>) -> Value;
+pub type FuncPtr = fn(ctx: &mut StackVM, args: Vec<(Value, usize)>) -> Value;
 #[derive(Debug, Clone)]
 pub struct NativeFunction {
     pub func: FuncPtr,

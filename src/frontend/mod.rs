@@ -10,7 +10,10 @@ use crate::{
             nodes::{Item, Node},
             parser::Parser,
         },
-        ir::{codegen::IRgen, instructions::OpCode},
+        ir::{
+            codegen::{Bytecode, IRgen},
+            instructions::OpCode,
+        },
         lexemes::{
             lexer::Lexer,
             tokens::{Token, TokenEq, TokenType},
@@ -119,7 +122,7 @@ impl Compiler {
         self.file_store = nameres.file_store;
         Ok(resolved)
     }
-    pub fn compile(&mut self, input: &str) -> Result<(Vec<OpCode>, SpanMap), Box<dyn LangError>> {
+    pub fn compile(&mut self, input: &str) -> Result<Bytecode, Box<dyn LangError>> {
         let resolved = self.resolve(input)?;
         IRgen::generate(resolved)
             .inspect_err(|err| {
@@ -129,10 +132,7 @@ impl Compiler {
             })
             .map_err(|err| Box::new(err) as Box<dyn LangError>)
     }
-    pub fn compile_expr(
-        &mut self,
-        input: &str,
-    ) -> Result<(Vec<OpCode>, SpanMap), Box<dyn LangError>> {
+    pub fn compile_expr(&mut self, input: &str) -> Result<Bytecode, Box<dyn LangError>> {
         let resolved = self.resolve_expr(input)?;
         IRgen::generate_expr(resolved)
             .inspect_err(|err| {

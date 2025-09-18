@@ -25,10 +25,10 @@ impl Runtime {
         }
     }
     pub fn execute(&mut self, input: &str) -> Result<(), Box<dyn LangError>> {
-        let (ir, spanmap) = self.compiler.compile(input)?;
-        let res = StackVM::new(ir).exec();
+        let bytecode = self.compiler.compile(input)?;
+        let res = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count).exec();
         res.map_err(|err| {
-            let code = err.to_spanned_code(&spanmap);
+            let code = err.to_spanned_code(&bytecode.span_map);
             Box::new(code) as Box<dyn LangError>
         })
         .inspect_err(|err| {
@@ -41,11 +41,11 @@ impl Runtime {
     }
     pub fn execute_expr(&mut self, input: &str) -> Result<(), Box<dyn LangError>> {
         let input = format!("do {{ {input} }}");
-        let (ir, spanmap) = self.compiler.compile_expr(&input)?;
-        let mut vm = StackVM::new(ir);
+        let bytecode = self.compiler.compile_expr(&input)?;
+        let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
         let res = vm.exec();
         res.map_err(|err| {
-            let code = err.to_spanned_code(&spanmap);
+            let code = err.to_spanned_code(&bytecode.span_map);
 
             Box::new(code) as Box<dyn LangError>
         })

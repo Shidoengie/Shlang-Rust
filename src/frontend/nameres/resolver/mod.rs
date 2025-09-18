@@ -4,10 +4,7 @@ use crate::{
         FileStore,
         ast::nodes::*,
         nameres::{
-            resolved_nodes::{
-                NodePool, RNodeRef, ResAccessType, ResItem, ResolvedAst, ResolvedAstNode,
-                ResolvedDecl, ResolvedNode,
-            },
+            resolved_nodes::*,
             scope::{self, Scope, VarInfo},
         },
     },
@@ -22,9 +19,10 @@ type DeclStream = Vec<Spanned<Item>>;
 #[derive(Default)]
 pub struct NameRes {
     ident_counter: usize,
-    globals: HashMap<String, (usize, VarInfo)>,
+    globals: HashMap<String, usize>,
     pub(crate) file_store: FileStore,
     node_pool: NodePool,
+    max_locals: usize,
 }
 impl NameRes {
     pub fn new(file_store: FileStore) -> Self {
@@ -34,17 +32,31 @@ impl NameRes {
         }
     }
     pub fn resolve(&mut self, ast: DeclStream) -> Result<ResolvedAst> {
+        self.add_global("print".to_owned());
         let decls = self.resolve_toplevel(ast)?;
-        Ok(ResolvedAst(decls, self.node_pool.clone()))
+        Ok(ResolvedAst::new(
+            decls,
+            self.node_pool.clone(),
+            self.globals.len(),
+            self.max_locals,
+        ))
     }
     pub fn resolve_expr(&mut self, expr: NodeSpan) -> Result<ResolvedAstNode> {
-        let node = self.resolve_node(
-            expr,
-            &mut Scope::from_vars(hashmap!(
-                print => VarInfo::new("print".to_owned(), true, 0)
-            )),
-        )?;
-        Ok(ResolvedAstNode(node, self.node_pool.clone()))
+        self.add_global("print".to_owned());
+        let node = self.resolve_node(expr, &mut Scope::default())?;
+        Ok(ResolvedAstNode::new(
+            node,
+            self.node_pool.clone(),
+            self.globals.len(),
+            self.max_locals,
+        ))
+    }
+    fn add_global(&mut self, name: String) {
+        if self.globals.contains_key(&name) {
+            return;
+        }
+        let id = self.globals.len();
+        self.globals.insert(name.to_string(), id);
     }
     fn add_node(&mut self, node: ResolvedNode, span: Span) -> Result {
         let idx = RNodeRef(self.node_pool.len());
@@ -52,26 +64,30 @@ impl NameRes {
         Ok(idx)
     }
     pub fn resolve_toplevel(&mut self, decls: DeclStream) -> Result<Vec<Spanned<ResItem>>> {
-        for (index, val) in decls.iter().enumerate() {
+        self.add_global("print".to_owned());
+        for val in decls.iter() {
             match &val.item {
                 Item::Decl(decl) => {
-                    let info = VarInfo::new(decl.name.to_string(), true, index);
-                    self.globals.insert(decl.name.to_string(), (index, info));
+                    self.add_global(decl.name.to_owned());
                 }
             };
         }
-        let mut root = Scope::from_vars(hashmap!(
-            print => VarInfo::new("print".to_owned(), true, 0)
-        ));
+        let mut root = Scope::default();
         let mut new_decls = vec![];
         for i in decls {
             match i.item {
                 Item::Decl(decl) => {
                     let expr = self.resolve_node(decl.expr.deref_item(), &mut root)?;
-                    let (_, info) = &self.globals[&decl.name];
+                    let id = &self.globals[&decl.name];
 
-                    new_decls
-                        .push(ResItem::Decl(ResolvedDecl { id: info.id, expr }).to_spanned(i.span));
+                    new_decls.push(
+                        ResItem::Decl(ResolvedDecl {
+                            id: *id,
+                            expr,
+                            is_global: true,
+                        })
+                        .to_spanned(i.span),
+                    );
                     self.ident_counter = 0;
                 }
             };
@@ -94,10 +110,11 @@ impl NameRes {
         if let Some(info) = parent.get_var(&name) {
             return Ok(info);
         }
-        let Some(info) = parent
-            .get_var(&name)
-            .or_else(|| self.globals.get(name).map(|(_, info)| return info.clone()))
-        else {
+        let Some(info) = parent.get_var(&name).or_else(|| {
+            self.globals
+                .get(name)
+                .map(|id| return VarInfo::new(name.to_string(), true, *id))
+        }) else {
             return Err(NameErr::UndefinedVar(name.to_string()).to_spanned(span));
         };
         Ok(info)
@@ -106,7 +123,11 @@ impl NameRes {
         let expr = self.resolve_node(decl.expr.deref_item(), parent)?;
         let id = self.def_local(decl.name, parent);
 
-        return Ok(ResolvedDecl { expr, id });
+        return Ok(ResolvedDecl {
+            expr,
+            id,
+            is_global: false,
+        });
     }
     fn resolve_list(&mut self, list: NodeStream, parent: &mut Scope) -> Result<Vec<RNodeRef>> {
         let mut new = vec![];
@@ -151,12 +172,17 @@ impl NameRes {
                     let new_name = self.def_local(arg, &mut func_scope);
                     args.push(new_name);
                 }
+                let old_max = self.max_locals;
+                self.max_locals = 0;
                 let block = self.resolve_block_with(func.block, parent, func_scope)?;
-                let resolved = ResolvedNode::FuncDef {
+                let max_locals = self.max_locals;
+                self.max_locals = old_max;
+                let resolved = ResolvedNode::FuncLit(FuncLit {
                     idents: args,
                     block,
                     captures: func.captures,
-                };
+                    local_count: max_locals,
+                });
                 self.add_node(resolved, span)
             }
             Node::While(node) => {
@@ -311,10 +337,13 @@ impl NameRes {
     ) -> Result<Vec<RNodeRef>> {
         base.parent = Some(Box::new(parent.clone()));
         let mut buffer: Vec<RNodeRef> = vec![];
+        let base_locals = self.ident_counter;
         for node in ast {
             let resolved = self.resolve_node(node, &mut base)?;
             buffer.push(resolved);
         }
+        self.max_locals = self.max_locals.max(self.ident_counter);
+        self.ident_counter = base_locals;
         let Some(mod_parent) = base.parent else {
             unimplemented!("Parent should always exist");
         };

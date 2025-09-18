@@ -4,8 +4,8 @@ description: ir_expr
 expression: "test_ir (\"true || (false && true)\")"
 ---
 Ok(
-    (
-        [
+    Bytecode {
+        ops: [
             Push(
                 Bool(
                     true,
@@ -24,7 +24,7 @@ Ok(
             And,
             Or,
         ],
-        SpanMap {
+        span_map: SpanMap {
             map: [
                 (
                     (
@@ -63,5 +63,7 @@ Ok(
                 ),
             ],
         },
-    ),
+        global_count: 1,
+        local_count: 0,
+    },
 )

@@ -4,22 +4,28 @@ description: test_locals
 expression: "test_nameres (\"for i in [1,2,3] {var b = i}\")"
 ---
 Ok(
-    DoBlock{
-      ResultNode(
-        ForLoop(
-          loop_var: 0,
-          list:ListLit(
-            Int(1)[15,16],
-            Int(2)[17,18],
-            Int(3)[19,20],
-          )[14,21]
-          block:{
-            Decl(
-              id: 1,
-              expr: Variable(id: 0)[31,32]
-            )[23,32];
-          }
-        )[9,23]
-      )[9,23];
-    }[3,35],
+    ResolvedNode(
+      global_count: 1,
+      local_count: 2,
+    ){
+      DoBlock{
+        ResultNode(
+          ForLoop(
+            loop_var: 0,
+            list:ListLit(
+              Int(1)[15,16],
+              Int(2)[17,18],
+              Int(3)[19,20],
+            )[14,21]
+            block:{
+              Decl(
+                id: 1,
+                global: false
+                expr: Variable(id: 0, global: false)[31,32]
+              )[23,32];
+            }
+          )[9,23]
+        )[9,23];
+      }[3,35]
+    },
 )

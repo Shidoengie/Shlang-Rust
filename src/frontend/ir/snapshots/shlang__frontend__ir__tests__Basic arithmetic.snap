@@ -4,8 +4,8 @@ description: ir_expr
 expression: "test_ir (\"1+(2-(3*(4/(5 % 6))))\")"
 ---
 Ok(
-    (
-        [
+    Bytecode {
+        ops: [
             Push(
                 Int(
                     1,
@@ -42,7 +42,7 @@ Ok(
             Sub,
             Add,
         ],
-        SpanMap {
+        span_map: SpanMap {
             map: [
                 (
                     (
@@ -123,5 +123,7 @@ Ok(
                 ),
             ],
         },
-    ),
+        global_count: 1,
+        local_count: 0,
+    },
 )

@@ -12,6 +12,7 @@ pub enum ErrCode {
     Unspecified(String),
     InvalidOffset,
     EmptyStack,
+    ExpectedStackFrame,
     InvalidType { expected: Type, got: Type },
     MixedTypes { first: Type, last: Type },
     UnsupportedOperation { op: String, target: Type },
@@ -31,6 +32,11 @@ impl LangError for Spanned<ErrCode> {
             ErrCode::InvalidOffset => MsgBuilder::build_err("Invalid offset", self.span)
                 .with_err_label("This points to a non existent op.")
                 .finish(),
+            ErrCode::ExpectedStackFrame => {
+                MsgBuilder::build_err("Expected a stack frame", self.span)
+                    .with_err_label("A stack frame should have been present.")
+                    .finish()
+            }
             ErrCode::InvalidType { expected, got } => {
                 MsgBuilder::build_err("Invalid type", self.span)
                     .with_err_label(format!("Expected type {expected:?} but got {got:?}."))

@@ -5,8 +5,8 @@ use crate::{
 };
 
 pub fn run_expr(input: &str) -> vm::Result<Vec<(Value, usize)>> {
-    let ops = Compiler::default().compile_expr(input).unwrap();
-    let mut vm = StackVM::new(ops.0);
+    let bytecode = Compiler::default().compile_expr(input).unwrap();
+    let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
     vm.exec()?;
     return Ok(vm.values);
 }

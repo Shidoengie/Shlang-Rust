@@ -5,7 +5,7 @@ use crate::{
         ast::nodes::*,
         nameres::{
             resolved_nodes::*,
-            scope::{self, Scope, VarInfo},
+            scope::{Scope, VarInfo},
         },
     },
     hashmap,
@@ -107,13 +107,13 @@ impl NameRes {
     ) -> Result<VarInfo> {
         let name = name.as_ref();
 
-        if let Some(info) = parent.get_var(&name) {
+        if let Some(info) = parent.get_var(name) {
             return Ok(info);
         }
-        let Some(info) = parent.get_var(&name).or_else(|| {
+        let Some(info) = parent.get_var(name).or_else(|| {
             self.globals
                 .get(name)
-                .map(|id| return VarInfo::new(name.to_string(), true, *id))
+                .map(|id| VarInfo::new(name.to_string(), true, *id))
         }) else {
             return Err(NameErr::UndefinedVar(name.to_string()).to_spanned(span));
         };
@@ -123,11 +123,11 @@ impl NameRes {
         let expr = self.resolve_node(decl.expr.deref_item(), parent)?;
         let id = self.def_local(decl.name, parent);
 
-        return Ok(ResolvedDecl {
+        Ok(ResolvedDecl {
             expr,
             id,
             is_global: false,
-        });
+        })
     }
     fn resolve_list(&mut self, list: NodeStream, parent: &mut Scope) -> Result<Vec<RNodeRef>> {
         let mut new = vec![];
@@ -146,23 +146,23 @@ impl NameRes {
         match node.item {
             Node::VarDecl(decl) => {
                 let decl = self.resolve_var_decl(decl, parent)?;
-                return self.add_node(ResolvedNode::Decl(decl), span);
+                self.add_node(ResolvedNode::Decl(decl), span)
             }
             Node::Assignment { target, value } => {
                 let target = self.resolve_node(target.deref_item(), parent)?;
                 let value = self.resolve_node(value.deref_item(), parent)?;
-                return self.add_node(ResolvedNode::Assignment { target, value }, span);
+                self.add_node(ResolvedNode::Assignment { target, value }, span)
             }
             Node::Variable(name) => {
                 let info = self.get_var(name, parent, span)?;
 
-                return self.add_node(
+                self.add_node(
                     ResolvedNode::Variable {
                         id: info.id,
                         is_global: info.global,
                     },
                     span,
-                );
+                )
             }
 
             Node::FuncDef(func) => {
@@ -219,24 +219,24 @@ impl NameRes {
             }
             Node::ReturnNode(node) => {
                 let node = self.resolve_node(node.deref_item(), parent)?;
-                return self.add_node(ResolvedNode::ReturnNode(node), span);
+                self.add_node(ResolvedNode::ReturnNode(node), span)
             }
             Node::ResultNode(node) => {
                 let node = self.resolve_node(node.deref_item(), parent)?;
-                return self.add_node(ResolvedNode::ResultNode(node), span);
+                self.add_node(ResolvedNode::ResultNode(node), span)
             }
 
             Node::BinaryNode(bin) => {
                 let left = self.resolve_node(bin.left.deref_item(), parent)?;
                 let right = self.resolve_node(bin.right.deref_item(), parent)?;
-                return self.add_node(
+                self.add_node(
                     ResolvedNode::BinaryNode {
                         left,
                         right,
                         kind: bin.kind,
                     },
                     span,
-                );
+                )
             }
             Node::ForLoop(forloop) => {
                 let mut base = Scope::default();
@@ -303,7 +303,7 @@ impl NameRes {
             }
             Node::ListLit(list) => {
                 let list = self.resolve_list(list, parent)?;
-                return self.add_node(ResolvedNode::ListLit(list), span);
+                self.add_node(ResolvedNode::ListLit(list), span)
             }
             Node::UnaryNode(un) => {
                 let target = self.resolve_node(un.target.deref_item(), parent)?;
@@ -348,9 +348,9 @@ impl NameRes {
             unimplemented!("Parent should always exist");
         };
         *parent = *mod_parent;
-        return Ok(buffer);
+        Ok(buffer)
     }
     fn resolve_block(&mut self, ast: NodeStream, parent: &mut Scope) -> Result<Vec<RNodeRef>> {
-        return self.resolve_block_with(ast, parent, Scope::default());
+        self.resolve_block_with(ast, parent, Scope::default())
     }
 }

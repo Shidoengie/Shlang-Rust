@@ -1,9 +1,8 @@
 use ariadne::Report;
 
 use crate::{
-    frontend::ast::parser::*,
     lang_errors::{LangError, MsgBuilder},
-    spans::{IntoSpanned, Span, Spanned},
+    spans::{Span, Spanned},
 };
 #[derive(Debug)]
 pub enum NameErr {

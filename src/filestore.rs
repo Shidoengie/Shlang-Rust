@@ -10,12 +10,12 @@ impl FileStore {
         Self(Slab::new())
     }
     pub fn add(&mut self, item: String) -> FileID {
-        return self.0.insert(Source::from(item));
+        self.0.insert(Source::from(item))
     }
 }
 impl From<Slab<Source>> for FileStore {
     fn from(value: Slab<Source>) -> Self {
-        return Self(value);
+        Self(value)
     }
 }
 impl Cache<FileID> for FileStore {
@@ -25,9 +25,9 @@ impl Cache<FileID> for FileStore {
             return Err(std::io::Error::other(format!("Invalid file id {id}")));
         };
 
-        return Ok(&file);
+        Ok(file)
     }
     fn display<'a>(&self, id: &'a FileID) -> Option<impl std::fmt::Display + 'a> {
-        return Some(id);
+        Some(id)
     }
 }

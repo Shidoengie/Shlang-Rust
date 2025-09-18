@@ -1,4 +1,4 @@
-use ariadne::{Color, Label, Report, ReportBuilder, ReportKind};
+use ariadne::Report;
 
 use crate::frontend::ast::nodes::Node;
 use crate::frontend::lexemes::tokens::TokenType;

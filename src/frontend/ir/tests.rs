@@ -1,8 +1,5 @@
-use crate::frontend::ir::codegen::{self, IRgen};
-use crate::frontend::ir::instructions::OpCode;
 use crate::frontend::*;
 
-use crate::spans::Spanned;
 use crate::test_func;
 
 fn test_ir(input: &str) -> Result<Bytecode, Box<dyn LangError>> {

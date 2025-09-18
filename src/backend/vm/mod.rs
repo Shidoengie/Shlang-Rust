@@ -3,9 +3,8 @@ mod frame;
 #[cfg(test)]
 mod tests;
 
-use std::{collections::VecDeque, mem, sync::Arc};
+use std::{mem, sync::Arc};
 
-use rayon::vec;
 
 use crate::{
     backend::vm::{
@@ -103,13 +102,13 @@ impl StackVM {
                     print!("{} ", value);
                 }
                 println!();
-                return Value::Null;
+                Value::Null
             },
             -1,
         )
         .into();
         let synthetic = Function {
-            local_count: local_count,
+            local_count,
             address: 0,
             param_count: 0,
         };
@@ -126,7 +125,7 @@ impl StackVM {
         Ok(())
     }
     fn offset_ip(&mut self, ammount: i32) -> Result {
-        let new_ip = self.ip as i32 + ammount as i32;
+        let new_ip = self.ip as i32 + ammount;
         if new_ip.is_negative() {
             return Err(ErrCode::InvalidOffset.into_vmerr(self.ip));
         }
@@ -234,7 +233,7 @@ impl StackVM {
             Value::Float(f) => Value::Float(-f),
             _ => {
                 return Err(ErrCode::UnsupportedOperation {
-                    op: format!("-()"),
+                    op: "-()".to_string(),
                     target: val.into(),
                 }
                 .into_vmerr(ip));
@@ -247,7 +246,7 @@ impl StackVM {
 
     fn exec_not(&mut self) -> Result {
         let (val, ip) = self.pop()?;
-        let (Value::Bool(b)) = val else {
+        let Value::Bool(b) = val else {
             return Err(ErrCode::InvalidType {
                 expected: Type::Bool,
                 got: val.into(),
@@ -288,7 +287,7 @@ impl StackVM {
         let Some(frame) = self.call_stack.last_mut() else {
             return Err(ErrCode::ExpectedStackFrame.into_vmerr(self.ip));
         };
-        return Ok(frame);
+        Ok(frame)
     }
     fn load_local(&mut self, id: usize) -> Result {
         let val = self
@@ -365,7 +364,7 @@ impl StackVM {
             OpCode::Goto(offset) => self.offset_ip(offset),
             OpCode::Branch(offset) => {
                 let (val, ip) = self.pop()?;
-                let (Value::Bool(b)) = val else {
+                let Value::Bool(b) = val else {
                     return Err(ErrCode::InvalidType {
                         expected: Type::Bool,
                         got: val.into(),

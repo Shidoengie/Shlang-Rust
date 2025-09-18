@@ -52,7 +52,7 @@ impl LangError for Spanned<ErrCode> {
             }
             ErrCode::InvalidStackIndex(idx) => {
                 MsgBuilder::build_err(format!("Invalid stack index {idx}"), self.span)
-                    .with_err_label(format!("This points to an invalid address."))
+                    .with_err_label("This points to an invalid address.".to_string())
                     .finish()
             }
         }
@@ -61,7 +61,7 @@ impl LangError for Spanned<ErrCode> {
 impl ErrCode {
     pub fn into_vmerr(self, index: usize) -> VmErr {
         VmErr {
-            index: index,
+            index,
             code: self,
         }
     }
@@ -99,14 +99,14 @@ pub struct VmErr {
 }
 impl VmErr {
     pub fn new(index: usize, code: ErrCode) -> Self {
-        return Self { index, code };
+        Self { index, code }
     }
 
     pub fn other(index: usize, msg: impl Display) -> Self {
-        return Self {
+        Self {
             index,
             code: ErrCode::Unspecified(msg.to_string()),
-        };
+        }
     }
     pub fn get_spanned_code(&self, map: &SpanMap) -> Spanned<ErrCode> {
         let span = map[self.index];

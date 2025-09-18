@@ -1,5 +1,4 @@
-use crate::spans::{IntoSpanned, Span};
-use std::{collections::HashMap, fmt::Display};
+use std::collections::HashMap;
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct VarInfo {
     pub name: String,

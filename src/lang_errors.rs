@@ -22,7 +22,7 @@ impl<'a> MsgBuilder<'a> {
     }
     pub fn build_unspecified_err(msg: String, span: Span) -> Report<'a, Span> {
         Self::build_err(msg, span)
-            .with_err_label(format!("On this expression"))
+            .with_err_label("On this expression".to_string())
             .finish()
     }
     pub fn with_err_label(mut self, msg: impl Display) -> Self {
@@ -39,7 +39,7 @@ impl<'a> MsgBuilder<'a> {
     }
     ///[`ReportBuilder::finish`]
     pub fn finish(self) -> Report<'a, Span> {
-        return self.inner.finish();
+        self.inner.finish()
     }
     ///[`ReportBuilder::with_help`]
     pub fn with_code(mut self, code: impl Display) -> Self {

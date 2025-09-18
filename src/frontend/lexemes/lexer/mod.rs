@@ -24,7 +24,7 @@ impl<'a> Lexer<'a> {
         self.peek_char()
     }
     fn make_err<T>(&self, err: LexError, start: usize, stop: usize) -> Result<T> {
-        return Err(err.to_spanned(self.new_span(start, stop)));
+        Err(err.to_spanned(self.new_span(start, stop)))
     }
     fn peek_next(&mut self) -> Option<char> {
         let mut cur_chars = self.chars.clone();
@@ -168,7 +168,7 @@ impl<'a> Lexer<'a> {
         if expected.is_alphanumeric() || expected == '_' {
             return self.ident();
         }
-        return self.make_err(LexError::UnexpectedChar(expected), start - 1, start);
+        self.make_err(LexError::UnexpectedChar(expected), start - 1, start)
     }
     fn matches_comment(&mut self, mut nest: i32, advanced: char, next: char) -> i32 {
         match (advanced, next) {
@@ -285,7 +285,7 @@ impl<'a> Lexer<'a> {
         }
     }
     pub fn peek(&mut self) -> Result {
-        return self.clone().next();
+        self.clone().next()
     }
     pub fn next(&mut self) -> Result {
         let start = self.index;

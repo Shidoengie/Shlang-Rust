@@ -1,6 +1,6 @@
 use std::{
     fmt::Debug,
-    ops::{self, Add, Deref, Range, RangeFrom},
+    ops::{Add},
 };
 
 pub trait SpanUtil {
@@ -73,11 +73,11 @@ pub struct Span {
 }
 impl Span {
     pub fn new(file_id: FileID, start: usize, end: usize) -> Self {
-        return Self {
+        Self {
             file_id,
             start,
             end,
-        };
+        }
     }
     pub fn line_bounds(&self, source: &str) -> Self {
         let bytes = source.as_bytes();
@@ -146,10 +146,10 @@ impl SpanUtil for Span {
 impl ariadne::Span for Span {
     type SourceId = FileID;
     fn source(&self) -> &Self::SourceId {
-        return &self.file_id;
+        &self.file_id
     }
     fn is_empty(&self) -> bool {
-        return self.start == self.end;
+        self.start == self.end
     }
     fn contains(&self, offset: usize) -> bool {
         offset <= self.end && offset >= self.start

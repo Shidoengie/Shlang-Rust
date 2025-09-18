@@ -3,7 +3,6 @@ use std::{
     sync::Arc,
 };
 
-use rayon::collections::vec_deque;
 
 use crate::frontend::ir::instructions::{Function, Value};
 
@@ -15,18 +14,18 @@ pub struct Frame {
 impl Frame {
     pub fn new(func: Arc<Function>, ret_address: usize) -> Self {
         let local_count = func.local_count;
-        return Self {
+        Self {
             func,
             ret_address,
             locals: vec![Value::Null; local_count].into_boxed_slice(),
-        };
+        }
     }
     /// Gets a local variable from a given index
     pub fn get(&self, index: usize) -> Option<&Value> {
-        return self.locals.get(index);
+        self.locals.get(index)
     }
     pub fn get_mut(&mut self, index: usize) -> Option<&mut Value> {
-        return self.locals.get_mut(index);
+        self.locals.get_mut(index)
     }
     pub fn set(&mut self, index: usize, value: Value) {
         self[index] = value;
@@ -35,7 +34,7 @@ impl Frame {
 impl Index<usize> for Frame {
     type Output = Value;
     fn index(&self, index: usize) -> &Self::Output {
-        return &self.locals[index];
+        &self.locals[index]
     }
 }
 impl IndexMut<usize> for Frame {

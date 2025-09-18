@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{fmt::write, path::Display, sync::Arc};
+use std::sync::Arc;
 
 use crate::backend::vm::StackVM;
 

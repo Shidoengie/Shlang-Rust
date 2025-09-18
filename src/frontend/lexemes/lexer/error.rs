@@ -30,7 +30,7 @@ impl LangError for Spanned<LexError> {
                 .with_err_label(format!("Missing {c}."))
                 .finish(),
             Le::InvalidEscape => MsgBuilder::build_err("Invalid escape sequence", self.span)
-                .with_err_label(format!("This is not a valid escape sequence."))
+                .with_err_label("This is not a valid escape sequence.".to_string())
                 .with_note(r#"The only valid escape sequences are:  \", \\, \', \n, \t, \0 ."#)
                 .finish(),
         }

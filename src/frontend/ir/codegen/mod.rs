@@ -362,7 +362,7 @@ impl IRgen {
         self.push_val(
             Value::Function(Arc::new(Function {
                 address,
-                local_count: local_count,
+                local_count,
                 param_count,
             })),
             span,

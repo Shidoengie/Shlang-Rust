@@ -1,7 +1,4 @@
-use std::fs::File;
 
-use ariadne::{Cache, Source};
-use slab::Slab;
 
 use crate::{
     filestore::FileStore,
@@ -10,10 +7,7 @@ use crate::{
             nodes::{Item, Node},
             parser::Parser,
         },
-        ir::{
-            codegen::{Bytecode, IRgen},
-            instructions::OpCode,
-        },
+        ir::codegen::{Bytecode, IRgen},
         lexemes::{
             lexer::Lexer,
             tokens::{Token, TokenEq, TokenType},
@@ -24,8 +18,7 @@ use crate::{
         },
     },
     lang_errors::LangError,
-    spanmap::SpanMap,
-    spans::{FileID, Spanned},
+    spans::Spanned,
 };
 
 pub mod ast;
@@ -40,7 +33,7 @@ pub struct Compiler {
 }
 impl Compiler {
     pub fn get_filestore(self) -> FileStore {
-        return self.file_store;
+        self.file_store
     }
     pub fn make(file_store: FileStore, silent: bool) -> Self {
         Self { file_store, silent }

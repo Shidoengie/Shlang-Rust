@@ -72,7 +72,7 @@ pub struct Parser<'input> {
 }
 
 ///utils and block parsing
-impl<'input> Parser<'input> {
+impl Parser<'_> {
     /// converts token spans into text
     fn text(&mut self, token: &Token) -> String {
         self.input[token.span.start..token.span.end].to_string()
@@ -101,7 +101,7 @@ impl<'input> Parser<'input> {
         if ok.is(&TokenType::Eof) {
             return Ok(None);
         }
-        return Ok(Some(ok));
+        Ok(Some(ok))
     }
     /// peeks the current token and if none was found it prints and returns an error
     /// this is used for expressions that require the existence of a current token
@@ -194,7 +194,7 @@ impl<'input> Parser<'input> {
 }
 
 ///variable and assignment parsing
-impl<'input> Parser<'input> {
+impl Parser<'_> {
     /// These Parse variable definitions/declarations
     fn empty_var_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
         let name = self.text(&var_ident);
@@ -277,7 +277,7 @@ impl<'input> Parser<'input> {
 }
 
 ///function parsing
-impl<'input> Parser<'input> {
+impl Parser<'_> {
     fn parse_closure(&mut self) -> Result {
         let first_span = self.peek_some()?.span;
         let args = self.parse_func_params()?;
@@ -386,7 +386,7 @@ impl<'input> Parser<'input> {
 }
 
 ///function call parsing
-impl<'input> Parser<'input> {
+impl Parser<'_> {
     /// Parses a list of expresions like a list or call parameters
     fn parse_expr_list(&mut self, token: &Token, closing_tok: TokenType) -> Result<NodeStream> {
         let mut token = token.clone();
@@ -428,7 +428,7 @@ impl<'input> Parser<'input> {
 }
 
 ///loop parsing
-impl<'input> Parser<'input> {
+impl Parser<'_> {
     fn parse_while_loop(&mut self) -> Result {
         let first = self.peek_some()?;
         let condition = self.parse_only_expr(true)?.box_item();
@@ -467,7 +467,7 @@ impl<'input> Parser<'input> {
 }
 
 ///branch parsing
-impl<'input> Parser<'input> {
+impl Parser<'_> {
     fn parse_elif(&mut self, condition: NodeSpan, if_block: NodeStream, span: Span) -> Result {
         self.next()?;
         let elif = self.parse_branch()?;
@@ -512,7 +512,7 @@ impl<'input> Parser<'input> {
 }
 
 ///list parsing
-impl<'input> Parser<'input> {
+impl Parser<'_> {
     fn parse_index(&mut self, target: NodeSpan) -> Result {
         let first = self.peek_some()?;
 
@@ -533,7 +533,7 @@ impl<'input> Parser<'input> {
 }
 
 // This entire section replaces the old precedence climbing functions.
-impl<'input> Parser<'input> {
+impl Parser<'_> {
     /// Gets the precedence of the upcoming token.
     fn peek_precedence(&mut self) -> Result<Precedence> {
         if let Some(t) = self.peek_opt()? {
@@ -685,13 +685,13 @@ impl<'input> Parser<'input> {
 }
 
 ///struct parsing
-impl<'input> Parser<'input> {
+impl Parser<'_> {
     fn node_to_field(&mut self, node: NodeSpan) -> Result<(String, NodeSpan)> {
         match node.item {
             Node::VarDecl(decl) => {
-                return Ok((decl.name, decl.expr.deref_item()));
+                Ok((decl.name, decl.expr.deref_item()))
             }
-            _ => return err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span)),
+            _ => err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span)),
         }
     }
     fn map_literal(&mut self) -> Result {
@@ -791,7 +791,7 @@ impl<'input> Parser<'input> {
 }
 
 ///struct field access parsing
-impl<'input> Parser<'input> {
+impl Parser<'_> {
     fn parse_method(&mut self, target: NodeSpan, requested: String, ident: Token) -> Result {
         self.expect_next()?; // Consume '('
         let token = self.peek_some()?;

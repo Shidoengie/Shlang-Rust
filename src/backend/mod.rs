@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use crate::{
-    backend::vm::StackVM, filestore::FileStore, frontend::Compiler, lang_errors::LangError, spanmap,
+    backend::vm::StackVM, filestore::FileStore, frontend::Compiler, lang_errors::LangError,
 };
 
 pub mod vm;

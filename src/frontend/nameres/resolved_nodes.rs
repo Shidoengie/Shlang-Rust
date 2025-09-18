@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{
     collections::HashMap,
-    fmt::{Debug, Formatter},
+    fmt::Debug,
     ops::{Deref, DerefMut, Index},
 };
 
@@ -130,8 +130,8 @@ pub enum ResAccessType {
 pub enum ResItem {
     Decl(ResolvedDecl),
 }
-fn display_block<'a>(
-    f: &mut fmt::Formatter<'a>,
+fn display_block(
+    f: &mut fmt::Formatter<'_>,
     block: &[RNodeRef],
     node_pool: &NodePool,
     depth: usize,
@@ -150,8 +150,8 @@ fn display_block<'a>(
     write!(f, "{indent}}}")?;
     Ok(())
 }
-fn node_debug_display<'a>(
-    f: &mut fmt::Formatter<'a>,
+fn node_debug_display(
+    f: &mut fmt::Formatter<'_>,
     node_ref: RNodeRef,
     node_pool: &NodePool,
     depth: usize,
@@ -313,11 +313,11 @@ fn node_debug_display<'a>(
             node_debug_display(f, *condition, node_pool, depth + 1, false)?;
             writeln!(f, ",")?;
             write!(f, "{child_indent}if_block:")?;
-            display_block(f, &if_block, node_pool, depth + 1)?;
+            display_block(f, if_block, node_pool, depth + 1)?;
             writeln!(f)?;
             if let Some(else_b) = else_block {
                 write!(f, "{child_indent}else_block:")?;
-                display_block(f, &else_b, node_pool, depth + 1)?;
+                display_block(f, else_b, node_pool, depth + 1)?;
                 writeln!(f)?;
             }
             write!(f, "{indent})")?;
@@ -328,7 +328,7 @@ fn node_debug_display<'a>(
             } else {
                 "DoBlock"
             };
-            write_title(f, &name)?;
+            write_title(f, name)?;
             display_block(f, block, node_pool, depth)?;
         }
         RNode::While { condition, block } => {
@@ -374,7 +374,7 @@ fn node_debug_display<'a>(
             writeln!(f)?;
             write!(f, "{child_indent}block:")?;
             display_block(f, block, node_pool, depth + 1)?;
-            writeln!(f, "")?;
+            writeln!(f)?;
             write!(f, "{indent})")?;
         }
         RNode::StructDef(fields) | RNode::RecordLit(fields) => {

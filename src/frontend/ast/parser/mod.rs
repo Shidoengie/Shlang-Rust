@@ -155,7 +155,7 @@ impl Parser<'_> {
         Ok(self.text(&token))
     }
     /// Filter DontResult nodes in order to determine if the last expression should or shouldnt result
-    fn filter_block(body: NodeStream) -> NodeStream {
+    fn filter_block(body: Vec<Spanned<Node>>) -> Vec<Spanned<Node>> {
         let maybe_result = body.last();
         let Some(last) = maybe_result else {
             return body;
@@ -173,14 +173,15 @@ impl Parser<'_> {
     }
     /// Parses and collects expressions into a Block node
     /// this is used for expressions with blocks like if
-    fn parse_block(&mut self) -> Result<NodeStream> {
-        let mut body: NodeStream = vec![];
-        self.next()?;
+    fn parse_block(&mut self) -> Result<Block> {
+        let mut body = vec![];
+        let start_span = self.next()?.span;
         let token = self.peek_some()?;
 
         if token.is(&TokenType::RBrace) {
-            return Ok(body);
+            return Ok(body.to_spanned(start_span + 1));
         }
+
         loop {
             let expr = self.parse_node(false)?;
             body.push(expr);
@@ -188,8 +189,9 @@ impl Parser<'_> {
                 break;
             }
         }
+        let end_span = self.peek()?.span;
         body = Self::filter_block(body);
-        Ok(body)
+        Ok(body.to_spanned(start_span + end_span))
     }
 }
 
@@ -199,7 +201,7 @@ impl Parser<'_> {
     fn empty_var_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
         let name = self.text(&var_ident);
         let span = first.span + var_ident.span;
-        VarDecl {
+        Declaration {
             name,
             readonly: false,
             expr: Node::Null.to_spanned(first.span).box_item(),
@@ -210,7 +212,7 @@ impl Parser<'_> {
         self.next()?; // Consume '='
         let val = self.parse_only_expr(false)?;
         let span = name_ident.span + val.span;
-        Ok(VarDecl {
+        Ok(Declaration {
             name,
             readonly: false,
             expr: val.box_item(),
@@ -285,7 +287,7 @@ impl Parser<'_> {
             let block = self.parse_block()?;
             let last_span = self.expect_next()?.span;
 
-            return Ok(FuncDef {
+            return Ok(FunctionLit {
                 args,
                 block,
                 captures: true,
@@ -295,8 +297,8 @@ impl Parser<'_> {
         let last_span = self.peek_some()?.span;
         let expr = self.parse_node(false)?;
         let span = expr.span;
-        let block = vec![Node::ResultNode(expr.box_item()).to_spanned(span)];
-        Ok(FuncDef {
+        let block = vec![Node::Return(expr.box_item()).to_spanned(span)].to_spanned(span);
+        Ok(FunctionLit {
             args,
             block,
             captures: true,
@@ -341,10 +343,10 @@ impl Parser<'_> {
         let block = self.parse_block()?;
 
         let func_span = name_ident.span + last.span;
-        Ok(VarDecl {
+        Ok(Declaration {
             name,
             readonly: false,
-            expr: FuncDef {
+            expr: FunctionLit {
                 block,
                 args: params,
                 captures: false,
@@ -358,7 +360,7 @@ impl Parser<'_> {
     fn build_func(&mut self) -> Result<Node> {
         let args = self.parse_func_params()?;
         let block = self.parse_block()?;
-        Ok(FuncDef {
+        Ok(FunctionLit {
             args,
             block,
             captures: false,
@@ -388,9 +390,9 @@ impl Parser<'_> {
 ///function call parsing
 impl Parser<'_> {
     /// Parses a list of expresions like a list or call parameters
-    fn parse_expr_list(&mut self, token: &Token, closing_tok: TokenType) -> Result<NodeStream> {
+    fn parse_expr_list(&mut self, token: &Token, closing_tok: TokenType) -> Result<Vec<NodeSpan>> {
         let mut token = token.clone();
-        let mut params: NodeStream = vec![];
+        let mut params: Vec<NodeSpan> = vec![];
 
         while token.isnt(&closing_tok) {
             if self.peek()?.is(&closing_tok) {
@@ -468,11 +470,11 @@ impl Parser<'_> {
 
 ///branch parsing
 impl Parser<'_> {
-    fn parse_elif(&mut self, condition: NodeSpan, if_block: NodeStream, span: Span) -> Result {
+    fn parse_elif(&mut self, condition: NodeSpan, if_block: Block, span: Span) -> Result {
         self.next()?;
         let elif = self.parse_branch()?;
-
-        let elif_block: NodeStream = vec![elif];
+        let elif_span = elif.span;
+        let elif_block: Block = vec![elif].to_spanned(elif_span);
         Ok(Branch::new(condition, if_block, elif_block).to_nodespan(span))
     }
     /// parses if expressions
@@ -480,11 +482,10 @@ impl Parser<'_> {
         let expr = self.parse_only_expr(false)?;
         if expr.item == Node::DontResult {
             return Ok(
-                Node::ReturnNode(Node::Null.to_spanned(expr.span).box_item())
-                    .to_spanned(value.span),
+                Node::Return(Node::Null.to_spanned(expr.span).box_item()).to_spanned(value.span)
             );
         }
-        Ok(Node::ReturnNode(expr.box_item()).to_spanned(value.span))
+        Ok(Node::Return(expr.box_item()).to_spanned(value.span))
     }
     fn parse_branch(&mut self) -> Result {
         let first = self.peek_some()?;
@@ -688,9 +689,7 @@ impl Parser<'_> {
 impl Parser<'_> {
     fn node_to_field(&mut self, node: NodeSpan) -> Result<(String, NodeSpan)> {
         match node.item {
-            Node::VarDecl(decl) => {
-                Ok((decl.name, decl.expr.deref_item()))
-            }
+            Node::Declaration(decl) => Ok((decl.name, decl.expr.deref_item())),
             _ => err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span)),
         }
     }
@@ -732,7 +731,7 @@ impl Parser<'_> {
 
         let last = self.next()?;
         let span = first.span + last.span;
-        Ok(Node::StructDef(fields).to_spanned(span))
+        Ok(Node::StructLit(fields).to_spanned(span))
     }
     fn named_struct(&mut self, name_ident: &Token) -> Result {
         self.next()?;
@@ -745,8 +744,8 @@ impl Parser<'_> {
             let field = self.node_to_field(node)?;
             fields.insert(field.0, field.1);
         }
-        let expr = Node::StructDef(fields).to_spanned(span).box_item();
-        let def = VarDecl {
+        let expr = Node::StructLit(fields).to_spanned(span).box_item();
+        let def = Declaration {
             name,
             expr,
             readonly: false,
@@ -803,17 +802,18 @@ impl Parser<'_> {
         } else {
             method_params.first().unwrap().span + method_params.last().unwrap().span
         };
-
+        let target_span = target.span;
         Ok(FieldAccess {
             target: target.box_item(),
             requested: AccessType::Method {
                 callee: requested,
                 callee_span: ident.span,
                 args: method_params,
+                arg_span,
             }
-            .to_spanned(arg_span),
+            .to_spanned(ident.span + arg_span),
         }
-        .to_nodespan(ident.span + arg_span))
+        .to_nodespan(target_span + arg_span))
     }
     fn parse_field_access(&mut self, target: NodeSpan, _span: Span) -> Result {
         let ident = self.expect(TokenType::Identifier)?;
@@ -858,7 +858,7 @@ impl<'input> Parser<'input> {
                 continue;
             }
             match expr.item {
-                Node::VarDecl(decl) => body.push(Item::Decl(decl).to_spanned(expr.span)),
+                Node::Declaration(decl) => body.push(Item::Decl(decl).to_spanned(expr.span)),
                 _ => {
                     return err(ParseError::UnexpectedToplevel.to_spanned(expr.span));
                 }

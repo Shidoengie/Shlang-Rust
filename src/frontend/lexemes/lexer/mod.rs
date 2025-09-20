@@ -132,7 +132,7 @@ impl<'a> Lexer<'a> {
             last = self.advance();
         }
 
-        Ok(TokenType::Str(CharVec(buffer)).to_token(self.new_span(start, self.index)))
+        Ok(TokenType::Str(CharVec(buffer)).to_token(self.new_span(start - 1, self.index)))
     }
     fn make_eof_token(&self) -> Result {
         Ok(Token::new(

@@ -11,10 +11,11 @@ Ok(
                 callee: "b",
                 callee_span: 2:3,
                 args: [],
-            }[4,5],
-        }[2,5],
+                arg_span: 4:5,
+            }[2,5],
+        }[0,5],
         requested: Property(
             "c",
         )[6,7],
-    }[2,7],
+    }[0,7],
 )

@@ -5,61 +5,19 @@ expression: "test_ir (\"-1 != !true\")"
 ---
 Ok(
     Bytecode {
-        ops: [
-            Push(
-                Int(
-                    1,
-                ),
-            ),
-            Neg,
-            Push(
-                Bool(
-                    true,
-                ),
-            ),
-            Not,
-            NotEq,
-        ],
         span_map: SpanMap {
-            map: [
-                (
-                    (
-                        0,
-                        1,
-                    ),
-                    1:2,
-                ),
-                (
-                    (
-                        1,
-                        2,
-                    ),
-                    1:2,
-                ),
-                (
-                    (
-                        2,
-                        3,
-                    ),
-                    7:11,
-                ),
-                (
-                    (
-                        3,
-                        4,
-                    ),
-                    7:11,
-                ),
-                (
-                    (
-                        4,
-                        5,
-                    ),
-                    1:11,
-                ),
-            ],
+            0..1 = Span[1,2],
+            0..2 = Span[1,2],
+            2..3 = Span[7,11],
+            2..4 = Span[7,11],
+            0..5 = Span[1,11],
         },
         global_count: 1,
-        local_count: 0,
-    },
+    } = [
+        Push(Int(1)),
+        Neg,
+        Push(Bool(true)),
+        Not,
+        NotEq,
+    ],
 )

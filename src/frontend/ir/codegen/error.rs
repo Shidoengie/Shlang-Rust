@@ -27,7 +27,7 @@ impl LangError for Spanned<GenErr> {
                             "arguments"
                         }
                     ))
-                    .with_note("Any given call can only have atmost 255 arguments.")
+                    .with_note("Any given argument list can only have atmost 255 arguments.")
                     .get_inner()
                     
                     .finish()

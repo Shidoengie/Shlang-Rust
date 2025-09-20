@@ -1,11 +1,12 @@
 use core::fmt;
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc, u8};
 
 use crate::backend::vm::StackVM;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 
 pub enum OpCode {
+    NoOp,
     Push(Value),
     LoadLocal(usize),
     StoreLocal(usize),
@@ -42,6 +43,44 @@ pub enum OpCode {
         len: usize,
     },
 }
+// impl Debug for OpCode {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             Self::Push(val) => f.debug_tuple("Push"),
+//             Self::LoadLocal(address) => todo!(),
+//             Self::StoreLocal(address) => todo!(),
+//             Self::LoadGlobal(address) => todo!(),
+//             Self::StoreGlobal(address) => todo!(),
+//             Self::Pop => todo!(),
+//             Self::Goto(offset) => todo!(),
+//             Self::Branch(offset) => todo!(),
+//             Self::Add => todo!(),
+//             Self::Mult => todo!(),
+//             Self::Div => todo!(),
+//             Self::Sub => todo!(),
+//             Self::Mod => todo!(),
+//             Self::And => todo!(),
+//             Self::Or => todo!(),
+//             Self::Greater => todo!(),
+//             Self::Lesser => todo!(),
+//             Self::GreaterEq => todo!(),
+//             Self::LesserEq => todo!(),
+//             Self::NotEq => todo!(),
+//             Self::Eq => todo!(),
+
+//             Self::NullCo => todo!(),
+//             Self::Not => todo!(),
+//             Self::Neg => todo!(),
+
+//             Self::Stop => todo!(),
+//             Self::Ret => todo!(),
+
+//             Self::Call(params) => todo!(),
+
+//             Self::PopSlots { start, len } => todo!(),
+//         }
+//     }
+// }
 #[derive(Debug, Clone, Default)]
 #[repr(u8)]
 pub enum Value {
@@ -72,18 +111,36 @@ impl fmt::Display for Value {
 pub struct Function {
     pub address: usize,
     pub local_count: usize,
-    pub param_count: usize,
+    pub param_count: u8,
 }
-
-pub type FuncPtr = fn(ctx: &mut StackVM, args: Vec<(Value, usize)>) -> Value;
+impl From<Function> for Value {
+    fn from(value: Function) -> Self {
+        Self::Function(Arc::new(value))
+    }
+}
+pub type FuncPtr = fn(ctx: &mut StackVM, args: &[(Value, usize)]) -> Value;
 #[derive(Debug, Clone)]
 pub struct NativeFunction {
     pub func: FuncPtr,
-    pub param_count: i16,
+    pub param_count: u8,
 }
 impl NativeFunction {
-    pub fn new(func: FuncPtr, param_count: i16) -> Self {
+    pub const VARIADIC_VALUE: u8 = u8::MAX;
+    pub fn new(func: FuncPtr, param_count: u8) -> Self {
         Self { func, param_count }
+    }
+    pub fn new_variadic(func: FuncPtr) -> Self {
+        Self {
+            func,
+            param_count: Self::VARIADIC_VALUE,
+        }
+    }
+    ///Determines if a given parameter length is the accepted parameter count
+    pub fn is_arglen_valid(&self, arg_len: u8) -> bool {
+        return self.is_variadic() || arg_len == self.param_count;
+    }
+    pub fn is_variadic(&self) -> bool {
+        return self.param_count == Self::VARIADIC_VALUE;
     }
 }
 impl From<NativeFunction> for Value {

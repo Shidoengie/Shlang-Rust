@@ -1,6 +1,12 @@
 use crate::{
-    backend::vm::{self, StackVM},
-    frontend::{Compiler, ir::instructions::Value},
+    backend::{
+        Runtime,
+        vm::{self, StackVM},
+    },
+    frontend::{
+        Compiler,
+        ir::instructions::{Function, OpCode, Value},
+    },
     test_func,
 };
 
@@ -75,3 +81,37 @@ test_func!(
         "Chained NullCoalescing" => "null ?? null ?? 20"
     }
 );
+#[test]
+fn test_vm_func() {
+    StackVM::new(
+        vec![
+            OpCode::Goto(10),
+            OpCode::LoadLocal(0),
+            OpCode::Push(Value::Int(2)),
+            OpCode::Mult,
+            OpCode::LoadGlobal(0),
+            OpCode::Call(1),
+            OpCode::LoadLocal(0),
+            OpCode::Push(Value::Int(2)),
+            OpCode::Mult,
+            OpCode::Ret,
+            OpCode::Push(
+                Function {
+                    address: 1,
+                    local_count: 2,
+                    param_count: 1,
+                }
+                .into(),
+            ),
+            OpCode::StoreGlobal(1),
+            OpCode::Push(Value::Int(1)),
+            OpCode::LoadGlobal(1),
+            OpCode::Call(1),
+            OpCode::StoreGlobal(2),
+        ],
+        100,
+        100,
+    )
+    .exec()
+    .unwrap();
+}

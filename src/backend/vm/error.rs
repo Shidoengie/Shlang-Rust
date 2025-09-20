@@ -17,6 +17,7 @@ pub enum ErrCode {
     MixedTypes { first: Type, last: Type },
     UnsupportedOperation { op: String, target: Type },
     InvalidStackIndex(usize),
+    InvalidArgs { expected: u8, got: u8 },
 }
 impl LangError for Spanned<ErrCode> {
     fn msg(&self) -> ariadne::Report<Span> {
@@ -50,6 +51,19 @@ impl LangError for Spanned<ErrCode> {
             ErrCode::Unspecified(unspec) => {
                 MsgBuilder::build_unspecified_err(unspec.to_string(), self.span)
             }
+            ErrCode::InvalidArgs { expected, got } => {
+                MsgBuilder::build_err("Invalid argument size", self.span)
+                    .with_err_label(format!(
+                        "This function expected {expected} {arg_msg1}, but {got} {arg_msg2}.",
+                        arg_msg1 = if *expected == 1u8 {
+                            "argument"
+                        } else {
+                            "arguments"
+                        },
+                        arg_msg2 = if *got == 1u8 { "argument" } else { "arguments" },
+                    ))
+                    .finish()
+            }
             ErrCode::InvalidStackIndex(idx) => {
                 MsgBuilder::build_err(format!("Invalid stack index {idx}"), self.span)
                     .with_err_label("This points to an invalid address.".to_string())
@@ -60,10 +74,7 @@ impl LangError for Spanned<ErrCode> {
 }
 impl ErrCode {
     pub fn into_vmerr(self, index: usize) -> VmErr {
-        VmErr {
-            index,
-            code: self,
-        }
+        VmErr { index, code: self }
     }
 }
 /// This enum is used for type errors, as to ease constructing such errors.

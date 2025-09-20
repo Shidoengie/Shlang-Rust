@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Formatter};
+
 #[macro_export]
 macro_rules! catch {
     ($name:ident $fail:block in $val:expr) => {
@@ -65,4 +67,15 @@ macro_rules! test_func {
         }
         )*
     };
+}
+
+pub fn compact_iter_debug<T: Iterator>(fmt: &mut Formatter, iter: T) -> std::fmt::Result
+where
+    T::Item: Debug,
+{
+    writeln!(fmt, "[")?;
+    for i in iter {
+        writeln!(fmt, "    {i:?},")?;
+    }
+    write!(fmt, "]")
 }

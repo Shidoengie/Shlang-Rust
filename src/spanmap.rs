@@ -1,74 +1,55 @@
-use std::{cmp::Ordering, ops::Index};
+use std::{fmt::Debug, ops::Index};
 
-use crate::spans::Span;
+use crate::spans::{IntoSpanned, Span, Spanned};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct SpanMap {
     /// The map is a vector of `((start, stop), Span)`.
-    /// **Invariant**: To enable binary search, this vector must be kept
-    /// sorted by `start` index, and its ranges must not overlap.
-    map: Vec<((usize, usize), Span)>,
+    /// **NO Invariants**:  Ranges can overlap and the vector is unsorted.
+    map: Vec<Spanned<(usize, usize)>>,
 }
-
+impl Debug for SpanMap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "SpanMap {{")?;
+        for entry in self.map.iter() {
+            let Spanned { item, span } = entry;
+            writeln!(
+                f,
+                "    {start_index}..{stop_index} = Span[{start_range},{end_range}],",
+                start_index = item.0,
+                stop_index = item.1,
+                start_range = span.start,
+                end_range = span.end
+            )?;
+        }
+        write!(f, "}}")?;
+        Ok(())
+    }
+}
 impl SpanMap {
     /// Creates a new empty span maps
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new span, ensuring it maintains the sorted, non-overlapping invariant.
+    /// Adds a new span.  No checks are performed.
     /// Ranges are half-open: `[start, stop)`.
-    pub fn push(&mut self, start: usize, stop: usize, span: Span) -> Result<(), ()> {
-        let is_invalid_range = start >= stop;
-
-        if is_invalid_range {
-            return Err(());
-        }
-
-        if let Some(((_last_start, last_stop), _)) = self.map.last() {
-            // This check maintains both sorted order and prevents overlaps.
-            let violates_invariant = start < *last_stop;
-            if violates_invariant {
-                return Err(());
-            }
-        }
-
-        self.map.push(((start, stop), span));
-        Ok(())
-    }
-
-    /// Adds a new span without any checks. This is faster but can break invariants.
-    /// **Use only if you can guarantee ranges are sorted and non-overlapping.**
-    pub fn push_unchecked(&mut self, start: usize, stop: usize, span: Span) {
-        self.map.push(((start, stop), span));
+    pub fn push(&mut self, start: usize, stop: usize, span: Span) {
+        self.map.push((start, stop).to_spanned(span));
     }
 
     /// Checks if the given range `[start, stop)` overlaps with any existing span.
     pub fn has_op_range(&self, start: usize, stop: usize) -> bool {
-        let is_empty_or_invalid = self.map.is_empty() || start >= stop;
-        if is_empty_or_invalid {
-            return false;
+        if start >= stop {
+            return false; // Invalid range, no overlap possible
         }
 
-        let first_possible_idx = match self.map.binary_search_by_key(&start, |((s, _), _)| *s) {
-            Ok(idx) => idx,
-            Err(idx) => idx,
-        };
-
-        // An overlap is only possible with the range immediately preceding the
-        // search result or the one at the result index itself.
-        if let Some(prev_idx) = first_possible_idx.checked_sub(1) {
-            if let Some(((r_start, r_stop), _)) = self.map.get(prev_idx) {
-                let has_overlap = *r_start < stop && start < *r_stop;
-                if has_overlap {
-                    return true;
-                }
-            }
-        }
-
-        if let Some(((r_start, r_stop), _)) = self.map.get(first_possible_idx) {
-            let has_overlap = *r_start < stop && start < *r_stop;
-            if has_overlap {
+        for Spanned {
+            item: (r_start, r_stop),
+            span: _,
+        } in &self.map
+        {
+            if *r_start < stop && start < *r_stop {
                 return true;
             }
         }
@@ -76,20 +57,37 @@ impl SpanMap {
         false
     }
 
-    /// Gets a reference to the span containing a given `op_index` using binary search.
+    /// Gets a reference to the span containing a given `op_index`. Returns the most specific match (smallest range containing index).
     /// Ranges are treated as half-open: `[start, stop)`.
     pub fn get(&self, op_index: usize) -> Option<&Span> {
-        let search_result = self.map.binary_search_by(|((start, stop), _span)| {
-            if op_index < *start {
-                Ordering::Greater
-            } else if op_index >= *stop {
-                Ordering::Less
-            } else {
-                Ordering::Equal
-            }
-        });
+        let mut best_span: Option<&Span> = None;
+        let mut best_len: Option<usize> = None;
 
-        search_result.ok().map(|index| &self.map[index].1)
+        for Spanned {
+            item: (start, stop),
+            span,
+        } in &self.map
+        {
+            if op_index >= *start && op_index < *stop {
+                let len = stop - start;
+
+                match best_len {
+                    Some(best_length) => {
+                        if len < best_length {
+                            best_span = Some(span);
+                            best_len = Some(len);
+                        }
+                    }
+                    None => {
+                        // If no best span exists, this is the first match, so it's the best for now
+                        best_span = Some(span);
+                        best_len = Some(len);
+                    }
+                }
+            }
+        }
+
+        best_span
     }
 }
 

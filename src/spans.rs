@@ -1,4 +1,7 @@
-use std::{fmt::Debug, ops::Add};
+use std::{
+    fmt::Debug,
+    ops::{Add, Deref},
+};
 
 pub trait SpanUtil {
     fn get_span(&self) -> Span;
@@ -22,6 +25,20 @@ impl<T> Spanned<T> {
             item,
             span: self.span,
         }
+    }
+}
+
+impl<T: IntoIterator> IntoIterator for Spanned<T> {
+    type IntoIter = T::IntoIter;
+    type Item = T::Item;
+    fn into_iter(self) -> Self::IntoIter {
+        self.item.into_iter()
+    }
+}
+impl<T> Deref for Spanned<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        return &self.item;
     }
 }
 impl<T: Debug> Debug for Spanned<T> {

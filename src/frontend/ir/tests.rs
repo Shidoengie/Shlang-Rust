@@ -13,5 +13,6 @@ test_func!(
         "Boolean operators" => "true || (false && true)"
         "Unary operators" => "-1 != !true"
         "Branches" => "if true {1+2;3+4;} else {2+4;}"
+        "Functions" => "func hello(a) {print(a);}"
     }
 );

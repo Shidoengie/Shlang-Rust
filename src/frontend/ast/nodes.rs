@@ -20,13 +20,6 @@ pub enum Precedence {
     Member,      // my_obj.field
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct FuncDef {
-    pub block: NodeStream,
-    pub args: Vec<String>,
-    pub captures: bool,
-}
-
 #[derive(Clone, PartialEq)]
 pub enum Node {
     Null,
@@ -36,25 +29,25 @@ pub enum Node {
     Int(i64),
     BinaryNode(BinaryNode),
     UnaryNode(UnaryNode),
-    ResultNode(NodeRef),
-    ReturnNode(NodeRef),
+    Result(NodeRef),
+    Return(NodeRef),
     BreakNode,
     ContinueNode,
-    VarDecl(VarDecl),
+    Declaration(Declaration),
     Assignment { target: NodeRef, value: NodeRef },
     Variable(String),
     Index { target: NodeRef, index: NodeRef },
-    FuncDef(FuncDef),
+    FunctionLit(FunctionLit),
     ListLit(Vec<NodeSpan>),
     Call(Call),
 
     Branch(Branch),
-    Loop(NodeStream),
+    Loop(Block),
     While(While),
     ForLoop(ForLoop),
-    DoBlock(NodeStream),
+    DoBlock(Block),
     Constructor(Constructor),
-    StructDef(HashMap<String, NodeSpan>),
+    StructLit(HashMap<String, NodeSpan>),
     RecordLit(HashMap<String, NodeSpan>),
     FieldAccess(FieldAccess),
     DontResult,
@@ -69,15 +62,15 @@ impl Node {
             Node::Int(_) => "Int",
             Node::BinaryNode(_) => "BinaryNode",
             Node::UnaryNode(_) => "UnaryNode",
-            Node::ResultNode(_) => "ResultNode",
-            Node::ReturnNode(_) => "ReturnNode",
+            Node::Result(_) => "ResultNode",
+            Node::Return(_) => "ReturnNode",
             Node::BreakNode => "BreakNode",
             Node::ContinueNode => "ContinueNode",
-            Node::VarDecl(_) => "VarDecl",
+            Node::Declaration(_) => "VarDecl",
             Node::Assignment { .. } => "Assignment",
             Node::Variable(_) => "Variable",
             Node::Index { .. } => "Index",
-            Node::FuncDef(_) => "FuncDef",
+            Node::FunctionLit(_) => "FuncDef",
             Node::ListLit(_) => "ListLit",
             Node::Call(_) => "Call",
             Node::Branch(_) => "Branch",
@@ -86,7 +79,7 @@ impl Node {
             Node::ForLoop(_) => "ForLoop",
             Node::DoBlock(_) => "DoBlock",
             Node::Constructor(_) => "Constructor",
-            Node::StructDef(_) => "StructDef",
+            Node::StructLit(_) => "StructDef",
             Node::RecordLit(_) => "RecordLit",
             Node::FieldAccess(_) => "FieldAccess",
             Node::DontResult => "DontResult",
@@ -95,12 +88,12 @@ impl Node {
     pub fn can_result(&self) -> bool {
         !matches!(
             self.clone(),
-            Self::VarDecl(_)
+            Self::Declaration(_)
                 | Self::Assignment {
                     target: _,
                     value: _
                 }
-                | Self::ReturnNode(_)
+                | Self::Return(_)
                 | Self::BreakNode
                 | Self::ContinueNode
         )
@@ -124,7 +117,7 @@ impl Debug for Node {
             Node::Null => f.write_str("Null"),
             Node::BreakNode => f.write_str("Break"),
             Node::ContinueNode => f.write_str("Continue"),
-            Node::VarDecl(decl) => {
+            Node::Declaration(decl) => {
                 if decl.readonly {
                     write!(f, "LetDecl")?;
                 } else {
@@ -143,19 +136,19 @@ impl Debug for Node {
             }
             Node::DoBlock(block) => {
                 write!(f, "Do")?;
-                f.debug_set().entries(block).finish()
+                f.debug_set().entries(&block.item).finish()
             }
             Node::Loop(block) => {
                 write!(f, "Loop")?;
-                f.debug_set().entries(block).finish()
+                f.debug_set().entries(&block.item).finish()
             }
 
-            Node::ReturnNode(ret) => f.debug_tuple("Return").field(&ret.item).finish(),
-            Node::ResultNode(ret) => f.debug_tuple("Result").field(&ret.item).finish(),
+            Node::Return(ret) => f.debug_tuple("Return").field(&ret.item).finish(),
+            Node::Result(ret) => f.debug_tuple("Result").field(&ret.item).finish(),
             Node::BinaryNode(bin) => write!(f, "{bin:#?}"),
             Node::UnaryNode(node) => write!(f, "{node:#?}"),
             Node::Constructor(node) => write!(f, "{node:#?}"),
-            Node::StructDef(node) => write!(f, "{node:#?}"),
+            Node::StructLit(node) => write!(f, "{node:#?}"),
             Node::Branch(node) => write!(f, "{node:#?}"),
             Node::ForLoop(node) => write!(f, "{node:#?}"),
             Node::Assignment { target, value } => write!(f, "Assign({target:#?} = {value:#?})"),
@@ -165,7 +158,7 @@ impl Debug for Node {
 
             Node::DontResult => f.write_str("DontResult"),
 
-            Node::FuncDef(func) => {
+            Node::FunctionLit(func) => {
                 if func.captures {
                     write!(f, "Closure(")?;
                 } else {
@@ -180,7 +173,7 @@ impl Debug for Node {
                 }
                 write!(f, ")")?;
 
-                f.debug_set().entries(&func.block).finish()
+                f.debug_set().entries(&func.block.item).finish()
             }
         }
     }
@@ -190,14 +183,14 @@ pub type NodeRef = Spanned<Box<Node>>;
 impl NodeSpan {
     pub fn wrap_in_result(self) -> Self {
         let span = self.span;
-        Node::ResultNode(self.box_item()).to_spanned(span)
+        Node::Result(self.box_item()).to_spanned(span)
     }
 }
 pub trait IntoNodespan {
     fn to_nodespan(self, span: Span) -> NodeSpan;
 }
 
-pub type NodeStream = Vec<Spanned<Node>>;
+pub type Block = Spanned<Vec<Spanned<Node>>>;
 
 macro_rules! nodes_from {
     ($($name:ident)*) => {
@@ -216,7 +209,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { VarDecl FuncDef UnaryNode Constructor  FieldAccess BinaryNode Call Branch While ForLoop}
+nodes_from! { Declaration FunctionLit UnaryNode Constructor  FieldAccess BinaryNode Call Branch While ForLoop}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum BinaryOp {
@@ -264,7 +257,7 @@ pub struct UnaryNode {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Call {
     pub callee: NodeRef,
-    pub args: NodeStream,
+    pub args: Vec<NodeSpan>,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct FieldAccess {
@@ -277,7 +270,8 @@ pub enum AccessType {
     Method {
         callee: String,
         callee_span: Span,
-        args: NodeStream,
+        args: Vec<NodeSpan>,
+        arg_span: Span,
     },
 }
 
@@ -290,18 +284,18 @@ pub struct Constructor {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Branch {
     pub condition: NodeRef,
-    pub if_block: NodeStream,
-    pub else_block: Option<NodeStream>,
+    pub if_block: Block,
+    pub else_block: Option<Block>,
 }
 impl Branch {
-    pub fn new_single(condition: NodeSpan, block: NodeStream) -> Self {
+    pub fn new_single(condition: NodeSpan, block: Block) -> Self {
         Self {
             condition: condition.box_item(),
             if_block: block,
             else_block: None,
         }
     }
-    pub fn new(condition: NodeSpan, if_block: NodeStream, else_block: NodeStream) -> Self {
+    pub fn new(condition: NodeSpan, if_block: Block, else_block: Block) -> Self {
         Self {
             condition: condition.box_item(),
             if_block,
@@ -313,22 +307,30 @@ impl Branch {
 #[derive(Clone, Debug, PartialEq)]
 pub struct While {
     pub condition: NodeRef,
-    pub proc: NodeStream,
+    pub proc: Block,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct ForLoop {
     pub ident: String,
     pub list: NodeRef,
-    pub proc: NodeStream,
+    pub proc: Block,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct VarDecl {
+pub struct Declaration {
     pub name: String,
     pub expr: NodeRef,
     pub readonly: bool,
 }
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct FunctionLit {
+    pub block: Block,
+    pub args: Vec<String>,
+    pub captures: bool,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
-    Decl(VarDecl),
+    Decl(Declaration),
 }

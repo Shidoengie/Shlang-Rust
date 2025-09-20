@@ -3,7 +3,6 @@ use std::{
     sync::Arc,
 };
 
-
 use crate::frontend::ir::instructions::{Function, Value};
 
 pub struct Frame {
@@ -29,6 +28,9 @@ impl Frame {
     }
     pub fn set(&mut self, index: usize, value: Value) {
         self[index] = value;
+    }
+    pub fn set_values(&mut self, list: &[Value]) {
+        self.locals[..list.len()].clone_from_slice(list);
     }
 }
 impl Index<usize> for Frame {

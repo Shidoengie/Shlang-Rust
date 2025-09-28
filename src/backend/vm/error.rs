@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use crate::{
-    frontend::ir::instructions::Value,
+    backend::instructions::Value,
     lang_errors::{LangError, MsgBuilder},
     spanmap::SpanMap,
     spans::{IntoSpanned, Span, Spanned},

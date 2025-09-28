@@ -1,17 +1,19 @@
 func main(){
-    for i in range(1,100){
+    var i = 0;
+    while i < 100 {
+        i += 1;
         var buffer = "";
-        if i % 3 == 0{
+        if i % 3 == 0 {
             buffer += "Fizz";
         }
         if i % 5 == 0{
             buffer += "Buzz";
         }
-        if buffer.len() == 0 {
-            println(i);
+        if buffer == "" {
+            print(i);
         } else {
-            println(buffer);
-        }
+            print(buffer);
+        };
     }
+    return;
 }
-main()

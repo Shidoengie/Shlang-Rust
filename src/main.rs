@@ -1,7 +1,7 @@
 use clap::{Parser, ValueEnum};
 use shlang::backend::Runtime;
 use shlang::frontend::Compiler;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::fs;
 use std::io::{self, Write};
 
@@ -12,9 +12,11 @@ struct Args {
     content: Option<String>,
 
     /// Treat `content` as a code string instead of a filepath.
-    #[arg(short, long, default_value_t = false, alias = "input")]
+    #[arg(short = 'i', long = "input", default_value_t = false)]
     is_code: bool,
-
+    /// Determines if the input will be run as just an expression or a full fledged program.
+    #[arg(short = 'e', long = "expr", default_value_t = false)]
+    is_expr: bool,
     /// If specified, print the output of a compiler stage instead of executing.
     #[arg(short, long, value_enum)]
     stage: Option<Stage>,
@@ -26,6 +28,7 @@ enum Stage {
     Ast,
     Nameres,
     Codegen,
+    Bytecode,
 }
 
 /// If the result is Ok, pretty-prints the value. On Err, does nothing.
@@ -34,7 +37,12 @@ fn print_if_ok<T: Debug, E>(result: Result<T, E>) {
         println!("{value:#?}");
     }
 }
-
+/// If the result is Ok, pretty-prints the value. On Err, does nothing.
+fn display_if_ok<T: Display, E>(result: Result<T, E>) {
+    if let Ok(value) = result {
+        println!("{value}");
+    }
+}
 /// Runs a specific compiler stage on the given content.
 /// `is_expr` should be true for REPL-like single expressions.
 fn run_stage(compiler: &mut Compiler, stage: &Stage, content: &str, is_expr: bool) {
@@ -44,8 +52,20 @@ fn run_stage(compiler: &mut Compiler, stage: &Stage, content: &str, is_expr: boo
         Stage::Ast => print_if_ok(compiler.parse(content)),
         Stage::Nameres if is_expr => print_if_ok(compiler.resolve_expr(content)),
         Stage::Nameres => print_if_ok(compiler.resolve(content)),
-        Stage::Codegen if is_expr => print_if_ok(compiler.compile_expr(content)),
-        Stage::Codegen => print_if_ok(compiler.compile(content)),
+        Stage::Codegen if is_expr => display_if_ok(compiler.compile_expr(content)),
+        Stage::Codegen => display_if_ok(compiler.compile(content)),
+        Stage::Bytecode if is_expr => {
+            let mut runtime = Runtime::make(compiler.get_filestore().clone(), false);
+            let bytecode = runtime.assemble_expr(content);
+            compiler.file_store = runtime.get_filestore();
+            display_if_ok(bytecode);
+        }
+        Stage::Bytecode => {
+            let mut runtime = Runtime::make(compiler.get_filestore().clone(), false);
+            let bytecode = runtime.assemble(content);
+            compiler.file_store = runtime.get_filestore();
+            display_if_ok(bytecode);
+        }
     }
 }
 
@@ -81,10 +101,13 @@ fn run_once(args: &Args, compiler: &mut Compiler, content: String) {
     match code {
         Ok(code) => {
             if let Some(stage) = &args.stage {
-                run_stage(compiler, stage, &code, false);
+                run_stage(compiler, stage, &code, args.is_expr);
             } else {
-                // Execute the code; errors are printed by the runtime.
-                let _ = Runtime::new().execute(&code);
+                if args.is_expr {
+                    let _ = Runtime::new().execute_expr(&code);
+                } else {
+                    let _ = Runtime::new().execute(&code);
+                }
             }
         }
         Err(e) => {

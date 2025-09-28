@@ -4,7 +4,7 @@ description: ir_expr
 expression: "test_ir (\"-1 != !true\")"
 ---
 Ok(
-    Bytecode {
+    Ir {
         span_map: SpanMap {
             0..1 = Span[1,2],
             0..2 = Span[1,2],

@@ -468,22 +468,9 @@ pub struct ResolvedAst {
     pub pool: NodePool,
     pub global_count: usize,
     pub local_count: usize,
+    pub entry_point: Option<usize>,
 }
-impl ResolvedAst {
-    pub fn new(
-        proc: Vec<Spanned<Item>>,
-        pool: NodePool,
-        global_count: usize,
-        local_count: usize,
-    ) -> Self {
-        Self {
-            proc,
-            pool,
-            global_count,
-            local_count,
-        }
-    }
-}
+
 impl Debug for ResolvedAst {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Ast(")?;

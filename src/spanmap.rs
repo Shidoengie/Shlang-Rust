@@ -10,7 +10,10 @@ pub struct SpanMap {
 }
 impl Debug for SpanMap {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "SpanMap {{")?;
+        write!(f, "SpanMap {{")?;
+        if !self.map.is_empty() {
+            writeln!(f)?;
+        }
         for entry in self.map.iter() {
             let Spanned { item, span } = entry;
             writeln!(

@@ -4,24 +4,26 @@ description: ir_expr
 expression: "test_ir (\"func hello(a) {print(a);}\")"
 ---
 Ok(
-    Bytecode {
+    Ir {
         span_map: SpanMap {
             0..1 = Span[21,22],
             0..1 = Span[21,23],
             1..2 = Span[15,20],
             0..3 = Span[21,23],
             0..3 = Span[14,25],
-            4..5 = Span[5,15],
-            0..5 = Span[5,15],
-            0..6 = Span[5,15],
+            6..7 = Span[5,15],
+            1..7 = Span[5,15],
+            0..8 = Span[5,15],
         },
         global_count: 1,
     } = [
-        Goto(3),
+        Label("func_start@0"),
+        Goto("func_end@1"),
         LoadLocal(0),
         LoadGlobal(0),
         Call(1),
-        Push(Function(Function { address: 1, local_count: 2, param_count: 1 })),
+        Label("func_end@1"),
+        Push(Function(Function { address: "func_start@0", local_count: 2, param_count: 1 })),
         StoreLocal(1),
     ],
 )

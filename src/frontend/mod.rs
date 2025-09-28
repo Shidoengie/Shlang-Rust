@@ -1,5 +1,3 @@
-
-
 use crate::{
     filestore::FileStore,
     frontend::{
@@ -7,7 +5,7 @@ use crate::{
             nodes::{Item, Node},
             parser::Parser,
         },
-        ir::codegen::{Bytecode, IRgen},
+        ir::codegen::{IRgen, Ir},
         lexemes::{
             lexer::Lexer,
             tokens::{Token, TokenEq, TokenType},
@@ -28,12 +26,15 @@ pub mod nameres;
 
 #[derive(Debug, Default)]
 pub struct Compiler {
-    file_store: FileStore,
+    pub file_store: FileStore,
     silent: bool,
 }
 impl Compiler {
-    pub fn get_filestore(self) -> FileStore {
+    pub fn take_filestore(self) -> FileStore {
         self.file_store
+    }
+    pub fn get_filestore(&self) -> &FileStore {
+        &self.file_store
     }
     pub fn make(file_store: FileStore, silent: bool) -> Self {
         Self { file_store, silent }
@@ -115,7 +116,7 @@ impl Compiler {
         self.file_store = nameres.file_store;
         Ok(resolved)
     }
-    pub fn compile(&mut self, input: &str) -> Result<Bytecode, Box<dyn LangError>> {
+    pub fn compile(&mut self, input: &str) -> Result<Ir, Box<dyn LangError>> {
         let resolved = self.resolve(input)?;
         IRgen::generate(resolved)
             .inspect_err(|err| {
@@ -125,7 +126,7 @@ impl Compiler {
             })
             .map_err(|err| Box::new(err) as Box<dyn LangError>)
     }
-    pub fn compile_expr(&mut self, input: &str) -> Result<Bytecode, Box<dyn LangError>> {
+    pub fn compile_expr(&mut self, input: &str) -> Result<Ir, Box<dyn LangError>> {
         let resolved = self.resolve_expr(input)?;
         IRgen::generate_expr(resolved)
             .inspect_err(|err| {

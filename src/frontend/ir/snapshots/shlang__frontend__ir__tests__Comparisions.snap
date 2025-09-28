@@ -4,7 +4,7 @@ description: ir_expr
 expression: "test_ir (\"1 != (2 > (3 >= ( 4 < ( 5 <= (6 == (8 ?? 9) ) ) ) ) )\")"
 ---
 Ok(
-    Bytecode {
+    Ir {
         span_map: SpanMap {
             0..1 = Span[0,1],
             1..2 = Span[6,7],

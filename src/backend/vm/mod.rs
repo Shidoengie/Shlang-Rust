@@ -6,11 +6,11 @@ mod tests;
 use std::{mem, sync::Arc};
 
 use crate::{
+    backend::instructions::*,
     backend::vm::{
         error::{ErrCode, Type, VmErr},
         frame::Frame,
     },
-    frontend::ir::instructions::*,
 };
 
 macro_rules! impl_binary_op {
@@ -65,7 +65,7 @@ macro_rules! impl_logical_op {
         Ok(())
     }};
 }
-
+#[derive(Debug)]
 pub struct StackVM {
     /// Instruction pointer
     ip: usize,
@@ -97,7 +97,7 @@ impl StackVM {
                 println!();
                 return Value::Null;
             }
-            for (value, _) in args {
+            for (value) in args {
                 print!("{} ", value);
             }
             println!();
@@ -127,14 +127,6 @@ impl StackVM {
     fn stop(&mut self) {
         self.is_finished = true;
     }
-    fn offset_ip(&mut self, ammount: i32) -> Result {
-        let new_ip = self.ip as i32 + ammount;
-        if new_ip.is_negative() {
-            return Err(ErrCode::InvalidOffset.into_vmerr(self.ip));
-        }
-        self.ip = new_ip as usize;
-        Ok(())
-    }
     fn inc_ip(&mut self) {
         self.ip += 1
     }
@@ -163,10 +155,41 @@ impl StackVM {
         self.inc_ip();
         Ok(())
     }
+    fn peek(&self) -> Option<&Value> {
+        self.values.last().map(|(v, _)| (v))
+    }
+
+    fn peek_raw(&self) -> Option<&(Value, usize)> {
+        self.values.last()
+    }
+    fn type_error<T>(&self, expected: Type, got: Value) -> Result<T> {
+        return Err(ErrCode::InvalidType {
+            expected,
+            got: got.into(),
+        }
+        .into_vmerr(self.ip));
+    }
     fn exec_op(&mut self, op: OpCode) -> Result<()> {
         match op {
             OpCode::NoOp => {
                 self.inc_ip();
+                Ok(())
+            }
+            OpCode::NotBranch(position) => {
+                let (val, ip) = self.pop_raw()?;
+                let Value::Bool(b) = val else {
+                    return Err(ErrCode::InvalidType {
+                        expected: Type::Bool,
+                        got: val.into(),
+                    }
+                    .into_vmerr(ip));
+                };
+                // Branch if the condition is TRUE
+                if b {
+                    self.ip = position
+                } else {
+                    self.inc_ip();
+                }
                 Ok(())
             }
             OpCode::Add => self.exec_add(),
@@ -176,6 +199,7 @@ impl StackVM {
             OpCode::Mod => self.exec_mod(),
             OpCode::Greater => self.exec_greater(),
             OpCode::Lesser => self.exec_lesser(),
+
             OpCode::GreaterEq => self.exec_greater_eq(),
             OpCode::LesserEq => self.exec_lesser_eq(),
             OpCode::And => self.exec_and(),
@@ -221,8 +245,11 @@ impl StackVM {
                 self.inc_ip();
                 Ok(())
             }
-            OpCode::Goto(offset) => self.offset_ip(offset),
-            OpCode::Branch(offset) => {
+            OpCode::Goto(position) => {
+                self.ip = position;
+                Ok(())
+            }
+            OpCode::Branch(position) => {
                 let (val, ip) = self.pop_raw()?;
                 let Value::Bool(b) = val else {
                     return Err(ErrCode::InvalidType {
@@ -233,7 +260,7 @@ impl StackVM {
                 };
                 // Branch if the condition is FALSE
                 if !b {
-                    self.offset_ip(offset)?
+                    self.ip = position
                 } else {
                     self.inc_ip();
                 }
@@ -248,14 +275,24 @@ impl StackVM {
         Ok(value)
     }
     fn pop_raw(&mut self) -> Result<(Value, usize)> {
+        //dbg!(&self.values);
         self.values
             .pop()
             .ok_or(ErrCode::EmptyStack.into_vmerr(self.ip))
+            .inspect_err(|_| {
+                dbg!(&self.ip, &self.values);
+            })
     }
     fn push(&mut self, value: Value) {
         self.values.push((value, self.ip));
     }
-    fn pop_chunk(&mut self, len: usize) -> Vec<(Value, usize)> {
+    fn pop_chunk(&mut self, len: usize) -> Vec<Value> {
+        self.values
+            .drain(self.values.len() - len as usize..)
+            .map(|(value, _)| value)
+            .collect()
+    }
+    fn pop_chunk_raw(&mut self, len: usize) -> Vec<(Value, usize)> {
         self.values
             .drain(self.values.len() - len as usize..)
             .collect()
@@ -424,7 +461,7 @@ impl StackVM {
         return Ok(());
     }
     fn exec_func_call(&mut self, func: Arc<Function>, arg_len: u8) -> Result {
-        dbg!(self.ip, &self.values);
+        //dbg!(self.ip, &self.values);
         if arg_len != func.param_count {
             return Err(ErrCode::InvalidArgs {
                 expected: arg_len,
@@ -435,15 +472,13 @@ impl StackVM {
         let args = if func.param_count == 0 {
             vec![]
         } else {
-            self.values
-                .drain(self.values.len() - arg_len as usize..)
-                .map(|(value, _)| value)
-                .collect()
+            self.pop_chunk(arg_len as usize)
         };
         let mut frame = Frame::new(func.clone(), self.ip);
         frame.set_values(&args);
-        self.ip = frame.func.address;
+        let func_address = frame.func.address;
         self.call_stack.push(frame);
+        self.ip = func_address;
         Ok(())
     }
     fn exec_ret(&mut self) -> Result {
@@ -452,8 +487,8 @@ impl StackVM {
             self.stop();
             return Ok(());
         };
-        self.ip = frame.ret_address + 1;
         self.push(value);
+        self.ip = frame.ret_address + 1;
         Ok(())
     }
     fn exec_call(&mut self, arg_len: u8) -> Result {
@@ -469,7 +504,7 @@ impl StackVM {
                 .into_vmerr(self.ip));
             }
         };
-        self.inc_ip();
+
         Ok(())
     }
 }

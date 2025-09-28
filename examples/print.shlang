@@ -1,8 +1,6 @@
-var main = do {
-    var a = 10;
-    print(1+a);
+
+func main() {
+    print("hello world!");
+        return;
 }
-var main2 = do {
-    var a = 10;
-    print(1+a);
-}
+ 

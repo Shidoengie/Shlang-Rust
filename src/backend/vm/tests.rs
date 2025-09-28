@@ -1,17 +1,15 @@
 use crate::{
     backend::{
         Runtime,
+        instructions::*,
         vm::{self, StackVM},
     },
-    frontend::{
-        Compiler,
-        ir::instructions::{Function, OpCode, Value},
-    },
+    frontend::Compiler,
     test_func,
 };
 
 pub fn run_expr(input: &str) -> vm::Result<Vec<(Value, usize)>> {
-    let bytecode = Compiler::default().compile_expr(input).unwrap();
+    let bytecode = Runtime::default().assemble_expr(input).unwrap();
     let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
     vm.exec()?;
     Ok(vm.values)
@@ -81,37 +79,3 @@ test_func!(
         "Chained NullCoalescing" => "null ?? null ?? 20"
     }
 );
-#[test]
-fn test_vm_func() {
-    StackVM::new(
-        vec![
-            OpCode::Goto(10),
-            OpCode::LoadLocal(0),
-            OpCode::Push(Value::Int(2)),
-            OpCode::Mult,
-            OpCode::LoadGlobal(0),
-            OpCode::Call(1),
-            OpCode::LoadLocal(0),
-            OpCode::Push(Value::Int(2)),
-            OpCode::Mult,
-            OpCode::Ret,
-            OpCode::Push(
-                Function {
-                    address: 1,
-                    local_count: 2,
-                    param_count: 1,
-                }
-                .into(),
-            ),
-            OpCode::StoreGlobal(1),
-            OpCode::Push(Value::Int(1)),
-            OpCode::LoadGlobal(1),
-            OpCode::Call(1),
-            OpCode::StoreGlobal(2),
-        ],
-        100,
-        100,
-    )
-    .exec()
-    .unwrap();
-}

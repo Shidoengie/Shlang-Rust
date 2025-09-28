@@ -34,13 +34,14 @@ impl NameRes {
     }
     pub fn resolve(&mut self, ast: DeclStream) -> Result<ResolvedAst> {
         self.add_global("print".to_owned());
-        let decls = self.resolve_toplevel(ast)?;
-        Ok(ResolvedAst::new(
-            decls,
-            self.node_pool.clone(),
-            self.globals.len(),
-            self.max_locals,
-        ))
+        let (decls, entry_point) = self.resolve_toplevel(ast)?;
+        Ok(ResolvedAst {
+            entry_point,
+            proc: decls,
+            pool: self.node_pool.clone(),
+            global_count: self.globals.len(),
+            local_count: self.max_locals,
+        })
     }
     pub fn resolve_expr(&mut self, expr: ast::NodeSpan) -> Result<ResolvedAstNode> {
         self.add_global("print".to_owned());
@@ -64,11 +65,19 @@ impl NameRes {
         self.node_pool.push(node.to_spanned(span));
         Ok(idx)
     }
-    pub fn resolve_toplevel(&mut self, decls: DeclStream) -> Result<Vec<Spanned<Item>>> {
+    pub fn resolve_toplevel(
+        &mut self,
+        decls: DeclStream,
+    ) -> Result<(Vec<Spanned<Item>>, Option<usize>)> {
         self.add_global("print".to_owned());
+        let mut entry_point: Option<usize> = None;
         for val in decls.iter() {
             match &val.item {
                 ast::Item::Decl(decl) => {
+                    let id = self.globals.len();
+                    if decl.name == "main" {
+                        entry_point = Some(id);
+                    }
                     self.add_global(decl.name.to_owned());
                 }
             };
@@ -93,7 +102,7 @@ impl NameRes {
                 }
             };
         }
-        Ok(new_decls)
+        Ok((new_decls, entry_point))
     }
     fn gen_name(&mut self) -> usize {
         let old_count = self.ident_counter;

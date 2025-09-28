@@ -2,7 +2,7 @@ use crate::frontend::*;
 
 use crate::test_func;
 
-fn test_ir(input: &str) -> Result<Bytecode, Box<dyn LangError>> {
+fn test_ir(input: &str) -> Result<Ir, Box<dyn LangError>> {
     Compiler::new().compile_expr(input)
 }
 

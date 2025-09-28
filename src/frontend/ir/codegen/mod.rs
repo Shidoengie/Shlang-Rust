@@ -1,9 +1,10 @@
 mod error;
-use std::{fmt::Debug, sync::Arc};
+use std::fmt::{Debug, Display, Write};
 
+use colored::Colorize;
 pub use error::GenErr;
 
-use super::instructions::{OpCode as Op, *};
+use super::instructions::{IrNode as Op, *};
 
 use crate::{
     frontend::{
@@ -40,20 +41,36 @@ impl From<BinaryOp> for Op {
         }
     }
 }
-pub struct Bytecode {
+pub struct Ir {
     pub ops: Vec<Op>,
     pub span_map: SpanMap,
     pub global_count: usize,
     pub local_count: usize,
 }
-impl Debug for Bytecode {
+impl Debug for Ir {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Bytecode")
+        f.debug_struct("Ir")
             .field("span_map", &self.span_map)
             .field("global_count", &self.global_count)
             .finish()?;
         write!(f, " = ")?;
         compact_iter_debug(f, self.ops.iter())
+    }
+}
+impl Display for Ir {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.ops.is_empty() {
+            write!(f, "0 | ")?;
+            return Ok(());
+        }
+        for (index, op) in self.ops.iter().enumerate() {
+            writeln!(
+                f,
+                "{pos} | {op}",
+                pos = format!("{index:<2}").italic().bright_black()
+            )?;
+        }
+        Ok(())
     }
 }
 /// `IRgen` is responsible for traversing the Resolved AST (`RNode`) and
@@ -62,11 +79,12 @@ impl Debug for Bytecode {
 pub struct IRgen {
     node_pool: NodePool,
     span_map: SpanMap,
+    label_counter: usize,
 }
 
 impl IRgen {
     /// Generates bytecode and a source map for a single expression.
-    pub fn generate_expr(expr: ResolvedAstNode) -> Result<Bytecode> {
+    pub fn generate_expr(expr: ResolvedAstNode) -> Result<Ir> {
         let mut codegen = Self {
             node_pool: expr.pool,
             ..Default::default()
@@ -74,7 +92,7 @@ impl IRgen {
         let mut bytecode = Vec::new();
         codegen.node_gen(expr.node, &mut bytecode)?;
 
-        Ok(Bytecode {
+        Ok(Ir {
             ops: bytecode,
             span_map: codegen.span_map,
             global_count: expr.global_count,
@@ -83,14 +101,18 @@ impl IRgen {
     }
 
     /// Generates bytecode and a source map for a full program.
-    pub fn generate(prog: ResolvedAst) -> Result<Bytecode> {
+    pub fn generate(prog: ResolvedAst) -> Result<Ir> {
         let mut codegen = Self {
             node_pool: prog.pool,
             ..Default::default()
         };
         let mut bytecode = Vec::new();
         codegen.gen_top_level(prog.proc, &mut bytecode)?;
-        Ok(Bytecode {
+        if let Some(entry) = prog.entry_point {
+            bytecode.push(IrNode::LoadGlobal(entry));
+            bytecode.push(Op::Call(0));
+        }
+        Ok(Ir {
             ops: bytecode,
             span_map: codegen.span_map,
             global_count: prog.global_count,
@@ -98,7 +120,7 @@ impl IRgen {
         })
     }
 
-    fn gen_top_level(&mut self, prog: Vec<Spanned<Item>>, bytecode: &mut Vec<OpCode>) -> Result {
+    fn gen_top_level(&mut self, prog: Vec<Spanned<Item>>, bytecode: &mut Vec<IrNode>) -> Result {
         for decl in prog {
             let decl_span = decl.span;
             //This isnt a let else or if let because ResItem will have more variants in the future
@@ -110,23 +132,28 @@ impl IRgen {
         }
         Ok(())
     }
+    fn gen_label_name(&mut self, name: &str) -> String {
+        let name = format!("{name}@{}", self.label_counter);
+        self.label_counter += 1;
+        name
+    }
     /// Helper to generate a `Push` instruction for a literal value.
-    fn push_val(&mut self, val: Value, span: Span, bytecode: &mut Vec<OpCode>) {
+    fn push_val(&mut self, val: IrLiteral, span: Span, bytecode: &mut Vec<IrNode>) {
         self.span_map.push(bytecode.len(), bytecode.len() + 1, span);
         bytecode.push(Op::Push(val));
     }
 
     /// Dispatches bytecode generation to a specific function based on the node's type.
-    fn node_gen(&mut self, node_ref: RNodeRef, bytecode: &mut Vec<OpCode>) -> Result {
+    fn node_gen(&mut self, node_ref: RNodeRef, bytecode: &mut Vec<IrNode>) -> Result {
         let node = self.node_pool[node_ref].clone();
         let span = node.span;
 
         match node.item {
-            RNode::Null => self.push_val(Value::Null, span, bytecode),
-            RNode::Float(num) => self.push_val(Value::Float(num), span, bytecode),
-            RNode::Int(num) => self.push_val(Value::Int(num), span, bytecode),
-            RNode::Bool(cond) => self.push_val(Value::Bool(cond), span, bytecode),
-            RNode::Str(txt) => self.push_val(Value::String(txt), span, bytecode),
+            RNode::Null => self.push_val(IrLiteral::Null, span, bytecode),
+            RNode::Float(num) => self.push_val(IrLiteral::Float(num), span, bytecode),
+            RNode::Int(num) => self.push_val(IrLiteral::Int(num), span, bytecode),
+            RNode::Bool(cond) => self.push_val(IrLiteral::Bool(cond), span, bytecode),
+            RNode::Str(txt) => self.push_val(IrLiteral::String(txt), span, bytecode),
 
             RNode::BinaryNode { left, right, kind } => {
                 self.gen_binary(left, right, kind, span, bytecode)?
@@ -164,7 +191,7 @@ impl IRgen {
         right: RNodeRef,
         kind: BinaryOp,
         span: Span,
-        bytecode: &mut Vec<OpCode>,
+        bytecode: &mut Vec<IrNode>,
     ) -> Result {
         let start = bytecode.len();
         self.node_gen(left, bytecode)?;
@@ -181,7 +208,7 @@ impl IRgen {
         kind: UnaryOp,
         expr: RNodeRef,
         span: Span,
-        bytecode: &mut Vec<OpCode>,
+        bytecode: &mut Vec<IrNode>,
     ) -> Result {
         let start = bytecode.len();
         self.node_gen(expr, bytecode)?;
@@ -195,7 +222,7 @@ impl IRgen {
     }
 
     /// Generates the expression's value, then stores it in a local.
-    fn gen_vardecl(&mut self, decl: Declaration, span: Span, bytecode: &mut Vec<OpCode>) -> Result {
+    fn gen_vardecl(&mut self, decl: Declaration, span: Span, bytecode: &mut Vec<IrNode>) -> Result {
         let start = bytecode.len();
         self.node_gen(decl.expr, bytecode)?;
         if decl.is_global {
@@ -213,7 +240,7 @@ impl IRgen {
         target_ref: RNodeRef,
         value_ref: RNodeRef,
         span: Span,
-        bytecode: &mut Vec<OpCode>,
+        bytecode: &mut Vec<IrNode>,
     ) -> Result {
         let start = bytecode.len();
         match self.node_pool[target_ref].item.clone() {
@@ -238,7 +265,7 @@ impl IRgen {
         id: usize,
         is_global: bool,
         span: Span,
-        bytecode: &mut Vec<OpCode>,
+        bytecode: &mut Vec<IrNode>,
     ) -> Result {
         let start = bytecode.len();
         bytecode.push(if is_global {
@@ -252,7 +279,7 @@ impl IRgen {
     }
 
     /// Generates code for a sequence of statements and returns the number of new locals.
-    fn gen_block(&mut self, block: Block, bytecode: &mut Vec<OpCode>) -> Result {
+    fn gen_block(&mut self, block: Block, bytecode: &mut Vec<IrNode>) -> Result {
         let start_index = bytecode.len();
         let span = block.span;
         for node in block {
@@ -263,38 +290,36 @@ impl IRgen {
         Ok(())
     }
 
-    /// Generates conditional logic, using placeholder jumps that are patched later.
-    fn gen_branch(&mut self, branch: Branch, span: Span, bytecode: &mut Vec<OpCode>) -> Result {
+    fn gen_branch(&mut self, branch: Branch, span: Span, bytecode: &mut Vec<IrNode>) -> Result {
+        if branch.if_block.is_empty()
+            && branch
+                .else_block
+                .as_ref()
+                .is_some_and(|else_block| else_block.is_empty())
+        {
+            return Ok(());
+        }
         let start = bytecode.len();
         self.node_gen(branch.condition, bytecode)?;
-        // Emit a conditional jump to be patched later. The offset is unknown until
-        // we know the size of the 'if' block.
+
         let branch_op_index = bytecode.len();
-        bytecode.push(Op::Branch(0));
-
+        bytecode.push(Op::NoOp);
         self.gen_block(branch.if_block, bytecode)?;
-
+        let if_block_end_index = bytecode.len();
+        bytecode.push(Op::NoOp);
         if let Some(else_block) = branch.else_block {
-            // Unconditionally jump over the 'else' block after the 'if' block executes.
-            let goto_op_index = bytecode.len();
-            bytecode.push(Op::Goto(0));
-
-            // Now we know where the 'else' block starts, so we can patch the first jump.
-            let else_start_pos = bytecode.len();
-            let branch_offset = (else_start_pos as i32) - ((branch_op_index + 1) as i32);
-            bytecode[branch_op_index] = Op::Branch(branch_offset);
-
+            let else_label = self.gen_label_name("else");
+            bytecode[branch_op_index] = IrNode::Branch(else_label.clone());
+            bytecode.push(IrNode::Label(else_label));
             self.gen_block(else_block, bytecode)?;
 
-            // Now we know where the 'if-else' construct ends, so patch the 'goto'.
-            let end_pos = bytecode.len();
-            let goto_offset = (end_pos as i32) - ((goto_op_index + 1) as i32);
-            bytecode[goto_op_index] = Op::Goto(goto_offset);
+            let end_if_label = self.gen_label_name("end_if");
+            bytecode[if_block_end_index] = IrNode::Goto(end_if_label.clone());
+            bytecode.push(IrNode::Label(end_if_label));
         } else {
-            // No 'else' block, so just patch the initial jump to skip the 'if' body.
-            let end_pos = bytecode.len();
-            let branch_offset = (end_pos as i32) - ((branch_op_index + 1) as i32);
-            bytecode[branch_op_index] = Op::Branch(branch_offset);
+            let end_if_label = self.gen_label_name("end_if");
+            bytecode[branch_op_index] = IrNode::Branch(end_if_label.clone());
+            bytecode.push(IrNode::Label(end_if_label));
         }
 
         self.span_map.push(start, bytecode.len(), span);
@@ -307,25 +332,19 @@ impl IRgen {
         condition: RNodeRef,
         block: Block,
         span: Span,
-        bytecode: &mut Vec<OpCode>,
+        bytecode: &mut Vec<IrNode>,
     ) -> Result {
         let start = bytecode.len();
-        let loop_start = bytecode.len();
+        let start_label = self.gen_label_name("while_start");
+        bytecode.push(IrNode::Label(start_label.clone()));
         self.node_gen(condition, bytecode)?;
-
-        // Jump out of the loop if the condition is false. The offset is patched later.
-        let branch_op_index = bytecode.len();
-        bytecode.push(Op::Branch(0));
+        let block_start_index = bytecode.len();
+        bytecode.push(Op::NoOp);
         self.gen_block(block, bytecode)?;
-
-        // Unconditionally jump back to the condition check.
-        let jump_back_offset = (loop_start as i32) - ((bytecode.len() + 1) as i32);
-        bytecode.push(Op::Goto(jump_back_offset));
-
-        // Now we know the loop's end, so we can patch the exit jump.
-        let loop_end = bytecode.len();
-        let exit_loop_offset = (loop_end as i32) - ((branch_op_index + 1) as i32);
-        bytecode[branch_op_index] = Op::Branch(exit_loop_offset);
+        let end_label = self.gen_label_name("while_end");
+        bytecode[block_start_index] = IrNode::Branch(end_label.clone());
+        bytecode.push(IrNode::Goto(start_label));
+        bytecode.push(IrNode::Label(end_label.clone()));
         self.span_map.push(start, bytecode.len(), span);
         Ok(())
     }
@@ -335,31 +354,37 @@ impl IRgen {
         &mut self,
         func: FunctionLit,
         span: Span,
-        bytecode: &mut Vec<OpCode>,
+        bytecode: &mut Vec<IrNode>,
     ) -> Result {
         if func.captures {
             todo!()
         }
+        let func_start_label = self.gen_label_name("func_start");
+        bytecode.push(IrNode::Label(func_start_label.clone()));
         let start = bytecode.len();
-        let jump_over_index = bytecode.len();
-        bytecode.push(Op::Goto(0)); // Placeholder offset
+        bytecode.push(IrNode::NoOp); // Placeholder offset
 
         let mut func_code = Vec::new();
-        self.gen_block(func.block, &mut func_code)?;
+        if func.block.is_empty() {
+            func_code.push(IrNode::Push(IrLiteral::Null));
+            func_code.push(IrNode::Ret);
+        } else {
+            self.gen_block(func.block, &mut func_code)?;
+        }
         if func.idents.len() > u8::MAX.into() {
             return Err(GenErr::TooManyArguments(func.idents.len()).to_spanned(span));
         }
         let param_count = func.idents.len() as u8;
         let local_count = param_count as usize + func.local_count;
-        let func_len = func_code.len();
-        let address = bytecode.len();
-        bytecode.append(&mut func_code);
 
-        bytecode[jump_over_index] = Op::Goto((func_len + 1) as i32);
+        bytecode.append(&mut func_code);
+        let func_end_label = self.gen_label_name("func_end");
+        bytecode[start] = IrNode::Goto(func_end_label.clone());
+        bytecode.push(IrNode::Label(func_end_label));
 
         self.push_val(
             Function {
-                address,
+                address: func_start_label,
                 local_count,
                 param_count,
             }
@@ -377,28 +402,28 @@ impl IRgen {
         callee: RNodeRef,
         args: Vec<RNodeRef>,
         span: Span,
-        bytecode: &mut Vec<OpCode>,
+        bytecode: &mut Vec<IrNode>,
     ) -> Result {
         let start = bytecode.len();
         let arg_len = args.len();
         if arg_len > u8::MAX.into() {
             return Err(GenErr::TooManyArguments(arg_len).to_spanned(span));
         }
-        // The calling convention requires arguments to be pushed onto the stack first.
+
         let args_start = bytecode.len();
         for node in args {
             self.node_gen(node, bytecode)?;
         }
         self.span_map.push(args_start, bytecode.len(), span);
-        // Then, the function to be called is pushed.
+
         self.node_gen(callee, bytecode)?;
-        bytecode.push(OpCode::Call(arg_len as u8));
+        bytecode.push(IrNode::Call(arg_len as u8));
         self.span_map.push(start, bytecode.len(), span);
         Ok(())
     }
 
     /// Generates the return value, then the `Ret` instruction.
-    fn gen_return(&mut self, expr: RNodeRef, span: Span, bytecode: &mut Vec<OpCode>) -> Result {
+    fn gen_return(&mut self, expr: RNodeRef, span: Span, bytecode: &mut Vec<IrNode>) -> Result {
         let start = bytecode.len();
         self.node_gen(expr, bytecode)?;
         bytecode.push(Op::Ret);

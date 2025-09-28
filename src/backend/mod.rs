@@ -1,11 +1,15 @@
 use std::ops::Deref;
 
 use crate::{
-    backend::vm::StackVM, filestore::FileStore, frontend::Compiler, lang_errors::LangError,
+    backend::{assembler::Assembler, instructions::ByteCode, vm::StackVM},
+    filestore::FileStore,
+    frontend::Compiler,
+    lang_errors::LangError,
 };
 
+pub mod assembler;
+pub mod instructions;
 pub mod vm;
-
 #[derive(Debug, Default)]
 pub struct Runtime {
     compiler: Compiler,
@@ -18,14 +22,26 @@ impl Runtime {
             silent: false,
         }
     }
+    pub fn get_filestore(self) -> FileStore {
+        return self.compiler.file_store;
+    }
     pub fn make(file_store: FileStore, silent: bool) -> Self {
         Self {
             compiler: Compiler::make(file_store, silent),
             silent,
         }
     }
+    pub fn assemble(&mut self, input: &str) -> Result<ByteCode, Box<dyn LangError>> {
+        let ir = self.compiler.compile(input)?;
+        Ok(Assembler::assemble(ir))
+    }
+    pub fn assemble_expr(&mut self, input: &str) -> Result<ByteCode, Box<dyn LangError>> {
+        let ir = self.compiler.compile_expr(input)?;
+        Ok(Assembler::assemble(ir))
+    }
     pub fn execute(&mut self, input: &str) -> Result<(), Box<dyn LangError>> {
-        let bytecode = self.compiler.compile(input)?;
+        let ir = self.compiler.compile(input)?;
+        let bytecode = Assembler::assemble(ir);
         let res = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count).exec();
         res.map_err(|err| {
             let code = err.to_spanned_code(&bytecode.span_map);
@@ -41,7 +57,8 @@ impl Runtime {
     }
     pub fn execute_expr(&mut self, input: &str) -> Result<(), Box<dyn LangError>> {
         let input = format!("do {{ {input} }}");
-        let bytecode = self.compiler.compile_expr(&input)?;
+        let ir = self.compiler.compile_expr(&input)?;
+        let bytecode = Assembler::assemble(ir);
         let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
         let res = vm.exec();
         res.map_err(|err| {

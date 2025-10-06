@@ -102,12 +102,10 @@ fn run_once(args: &Args, compiler: &mut Compiler, content: String) {
         Ok(code) => {
             if let Some(stage) = &args.stage {
                 run_stage(compiler, stage, &code, args.is_expr);
+            } else if args.is_expr {
+                let _ = Runtime::new().execute_expr(&code);
             } else {
-                if args.is_expr {
-                    let _ = Runtime::new().execute_expr(&code);
-                } else {
-                    let _ = Runtime::new().execute(&code);
-                }
+                let _ = Runtime::new().execute(&code);
             }
         }
         Err(e) => {

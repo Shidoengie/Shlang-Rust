@@ -6,7 +6,7 @@ Run --help for more information about the command line options
 func main() {
     println("hello world");
 }
-main()
+
 ```
 
 For more information about the language itself read the wiki!

@@ -97,7 +97,7 @@ impl StackVM {
                 println!();
                 return Value::Null;
             }
-            for (value) in args {
+            for value in args {
                 print!("{} ", value);
             }
             println!();
@@ -156,18 +156,18 @@ impl StackVM {
         Ok(())
     }
     fn peek(&self) -> Option<&Value> {
-        self.values.last().map(|(v, _)| (v))
+        self.values.last().map(|(v, _)| v)
     }
 
     fn peek_raw(&self) -> Option<&(Value, usize)> {
         self.values.last()
     }
     fn type_error<T>(&self, expected: Type, got: Value) -> Result<T> {
-        return Err(ErrCode::InvalidType {
+        Err(ErrCode::InvalidType {
             expected,
             got: got.into(),
         }
-        .into_vmerr(self.ip));
+        .into_vmerr(self.ip))
     }
     fn exec_op(&mut self, op: OpCode) -> Result<()> {
         match op {
@@ -288,13 +288,13 @@ impl StackVM {
     }
     fn pop_chunk(&mut self, len: usize) -> Vec<Value> {
         self.values
-            .drain(self.values.len() - len as usize..)
+            .drain(self.values.len() - len..)
             .map(|(value, _)| value)
             .collect()
     }
     fn pop_chunk_raw(&mut self, len: usize) -> Vec<(Value, usize)> {
         self.values
-            .drain(self.values.len() - len as usize..)
+            .drain(self.values.len() - len..)
             .collect()
     }
     fn pop_pair(&mut self) -> Result<(Value, Value)> {
@@ -458,7 +458,7 @@ impl StackVM {
         let res = (func.func)(self, &args);
         self.push(res);
         self.inc_ip();
-        return Ok(());
+        Ok(())
     }
     fn exec_func_call(&mut self, func: Arc<Function>, arg_len: u8) -> Result {
         //dbg!(self.ip, &self.values);

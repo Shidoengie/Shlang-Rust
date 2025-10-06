@@ -167,10 +167,10 @@ impl NativeFunction {
     }
     ///Determines if a given parameter length is the accepted parameter count
     pub fn is_arglen_valid(&self, arg_len: u8) -> bool {
-        return self.is_variadic() || arg_len == self.param_count;
+        self.is_variadic() || arg_len == self.param_count
     }
     pub fn is_variadic(&self) -> bool {
-        return self.param_count == Self::VARIADIC_VALUE;
+        self.param_count == Self::VARIADIC_VALUE
     }
 }
 impl From<NativeFunction> for Value {

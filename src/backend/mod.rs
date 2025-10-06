@@ -23,7 +23,7 @@ impl Runtime {
         }
     }
     pub fn get_filestore(self) -> FileStore {
-        return self.compiler.file_store;
+        self.compiler.file_store
     }
     pub fn make(file_store: FileStore, silent: bool) -> Self {
         Self {

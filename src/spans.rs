@@ -38,7 +38,7 @@ impl<T: IntoIterator> IntoIterator for Spanned<T> {
 impl<T> Deref for Spanned<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        return &self.item;
+        &self.item
     }
 }
 impl<T: Debug> Debug for Spanned<T> {

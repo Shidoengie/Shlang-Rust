@@ -1,13 +1,9 @@
+use crate::{backend::vm::StackVM, spanmap::SpanMap, utils::compact_iter_debug};
 use core::fmt;
 use std::{
     fmt::{Debug, Display},
     sync::Arc,
-    u8,
 };
-
-use colored::Colorize;
-
-use crate::{backend::vm::StackVM, spanmap::SpanMap, utils::compact_iter_debug};
 pub struct ByteCode {
     pub ops: Vec<OpCode>,
     pub span_map: SpanMap,
@@ -31,11 +27,7 @@ impl Display for ByteCode {
             return Ok(());
         }
         for (index, op) in self.ops.iter().enumerate() {
-            writeln!(
-                f,
-                "{pos} | {op}",
-                pos = format!("{index:<2}").italic().bright_black()
-            )?;
+            writeln!(f, "{pos} | {op}", pos = format!("{index:<2}"))?;
         }
         Ok(())
     }
@@ -156,20 +148,20 @@ pub struct NativeFunction {
 }
 impl NativeFunction {
     pub const VARIADIC_VALUE: u8 = u8::MAX;
-    pub fn new(func: FuncPtr, param_count: u8) -> Self {
+    pub const fn new(func: FuncPtr, param_count: u8) -> Self {
         Self { func, param_count }
     }
-    pub fn new_variadic(func: FuncPtr) -> Self {
+    pub const fn new_variadic(func: FuncPtr) -> Self {
         Self {
             func,
             param_count: Self::VARIADIC_VALUE,
         }
     }
     ///Determines if a given parameter length is the accepted parameter count
-    pub fn is_arglen_valid(&self, arg_len: u8) -> bool {
+    pub const fn is_arglen_valid(&self, arg_len: u8) -> bool {
         self.is_variadic() || arg_len == self.param_count
     }
-    pub fn is_variadic(&self) -> bool {
+    pub const fn is_variadic(&self) -> bool {
         self.param_count == Self::VARIADIC_VALUE
     }
 }

@@ -1,6 +1,5 @@
 
 func main() {
-    print("hello world!");
-        return;
+    println("hello world!");
 }
  

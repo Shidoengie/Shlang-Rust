@@ -20,10 +20,10 @@ use crate::{
 };
 
 pub mod ast;
+pub mod controlflow;
 pub mod ir;
 pub mod lexemes;
 pub mod nameres;
-
 #[derive(Debug, Default)]
 pub struct Compiler {
     pub file_store: FileStore,

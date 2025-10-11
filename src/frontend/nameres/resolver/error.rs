@@ -12,7 +12,7 @@ pub enum NameErr {
     Unspecified(String),
 }
 impl LangError for Spanned<NameErr> {
-    fn msg(&self) -> Report<Span> {
+    fn msg(&self) -> Report<'_, Span> {
         match &self.item {
             NameErr::Unspecified(err) => {
                 MsgBuilder::build_unspecified_err(err.to_string(), self.span)

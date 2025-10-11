@@ -44,7 +44,7 @@ impl Runtime {
         let bytecode = Assembler::assemble(ir);
         let res = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count).exec();
         res.map_err(|err| {
-            let code = err.to_spanned_code(&bytecode.span_map);
+            let code = err.into_spanned_code(&bytecode.span_map);
             Box::new(code) as Box<dyn LangError>
         })
         .inspect_err(|err| {
@@ -62,7 +62,7 @@ impl Runtime {
         let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
         let res = vm.exec();
         res.map_err(|err| {
-            let code = err.to_spanned_code(&bytecode.span_map);
+            let code = err.into_spanned_code(&bytecode.span_map);
 
             Box::new(code) as Box<dyn LangError>
         })

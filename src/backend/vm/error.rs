@@ -124,7 +124,7 @@ impl VmErr {
 
         self.code.clone().to_spanned(span)
     }
-    pub fn to_spanned_code(self, map: &SpanMap) -> Spanned<ErrCode> {
+    pub fn into_spanned_code(self, map: &SpanMap) -> Spanned<ErrCode> {
         let span = map[self.index];
         self.code.to_spanned(span)
     }

@@ -29,11 +29,14 @@ impl NameRes {
     pub fn new(file_store: FileStore) -> Self {
         Self {
             file_store,
+            globals: hashmap!(
+                println => 0,
+                input => 1
+            ),
             ..Default::default()
         }
     }
     pub fn resolve(&mut self, ast: DeclStream) -> Result<ResolvedAst> {
-        self.add_global("print".to_owned());
         let (decls, entry_point) = self.resolve_toplevel(ast)?;
         Ok(ResolvedAst {
             entry_point,
@@ -44,7 +47,6 @@ impl NameRes {
         })
     }
     pub fn resolve_expr(&mut self, expr: ast::NodeSpan) -> Result<ResolvedAstNode> {
-        self.add_global("print".to_owned());
         let node = self.resolve_node(expr, &mut Scope::default())?;
         Ok(ResolvedAstNode::new(
             node,
@@ -69,7 +71,6 @@ impl NameRes {
         &mut self,
         decls: DeclStream,
     ) -> Result<(Vec<Spanned<Item>>, Option<usize>)> {
-        self.add_global("print".to_owned());
         let mut entry_point: Option<usize> = None;
         for val in decls.iter() {
             match &val.item {

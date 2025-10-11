@@ -9,8 +9,8 @@ edition = "2024"
 ariadne = "0.5.1"
 clap = { version = "4.5.40", features = ["derive"] }
 
-colored = "2"
-dyn-clone = "1.0.19"
+
+petgraph = "0.8.3"
 
 rand = "0.8.5"
 rayon = "1.10.0"

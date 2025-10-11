@@ -1,7 +1,6 @@
 mod error;
-use std::fmt::{Debug, Display, Write};
+use std::fmt::{Debug, Display};
 
-use colored::Colorize;
 pub use error::GenErr;
 
 use super::instructions::{IrNode as Op, *};
@@ -64,11 +63,7 @@ impl Display for Ir {
             return Ok(());
         }
         for (index, op) in self.ops.iter().enumerate() {
-            writeln!(
-                f,
-                "{pos} | {op}",
-                pos = format!("{index:<2}").italic().bright_black()
-            )?;
+            writeln!(f, "{pos} | {op}", pos = format!("{index:<2}"))?;
         }
         Ok(())
     }
@@ -376,7 +371,8 @@ impl IRgen {
         }
         let param_count = func.idents.len() as u8;
         let local_count = param_count as usize + func.local_count;
-
+        func_code.push(Op::Push(IrLiteral::Null));
+        func_code.push(Op::Ret);
         bytecode.append(&mut func_code);
         let func_end_label = self.gen_label_name("func_end");
         bytecode[start] = IrNode::Goto(func_end_label.clone());

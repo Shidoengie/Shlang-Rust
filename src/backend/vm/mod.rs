@@ -1,3 +1,4 @@
+mod builtins;
 mod error;
 mod frame;
 #[cfg(test)]
@@ -5,9 +6,10 @@ mod tests;
 
 use std::{mem, sync::Arc};
 
-use crate::{
-    backend::instructions::*,
-    backend::vm::{
+use crate::backend::{
+    instructions::*,
+    vm::{
+        builtins::BUILTINS,
         error::{ErrCode, Type, VmErr},
         frame::Frame,
     },
@@ -91,19 +93,9 @@ impl StackVM {
             values: vec![],
             globals: vec![Value::Null; global_count].into_boxed_slice(),
         };
-
-        vm.globals[0] = NativeFunction::new_variadic(|_, args| {
-            if args.is_empty() {
-                println!();
-                return Value::Null;
-            }
-            for value in args {
-                print!("{} ", value);
-            }
-            println!();
-            Value::Null
-        })
-        .into();
+        for (i, val) in BUILTINS.into_iter().enumerate() {
+            vm.globals[i] = val
+        }
         let synthetic = Function {
             local_count,
             address: 0,
@@ -293,9 +285,7 @@ impl StackVM {
             .collect()
     }
     fn pop_chunk_raw(&mut self, len: usize) -> Vec<(Value, usize)> {
-        self.values
-            .drain(self.values.len() - len..)
-            .collect()
+        self.values.drain(self.values.len() - len..).collect()
     }
     fn pop_pair(&mut self) -> Result<(Value, Value)> {
         let ((left, _), (right, _)) = self.pop_pair_raw()?;

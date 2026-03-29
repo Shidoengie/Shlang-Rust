@@ -346,7 +346,7 @@ impl NameRes {
             AstNode::Bool(v) => self.add_node(ResolvedNode::Bool(v), span),
             AstNode::Float(v) => self.add_node(ResolvedNode::Float(v), span),
             AstNode::Null => self.add_node(ResolvedNode::Null, span),
-            AstNode::Str(v) => self.add_node(ResolvedNode::Str(v), span),
+            AstNode::Str(v) => self.add_node(ResolvedNode::String(v), span),
             AstNode::Int(v) => self.add_node(ResolvedNode::Int(v), span),
             AstNode::DontResult => Err(NameErr::UnexpectedSemi.to_spanned(span)),
         }

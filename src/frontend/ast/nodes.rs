@@ -1,3 +1,4 @@
+use crate::frontend::opkind::{BinaryOp, UnaryOp};
 use crate::spans::*;
 
 use std::collections::*;
@@ -212,24 +213,6 @@ macro_rules! nodes_from {
 nodes_from! { Declaration FunctionLit UnaryNode Constructor  FieldAccess BinaryNode Call Branch While ForLoop}
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum BinaryOp {
-    Add,
-    Subtract,
-    Divide,
-    Multiply,
-    Modulo,
-    And,
-    Or,
-    IsEqual,
-    IsDifferent,
-    Greater,
-    Lesser,
-    GreaterOrEqual,
-    LesserOrEqual,
-    NullCoalescing,
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct BinaryNode {
     pub kind: BinaryOp,
     pub left: NodeRef,
@@ -243,11 +226,7 @@ impl BinaryNode {
         self.kind.ne(kind)
     }
 }
-#[derive(Clone, Debug, PartialEq)]
-pub enum UnaryOp {
-    Negative,
-    Not,
-}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct UnaryNode {
     pub kind: UnaryOp,

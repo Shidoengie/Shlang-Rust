@@ -1,12 +1,15 @@
 mod error;
-use crate::frontend::ast::nodes::*;
-pub use error::ParseError;
 
-use crate::frontend::lexemes::lexer::Lexer;
-use crate::frontend::lexemes::tokens::*;
+use crate::*;
+pub use error::ParseError;
+use frontend::opkind::*;
+
 use crate::hashmap;
-use crate::lang_errors::*;
-use crate::spans::*;
+use frontend::ast::nodes::*;
+use frontend::lexemes::lexer::Lexer;
+use frontend::lexemes::tokens::*;
+use lang_errors::*;
+use spans::*;
 use std::collections::HashMap;
 
 pub type Result<T = NodeSpan> = std::result::Result<T, Box<dyn LangError>>;

@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    frontend::ast::nodes::{BinaryOp, UnaryOp},
+    frontend::opkind::*,
     spans::{Span, Spanned},
 };
 #[derive(Clone, Copy)]
@@ -41,7 +41,7 @@ impl Index<RNodeRef> for NodePool {
 pub enum ResolvedNode {
     Null,
     Bool(bool),
-    Str(String),
+    String(String),
     Float(f64),
     Int(i64),
     BinaryNode {
@@ -193,7 +193,7 @@ fn node_debug_display(
         // --- Simple Nodes ---
         RNode::Null => write_title(f, "Null")?,
         RNode::Bool(b) => write_title(f, &format!("Bool({b})"))?,
-        RNode::Str(s) => write_title(f, &format!("Str({s:?})"))?,
+        RNode::String(s) => write_title(f, &format!("Str({s:?})"))?,
         RNode::Float(fl) => write_title(f, &format!("Float({fl})"))?,
         RNode::Int(i) => write_title(f, &format!("Int({i})"))?,
         RNode::Variable { id, is_global } => {

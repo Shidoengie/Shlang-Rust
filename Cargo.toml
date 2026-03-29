@@ -8,6 +8,7 @@ edition = "2024"
 [dependencies]
 ariadne = "0.5.1"
 clap = { version = "4.5.40", features = ["derive"] }
+derive_more = { version = "2.0.1", features = ["display", "from"] }
 
 
 petgraph = "0.8.3"

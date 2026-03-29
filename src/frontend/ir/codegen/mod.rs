@@ -7,8 +7,8 @@ use super::instructions::{IrNode as Op, *};
 
 use crate::{
     frontend::{
-        ast::nodes::{BinaryOp, UnaryOp},
         nameres::resolved_nodes::{ResolvedNode as RNode, *},
+        opkind::*,
     },
     spanmap::SpanMap,
     spans::{IntoSpanned, Span},
@@ -63,7 +63,7 @@ impl Display for Ir {
             return Ok(());
         }
         for (index, op) in self.ops.iter().enumerate() {
-            writeln!(f, "{pos} | {op}", pos = format!("{index:<2}"))?;
+            writeln!(f, "{pos} | {op}", pos = format!("{index:<2}"),)?;
         }
         Ok(())
     }
@@ -148,7 +148,7 @@ impl IRgen {
             RNode::Float(num) => self.push_val(IrLiteral::Float(num), span, bytecode),
             RNode::Int(num) => self.push_val(IrLiteral::Int(num), span, bytecode),
             RNode::Bool(cond) => self.push_val(IrLiteral::Bool(cond), span, bytecode),
-            RNode::Str(txt) => self.push_val(IrLiteral::String(txt), span, bytecode),
+            RNode::String(txt) => self.push_val(IrLiteral::String(txt), span, bytecode),
 
             RNode::BinaryNode { left, right, kind } => {
                 self.gen_binary(left, right, kind, span, bytecode)?

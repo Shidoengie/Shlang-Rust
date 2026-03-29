@@ -24,6 +24,7 @@ pub mod controlflow;
 pub mod ir;
 pub mod lexemes;
 pub mod nameres;
+pub mod opkind;
 #[derive(Debug, Default)]
 pub struct Compiler {
     pub file_store: FileStore,

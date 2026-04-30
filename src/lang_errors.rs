@@ -8,6 +8,7 @@ where
 {
     fn msg(&self) -> Report<Span>;
 }
+pub type LangResult<T> = Result<T, Box<dyn LangError>>;
 pub struct MsgBuilder<'a> {
     inner: ReportBuilder<'a, Span>,
     span: Span,

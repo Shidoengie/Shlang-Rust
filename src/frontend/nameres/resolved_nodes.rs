@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     frontend::opkind::*,
-    spans::{Span, Spanned},
+    spans::{IntoSpanned, Span, SpanUtil, Spanned},
 };
 #[derive(Clone, Copy)]
 pub struct RNodeRef(pub usize);
@@ -64,7 +64,7 @@ pub enum ResolvedNode {
         is_global: bool,
     },
 
-    Declaration(Declaration),
+    Decl(Decl),
 
     Index {
         target: RNodeRef,
@@ -107,17 +107,13 @@ pub struct Branch {
     pub if_block: Block,
     pub else_block: Option<Block>,
 }
-impl From<Branch> for ResolvedNode {
-    fn from(value: Branch) -> Self {
-        Self::Branch(value)
-    }
-}
 #[derive(Clone)]
-pub struct Declaration {
+pub struct Decl {
     pub id: usize,
     pub expr: RNodeRef,
     pub is_global: bool,
 }
+
 #[derive(Clone)]
 pub struct FunctionLit {
     pub captures: bool,
@@ -135,10 +131,27 @@ pub enum AccessType {
         arg_span: Span,
     },
 }
-#[derive(Clone)]
-pub enum Item {
-    Decl(Declaration),
+pub trait IntoRNodespan {
+    fn to_rnodespan(self, span: Span) -> RNodeSpan;
 }
+macro_rules! rnodes_from {
+    ($($name:ident)*) => {
+        $(
+            impl ::core::convert::From<$name> for ResolvedNode {
+                fn from(node: $name) -> Self {
+                    Self::$name(node)
+                }
+            }
+            impl IntoRNodespan for $name {
+                fn to_rnodespan(self,span:Span) -> RNodeSpan {
+                    Spanned::new(ResolvedNode::$name(self),span)
+                }
+
+            }
+        )*
+    }
+}
+rnodes_from! { Decl Branch FunctionLit }
 fn display_block(
     f: &mut fmt::Formatter<'_>,
     block: &[RNodeRef],
@@ -153,15 +166,24 @@ fn display_block(
         writeln!(f)?;
     }
     for &item in block {
-        node_debug_display(f, item, node_pool, depth + 1, true)?;
+        noderef_debug_display(f, item, node_pool, depth + 1, true)?;
         writeln!(f, ";")?;
     }
     write!(f, "{indent}}}")?;
     Ok(())
 }
-fn node_debug_display(
+fn noderef_debug_display(
     f: &mut fmt::Formatter<'_>,
     node_ref: RNodeRef,
+    node_pool: &NodePool,
+    depth: usize,
+    start_of_line: bool,
+) -> fmt::Result {
+    return node_debug_display(f, &node_pool[node_ref], node_pool, depth, start_of_line);
+}
+fn node_debug_display(
+    f: &mut fmt::Formatter<'_>,
+    expr: &Spanned<ResolvedNode>,
     node_pool: &NodePool,
     depth: usize,
     start_of_line: bool,
@@ -187,7 +209,6 @@ fn node_debug_display(
         f.write_str(title)?;
         Ok(())
     };
-    let expr = &node_pool[node_ref];
 
     match &expr.item {
         // --- Simple Nodes ---
@@ -203,15 +224,15 @@ fn node_debug_display(
         RNode::Continue => write_title(f, "ContinueNode")?,
 
         // --- Nodes with a single inline-able expression ---
-        RNode::Result(expr) | RNode::Return(expr) => {
-            let name = if matches!(node_pool[node_ref].item, RNode::Result(_)) {
+        RNode::Result(rexpr) | RNode::Return(rexpr) => {
+            let name = if matches!(&expr.item, RNode::Result(_)) {
                 "ResultNode"
             } else {
                 "ReturnNode"
             };
             write_title(f, &format!("{name}(\n"))?;
 
-            node_debug_display(f, *expr, node_pool, depth + 1, true)?; // Call inline
+            noderef_debug_display(f, *rexpr, node_pool, depth + 1, true)?; // Call inline
             write!(f, "\n{indent})")?;
         }
 
@@ -220,10 +241,10 @@ fn node_debug_display(
             write_title(f, "Assignment(")?;
             writeln!(f)?;
             write!(f, "{child_indent}target:")?;
-            node_debug_display(f, *target, node_pool, depth + 2, false)?;
+            noderef_debug_display(f, *target, node_pool, depth + 2, false)?;
             writeln!(f, ",")?;
             write!(f, "{child_indent}value:")?;
-            node_debug_display(f, *value, node_pool, depth + 2, false)?;
+            noderef_debug_display(f, *value, node_pool, depth + 2, false)?;
             writeln!(f)?;
             write!(f, "{indent})")?;
         }
@@ -232,10 +253,10 @@ fn node_debug_display(
             writeln!(f)?;
             writeln!(f, "{child_indent}kind: {kind:?},")?;
             write!(f, "{child_indent}left:")?;
-            node_debug_display(f, *left, node_pool, depth + 2, false)?;
+            noderef_debug_display(f, *left, node_pool, depth + 2, false)?;
             writeln!(f, ",")?;
             write!(f, "{child_indent}right:")?;
-            node_debug_display(f, *right, node_pool, depth + 2, false)?;
+            noderef_debug_display(f, *right, node_pool, depth + 2, false)?;
             write!(f, "\n{indent})")?;
         }
         RNode::UnaryNode(op, operand) => {
@@ -243,10 +264,10 @@ fn node_debug_display(
             writeln!(f)?;
             writeln!(f, "{child_indent}op: {op:?},")?;
             write!(f, "{child_indent}operand:")?;
-            node_debug_display(f, *operand, node_pool, depth + 2, false)?;
+            noderef_debug_display(f, *operand, node_pool, depth + 2, false)?;
             write!(f, "\n{indent})")?;
         }
-        RNode::Declaration(Declaration {
+        RNode::Decl(Decl {
             id,
             expr,
             is_global,
@@ -256,7 +277,7 @@ fn node_debug_display(
             writeln!(f, "{child_indent}id: {id},")?;
             writeln!(f, "{child_indent}global: {is_global}")?;
             write!(f, "{child_indent}expr: ")?;
-            node_debug_display(f, *expr, node_pool, depth + 1, false)?; // The key inline call
+            noderef_debug_display(f, *expr, node_pool, depth + 1, false)?; // The key inline call
             writeln!(f)?;
             write!(f, "{indent})")?;
         }
@@ -264,10 +285,10 @@ fn node_debug_display(
             write_title(f, "Index(")?;
             writeln!(f)?;
             write!(f, "{child_indent}target:")?;
-            node_debug_display(f, *target, node_pool, depth + 1, false)?;
+            noderef_debug_display(f, *target, node_pool, depth + 1, false)?;
             writeln!(f, ",")?;
             write!(f, "{child_indent}index:")?;
-            node_debug_display(f, *index, node_pool, depth + 1, false)?;
+            noderef_debug_display(f, *index, node_pool, depth + 1, false)?;
             write!(f, "\n{indent})")?;
         }
         RNode::FunctionLit(func) => {
@@ -286,7 +307,7 @@ fn node_debug_display(
             if !items.is_empty() {
                 writeln!(f)?;
                 for &item in items {
-                    node_debug_display(f, item, node_pool, depth + 1, true)?;
+                    noderef_debug_display(f, item, node_pool, depth + 1, true)?;
                     writeln!(f, ",")?;
                 }
             }
@@ -296,13 +317,13 @@ fn node_debug_display(
             write_title(f, "Call(")?;
             writeln!(f)?;
             write!(f, "{child_indent}callee:")?;
-            node_debug_display(f, *callee, node_pool, depth + 2, false)?;
+            noderef_debug_display(f, *callee, node_pool, depth + 2, false)?;
             writeln!(f, ",")?;
             write!(f, "{child_indent}args:[")?;
             if !args.is_empty() {
                 writeln!(f)?;
                 for &arg in args {
-                    node_debug_display(f, arg, node_pool, depth + 2, true)?;
+                    noderef_debug_display(f, arg, node_pool, depth + 2, true)?;
                     writeln!(f, ",")?;
                 }
                 writeln!(f, "{child_indent}]")?;
@@ -315,7 +336,7 @@ fn node_debug_display(
             write_title(f, "Branch(")?;
             writeln!(f)?;
             write!(f, "{child_indent}condition:")?;
-            node_debug_display(f, branch.condition, node_pool, depth + 1, false)?;
+            noderef_debug_display(f, branch.condition, node_pool, depth + 1, false)?;
             writeln!(f, ",")?;
             write!(f, "{child_indent}if_block:")?;
             display_block(f, &branch.if_block.item, node_pool, depth + 1)?;
@@ -328,7 +349,7 @@ fn node_debug_display(
             write!(f, "{indent})")?;
         }
         RNode::Loop(block) | RNode::DoBlock(block) => {
-            let name = if matches!(node_pool[node_ref].item, RNode::Loop(_)) {
+            let name = if matches!(expr.item, RNode::Loop(_)) {
                 "Loop"
             } else {
                 "DoBlock"
@@ -340,7 +361,7 @@ fn node_debug_display(
             write_title(f, "While(")?;
             writeln!(f)?;
             write!(f, "{child_indent}condition:")?;
-            node_debug_display(f, *condition, node_pool, depth + 1, false)?;
+            noderef_debug_display(f, *condition, node_pool, depth + 1, false)?;
             writeln!(f, ",")?;
             write!(f, "{child_indent}block:")?;
             display_block(f, block, node_pool, depth + 1)?;
@@ -351,7 +372,7 @@ fn node_debug_display(
             write_title(f, "Constructor(")?;
             writeln!(f)?;
             write!(f, "{child_indent}target:")?;
-            node_debug_display(f, *target, node_pool, depth + 1, false)?;
+            noderef_debug_display(f, *target, node_pool, depth + 1, false)?;
             writeln!(f, ",")?;
             if params.is_empty() {
                 writeln!(f, "{child_indent}params:()")?;
@@ -359,7 +380,7 @@ fn node_debug_display(
                 writeln!(f, "{child_indent}params:(")?;
                 for (key, &value) in params {
                     write!(f, "{}{key:?}: ", "  ".repeat(depth + 2))?;
-                    node_debug_display(f, value, node_pool, depth + 2, false)?;
+                    noderef_debug_display(f, value, node_pool, depth + 2, false)?;
                     writeln!(f)?;
                 }
                 writeln!(f, "{child_indent})")?;
@@ -375,7 +396,7 @@ fn node_debug_display(
             writeln!(f)?;
             writeln!(f, "{child_indent}loop_var: {loop_var},")?;
             write!(f, "{child_indent}list:")?;
-            node_debug_display(f, *list, node_pool, depth + 1, false)?;
+            noderef_debug_display(f, *list, node_pool, depth + 1, false)?;
             writeln!(f)?;
             write!(f, "{child_indent}block:")?;
             display_block(f, block, node_pool, depth + 1)?;
@@ -383,7 +404,7 @@ fn node_debug_display(
             write!(f, "{indent})")?;
         }
         RNode::StructDef(fields) | RNode::RecordLit(fields) => {
-            let name = if matches!(node_pool[node_ref].item, RNode::StructDef(_)) {
+            let name = if matches!(expr.item, RNode::StructDef(_)) {
                 "StructDef"
             } else {
                 "RecordLit"
@@ -395,7 +416,7 @@ fn node_debug_display(
             writeln!(f)?;
             for (key, &value) in fields {
                 write!(f, "{child_indent}{key:?}: ")?;
-                node_debug_display(f, value, node_pool, depth + 1, false)?;
+                noderef_debug_display(f, value, node_pool, depth + 1, false)?;
                 writeln!(f)?;
             }
             write!(f, "{indent})")?;
@@ -404,7 +425,7 @@ fn node_debug_display(
             write_title(f, "FieldAccess(")?;
             writeln!(f)?;
             write!(f, "{child_indent}target:")?;
-            node_debug_display(f, *target, node_pool, depth + 1, false)?;
+            noderef_debug_display(f, *target, node_pool, depth + 1, false)?;
             writeln!(f, ",")?;
             write!(f, "{child_indent}requested:")?;
             match &access.item {
@@ -419,7 +440,7 @@ fn node_debug_display(
                     if !args.is_empty() {
                         writeln!(f,)?;
                         for &arg in args {
-                            node_debug_display(f, arg, node_pool, depth + 3, true)?;
+                            noderef_debug_display(f, arg, node_pool, depth + 3, true)?;
                             writeln!(f, ",")?;
                         }
                         writeln!(f, "{method_child_indent}]")?;
@@ -448,7 +469,7 @@ impl Debug for ResolvedAstNode {
         writeln!(f, "  global_count: {},", self.global_count)?;
         writeln!(f, "  local_count: {},", self.local_count)?;
         writeln!(f, "){{")?;
-        node_debug_display(f, self.node, &self.pool, 1, true)?;
+        noderef_debug_display(f, self.node, &self.pool, 1, true)?;
         write!(f, "\n}}")
     }
 }
@@ -464,11 +485,10 @@ impl ResolvedAstNode {
     }
 }
 pub struct ResolvedAst {
-    pub proc: Vec<Spanned<Item>>,
+    pub proc: Vec<Spanned<ResolvedNode>>,
     pub pool: NodePool,
     pub global_count: usize,
     pub local_count: usize,
-    pub entry_point: Option<usize>,
 }
 
 impl Debug for ResolvedAst {
@@ -477,26 +497,13 @@ impl Debug for ResolvedAst {
         writeln!(f, "  global_count: {},", self.global_count)?;
         writeln!(f, "  local_count: {},", self.local_count)?;
         writeln!(f, ") = {{")?;
-        for Spanned { item, span } in self.proc.iter() {
-            match item {
-                Item::Decl(Declaration {
-                    id,
-                    expr,
-                    is_global,
-                }) => {
-                    writeln!(f, "  Decl(")?;
-                    writeln!(f, "    id: {id}")?;
-                    writeln!(f, "    global: {is_global}")?;
-
-                    write!(f, "    expr: ",)?;
-                    node_debug_display(f, *expr, &self.pool, 2, false)?;
-                    writeln!(f)?;
-                    write!(f, "  )")?;
-                }
-            };
-            writeln!(f, "[{:?},{:?}];", span.start, span.end)?
+        for node in self.proc.iter() {
+            node_debug_display(f, node, &self.pool, 2, false)?;
+            writeln!(f, "[{:?},{:?}];", node.span.start, node.span.end)?
         }
         write!(f, "}}")?;
         Ok(())
     }
 }
+
+pub type RNodeSpan = Spanned<ResolvedNode>;

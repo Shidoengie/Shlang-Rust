@@ -34,7 +34,7 @@ pub enum Node {
     Return(NodeRef),
     BreakNode,
     ContinueNode,
-    Declaration(Declaration),
+    Decl(Decl),
     Assignment { target: NodeRef, value: NodeRef },
     Variable(String),
     Index { target: NodeRef, index: NodeRef },
@@ -67,7 +67,7 @@ impl Node {
             Node::Return(_) => "ReturnNode",
             Node::BreakNode => "BreakNode",
             Node::ContinueNode => "ContinueNode",
-            Node::Declaration(_) => "VarDecl",
+            Node::Decl(_) => "VarDecl",
             Node::Assignment { .. } => "Assignment",
             Node::Variable(_) => "Variable",
             Node::Index { .. } => "Index",
@@ -89,7 +89,7 @@ impl Node {
     pub fn can_result(&self) -> bool {
         !matches!(
             self.clone(),
-            Self::Declaration(_)
+            Self::Decl(_)
                 | Self::Assignment {
                     target: _,
                     value: _
@@ -118,7 +118,7 @@ impl Debug for Node {
             Node::Null => f.write_str("Null"),
             Node::BreakNode => f.write_str("Break"),
             Node::ContinueNode => f.write_str("Continue"),
-            Node::Declaration(decl) => {
+            Node::Decl(decl) => {
                 if decl.readonly {
                     write!(f, "LetDecl")?;
                 } else {
@@ -210,7 +210,7 @@ macro_rules! nodes_from {
         )*
     }
 }
-nodes_from! { Declaration FunctionLit UnaryNode Constructor  FieldAccess BinaryNode Call Branch While ForLoop}
+nodes_from! { Decl FunctionLit UnaryNode Constructor  FieldAccess BinaryNode Call Branch While ForLoop}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BinaryNode {
@@ -296,10 +296,33 @@ pub struct ForLoop {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Declaration {
+pub struct Decl {
     pub name: String,
     pub expr: NodeRef,
     pub readonly: bool,
+    pub hoisted: bool,
+}
+impl Decl {
+    pub fn new(name: String, expr: NodeRef) -> Self {
+        return Self {
+            name,
+            expr,
+            readonly: false,
+            hoisted: false,
+        };
+    }
+    pub fn as_readonly(self) -> Self {
+        Self {
+            readonly: true,
+            ..self
+        }
+    }
+    pub fn as_hoisted(self) -> Self {
+        Self {
+            hoisted: true,
+            ..self
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -311,5 +334,5 @@ pub struct FunctionLit {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Item {
-    Decl(Declaration),
+    Decl(Decl),
 }

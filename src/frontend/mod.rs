@@ -20,7 +20,6 @@ use crate::{
 };
 
 pub mod ast;
-pub mod controlflow;
 pub mod ir;
 pub mod lexemes;
 pub mod nameres;
@@ -61,7 +60,7 @@ impl Compiler {
         }
         Ok(buf)
     }
-    pub fn parse(&mut self, input: &str) -> Result<Vec<Spanned<Item>>, Box<dyn LangError>> {
+    pub fn parse(&mut self, input: &str) -> Result<Vec<Spanned<Node>>, Box<dyn LangError>> {
         let file_id = self.file_store.add(input.to_owned());
         Parser::parse(input, file_id).inspect_err(|err| {
             if !self.silent {

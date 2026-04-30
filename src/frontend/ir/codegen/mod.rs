@@ -154,7 +154,7 @@ impl IRgen {
                 self.gen_binary(left, right, kind, span, bytecode)?
             }
             RNode::UnaryNode(kind, expr) => self.gen_unary(kind, expr, span, bytecode)?,
-            RNode::Declaration(decl) => self.gen_vardecl(decl, span, bytecode)?,
+            RNode::Decl(decl) => self.gen_vardecl(decl, span, bytecode)?,
             RNode::Assignment { target, value } => {
                 self.gen_assignment(target, value, span, bytecode)?
             }
@@ -217,7 +217,7 @@ impl IRgen {
     }
 
     /// Generates the expression's value, then stores it in a local.
-    fn gen_vardecl(&mut self, decl: Declaration, span: Span, bytecode: &mut Vec<IrNode>) -> Result {
+    fn gen_vardecl(&mut self, decl: Decl, span: Span, bytecode: &mut Vec<IrNode>) -> Result {
         let start = bytecode.len();
         self.node_gen(decl.expr, bytecode)?;
         if decl.is_global {

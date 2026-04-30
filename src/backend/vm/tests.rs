@@ -4,7 +4,6 @@ use crate::{
         instructions::*,
         vm::{self, StackVM},
     },
-    frontend::Compiler,
     test_func,
 };
 

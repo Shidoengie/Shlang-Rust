@@ -1,8 +1,5 @@
 use core::fmt;
-use std::{
-    fmt::{Debug, Display},
-    u8,
-};
+use std::fmt::{Debug, Display};
 
 #[derive(Clone, Debug)]
 #[repr(u8)]

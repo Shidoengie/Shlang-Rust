@@ -1,13 +1,11 @@
-use core::fmt;
 use std::{
     collections::HashMap,
     fmt::Debug,
-    ops::{Deref, DerefMut, Index},
 };
 
 use crate::{
-    frontend::{ast::nodes::NodeSpan, opkind::*},
-    spans::{IntoSpanned, Span, SpanUtil, Spanned},
+    frontend::opkind::*,
+    spans::{Span, Spanned},
 };
 
 #[derive(Clone, Debug)]

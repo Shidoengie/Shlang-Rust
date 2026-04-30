@@ -14,5 +14,22 @@ test_func!(
         "Unary operators" => "-1 != !true"
         "Branches" => "if true {1+2;3+4;} else {2+4;}"
         "Functions" => "func hello(a) {println(a);}"
+        "Loops" => r#" do {
+        while true {
+            break
+        }
+        while true {
+            break
+        }
+        while true {
+            break
+        }
+        while true {
+            break
+        }
+        while true {
+            break
+    }; }
+        "#
     }
 );

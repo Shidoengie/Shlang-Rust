@@ -304,12 +304,12 @@ pub struct Decl {
 }
 impl Decl {
     pub fn new(name: String, expr: NodeRef) -> Self {
-        return Self {
+        Self {
             name,
             expr,
             readonly: false,
             hoisted: false,
-        };
+        }
     }
     pub fn as_readonly(self) -> Self {
         Self {

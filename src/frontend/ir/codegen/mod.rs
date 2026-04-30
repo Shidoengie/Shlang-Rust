@@ -1,5 +1,5 @@
 mod error;
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, format};
 
 pub use error::GenErr;
 
@@ -74,9 +74,16 @@ impl Display for Ir {
 pub struct IRgen {
     span_map: SpanMap,
     label_counter: usize,
+    loop_stack: Vec<usize>,
 }
 
 impl IRgen {
+    pub fn new() -> Self {
+        return Self {
+            loop_stack: Vec::with_capacity(4),
+            ..Default::default()
+        };
+    }
     /// Generates bytecode and a source map for a single expression.
     pub fn generate_expr(expr: ResolvedAstNode) -> Result<Ir> {
         let mut codegen = Self {
@@ -161,6 +168,20 @@ impl IRgen {
             RNode::FunctionLit(func) => self.gen_func_lit(func, span, bytecode)?,
             RNode::Call { callee, args } => {
                 self.gen_call(callee.deref_item(), args, span, bytecode)?
+            }
+            RNode::Continue => {
+                let Some(loopid) = self.loop_stack.last() else {
+                    return Err(GenErr::Unspecified("Invalid loop controlflow".to_owned())
+                        .to_spanned(node.span));
+                };
+                bytecode.push(IrNode::Goto(format!("loop_start@{loopid}")))
+            }
+            RNode::Break => {
+                let Some(loopid) = self.loop_stack.last() else {
+                    return Err(GenErr::Unspecified("Invalid loop controlflow".to_owned())
+                        .to_spanned(node.span));
+                };
+                bytecode.push(IrNode::Goto(format!("loop_end@{loopid}")))
             }
             RNode::Return(expr) => self.gen_return(expr.deref_item(), span, bytecode)?,
             node => {
@@ -321,16 +342,18 @@ impl IRgen {
         bytecode: &mut Vec<IrNode>,
     ) -> Result {
         let start = bytecode.len();
-        let start_label = self.gen_label_name("while_start");
+        self.loop_stack.push(self.label_counter);
+        let end_label = format!("loop_end@{}", self.label_counter);
+        let start_label = self.gen_label_name("loop_start");
         bytecode.push(IrNode::Label(start_label.clone()));
         self.node_gen(condition, bytecode)?;
         let block_start_index = bytecode.len();
         bytecode.push(Op::NoOp);
         self.gen_block(block, bytecode)?;
-        let end_label = self.gen_label_name("while_end");
         bytecode[block_start_index] = IrNode::Branch(end_label.clone());
         bytecode.push(IrNode::Goto(start_label));
         bytecode.push(IrNode::Label(end_label.clone()));
+        self.loop_stack.pop();
         self.span_map.push(start, bytecode.len(), span);
         Ok(())
     }

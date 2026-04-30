@@ -35,10 +35,10 @@ impl Runtime {
         }
     }
     pub fn with_expr_output(self, expr_output: bool) -> Self {
-        return Self {
+        Self {
             expr_output,
             ..self
-        };
+        }
     }
     pub fn assemble(&mut self, input: &str) -> Result<ByteCode, Box<dyn LangError>> {
         let ir = self.compiler.compile(input)?;
@@ -49,7 +49,7 @@ impl Runtime {
         Ok(Assembler::assemble(ir))
     }
     pub fn execute(&mut self, input: &str) -> Result<(), Box<dyn LangError>> {
-        let ir = self.compiler.compile(&input)?;
+        let ir = self.compiler.compile(input)?;
         let bytecode = Assembler::assemble(ir);
         let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
         let res = vm.exec();
@@ -72,7 +72,7 @@ impl Runtime {
         })
     }
     pub fn execute_expr(&mut self, input: &str) -> Result<(), Box<dyn LangError>> {
-        let ir = self.compiler.compile_expr(&input)?;
+        let ir = self.compiler.compile_expr(input)?;
         let bytecode = Assembler::assemble(ir);
         let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
         let res = vm.exec();

@@ -16,7 +16,7 @@ impl Frame {
         Self {
             func,
             ret_address,
-            locals: vec![Value::Null; local_count].into_boxed_slice(),
+            locals: vec![Value::Undefined; local_count].into_boxed_slice(),
         }
     }
     /// Gets a local variable from a given index

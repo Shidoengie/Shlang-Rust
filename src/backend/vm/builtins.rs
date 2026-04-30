@@ -1,4 +1,4 @@
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 
 ///! This module is temporary, as it is not the ideal solution
 ///! It will get replaced with FFI
@@ -32,5 +32,5 @@ pub const NATIVE_INPUT: NativeFunction = NativeFunction::new_variadic(|_, args| 
     if read.is_err() {
         result = "".to_string()
     }
-    return Value::String(result);
+    Value::String(result)
 });

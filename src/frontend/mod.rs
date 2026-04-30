@@ -2,7 +2,7 @@ use crate::{
     filestore::FileStore,
     frontend::{
         ast::{
-            nodes::{Item, Node},
+            nodes::Node,
             parser::Parser,
         },
         ir::codegen::{IRgen, Ir},

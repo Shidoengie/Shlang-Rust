@@ -13,6 +13,7 @@ pub enum ErrCode {
     InvalidOffset,
     EmptyStack,
     ExpectedStackFrame,
+    UsedBeforeInit,
     InvalidType { expected: Type, got: Type },
     MixedTypes { first: Type, last: Type },
     UnsupportedOperation { op: String, target: Type },
@@ -69,6 +70,11 @@ impl LangError for Spanned<ErrCode> {
                     .with_err_label("This points to an invalid address.".to_string())
                     .finish()
             }
+            ErrCode::UsedBeforeInit => {
+                MsgBuilder::build_err(format!("This value hasnt been defined yet"), self.span)
+                    .with_err_label("This points to an invalid address.".to_string())
+                    .finish()
+            }
         }
     }
 }
@@ -97,6 +103,7 @@ impl From<Value> for Type {
             Value::Float(_) => Self::Float,
             Value::Int(_) => Self::Int,
             Value::Null => Self::Null,
+            Value::Undefined => Self::Null,
             Value::String(_) => Self::String,
             Value::Function(_) => Self::Function,
             Value::NativeFunction(_) => Self::Function,

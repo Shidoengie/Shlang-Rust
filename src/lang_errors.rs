@@ -21,6 +21,7 @@ impl<'a> MsgBuilder<'a> {
             span,
         }
     }
+
     pub fn build_unspecified_err(msg: String, span: Span) -> Report<'a, Span> {
         Self::build_err(msg, span)
             .with_err_label("On this expression".to_string())

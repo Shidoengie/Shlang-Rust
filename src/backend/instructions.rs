@@ -27,7 +27,7 @@ impl Display for ByteCode {
             return Ok(());
         }
         for (index, op) in self.ops.iter().enumerate() {
-            writeln!(f, "{pos} | {op}", pos = format!("{index:<2}"))?;
+            writeln!(f, "{index:<2} | {op}")?;
         }
         Ok(())
     }
@@ -107,7 +107,8 @@ impl Display for OpCode {
 #[repr(u8)]
 pub enum Value {
     #[default]
-    Null = 0,
+    Undefined = 0,
+    Null,
     Int(i64),
     Float(f64),
     Bool(bool),
@@ -123,6 +124,7 @@ impl fmt::Display for Value {
             Self::Float(v) => write!(f, "{v}"),
             Self::String(v) => write!(f, "{v}"),
             Self::Null => write!(f, "null"),
+            Self::Undefined => write!(f, "undefined"),
             Self::Function(v) => write!(f, "<function@{}>", v.address),
             Self::NativeFunction(_) => write!(f, "<nativefunction>"),
         }

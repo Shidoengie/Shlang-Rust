@@ -22,7 +22,7 @@ Ok(
             1..14 = Span[6,42],
             0..15 = Span[0,42],
         },
-        global_count: 1,
+        global_count: 2,
     } = [
         Push(Int(1)),
         Push(Int(2)),

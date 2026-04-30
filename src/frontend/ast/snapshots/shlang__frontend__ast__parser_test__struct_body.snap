@@ -4,5 +4,5 @@ description: test_parsing
 expression: "parse_expr (\"struct abc{};\")"
 ---
 Ok(
-    VarDecl(abc = {}[7,12])[7,12],
+    LetDecl(abc = {}[7,12])[7,12],
 )

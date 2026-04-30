@@ -20,7 +20,7 @@ Ok(
             10..13 = Span[24,30],
             0..14 = Span[3,9],
         },
-        global_count: 1,
+        global_count: 2,
     } = [
         Push(Bool(true)),
         Branch("else@0"),

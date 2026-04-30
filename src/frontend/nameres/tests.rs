@@ -1,5 +1,3 @@
-
-
 use crate::{
     frontend::{
         FileStore,
@@ -40,7 +38,22 @@ test_func!(
             func a(c) {
                 var d = b;
             }
+        "#,
+        "ids" => r#"
+            var a = 10;
+            do {
+                var b = 20;
+                var c = 30;
+                var d = 123;
+            }
+            var c = 10;
+            do {
+                var b = 20;
+                var c = 30;
+                var d = 123;
+            }
         "#
+
     },
     test_globals,test_global_nameres, {
         "global_fns"=> r#"

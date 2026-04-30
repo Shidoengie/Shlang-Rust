@@ -72,7 +72,6 @@ impl Display for Ir {
 /// generating a linear stream of virtual machine instructions (`OpCode`).
 #[derive(Default)]
 pub struct IRgen {
-    node_pool: NodePool,
     span_map: SpanMap,
     label_counter: usize,
 }
@@ -81,7 +80,6 @@ impl IRgen {
     /// Generates bytecode and a source map for a single expression.
     pub fn generate_expr(expr: ResolvedAstNode) -> Result<Ir> {
         let mut codegen = Self {
-            node_pool: expr.pool,
             ..Default::default()
         };
         let mut bytecode = Vec::new();
@@ -98,15 +96,10 @@ impl IRgen {
     /// Generates bytecode and a source map for a full program.
     pub fn generate(prog: ResolvedAst) -> Result<Ir> {
         let mut codegen = Self {
-            node_pool: prog.pool,
             ..Default::default()
         };
         let mut bytecode = Vec::new();
         codegen.gen_top_level(prog.proc, &mut bytecode)?;
-        if let Some(entry) = prog.entry_point {
-            bytecode.push(IrNode::LoadGlobal(entry));
-            bytecode.push(Op::Call(0));
-        }
         Ok(Ir {
             ops: bytecode,
             span_map: codegen.span_map,
@@ -115,15 +108,13 @@ impl IRgen {
         })
     }
 
-    fn gen_top_level(&mut self, prog: Vec<Spanned<Item>>, bytecode: &mut Vec<IrNode>) -> Result {
-        for decl in prog {
-            let decl_span = decl.span;
-            //This isnt a let else or if let because ResItem will have more variants in the future
-            match decl.item {
-                Item::Decl(resolved_decl) => {
-                    self.gen_vardecl(resolved_decl, decl_span, bytecode)?;
-                }
-            }
+    fn gen_top_level(
+        &mut self,
+        prog: Vec<Spanned<ResolvedNode>>,
+        bytecode: &mut Vec<IrNode>,
+    ) -> Result {
+        for node in prog {
+            self.node_gen(node, bytecode)?;
         }
         Ok(())
     }
@@ -137,12 +128,9 @@ impl IRgen {
         self.span_map.push(bytecode.len(), bytecode.len() + 1, span);
         bytecode.push(Op::Push(val));
     }
-
     /// Dispatches bytecode generation to a specific function based on the node's type.
-    fn node_gen(&mut self, node_ref: RNodeRef, bytecode: &mut Vec<IrNode>) -> Result {
-        let node = self.node_pool[node_ref].clone();
+    fn node_gen(&mut self, node: RNodeSpan, bytecode: &mut Vec<IrNode>) -> Result {
         let span = node.span;
-
         match node.item {
             RNode::Null => self.push_val(IrLiteral::Null, span, bytecode),
             RNode::Float(num) => self.push_val(IrLiteral::Float(num), span, bytecode),
@@ -151,12 +139,14 @@ impl IRgen {
             RNode::String(txt) => self.push_val(IrLiteral::String(txt), span, bytecode),
 
             RNode::BinaryNode { left, right, kind } => {
-                self.gen_binary(left, right, kind, span, bytecode)?
+                self.gen_binary(left.deref_item(), right.deref_item(), kind, span, bytecode)?
             }
-            RNode::UnaryNode(kind, expr) => self.gen_unary(kind, expr, span, bytecode)?,
+            RNode::UnaryNode(kind, expr) => {
+                self.gen_unary(kind, expr.deref_item(), span, bytecode)?
+            }
             RNode::Decl(decl) => self.gen_vardecl(decl, span, bytecode)?,
             RNode::Assignment { target, value } => {
-                self.gen_assignment(target, value, span, bytecode)?
+                self.gen_assignment(target.deref_item(), value.deref_item(), span, bytecode)?
             }
             RNode::DoBlock(block) => {
                 self.gen_block(block, bytecode)?;
@@ -166,14 +156,15 @@ impl IRgen {
             }
             RNode::Branch(branch) => self.gen_branch(branch, span, bytecode)?,
             RNode::While { condition, block } => {
-                self.gen_while(condition, block, span, bytecode)?
+                self.gen_while(condition.deref_item(), block, span, bytecode)?
             }
             RNode::FunctionLit(func) => self.gen_func_lit(func, span, bytecode)?,
-            RNode::Call { callee, args } => self.gen_call(callee, args, span, bytecode)?,
-            RNode::Return(expr) => self.gen_return(expr, span, bytecode)?,
-            _ => {
-                let repr = self.node_pool.stringify_node(node_ref);
-                todo!("{repr}");
+            RNode::Call { callee, args } => {
+                self.gen_call(callee.deref_item(), args, span, bytecode)?
+            }
+            RNode::Return(expr) => self.gen_return(expr.deref_item(), span, bytecode)?,
+            node => {
+                todo!("{node:?}");
             }
         };
         Ok(())
@@ -182,8 +173,8 @@ impl IRgen {
     /// Generates `left`, `right`, then the `op` to act on them.
     fn gen_binary(
         &mut self,
-        left: RNodeRef,
-        right: RNodeRef,
+        left: RNodeSpan,
+        right: RNodeSpan,
         kind: BinaryOp,
         span: Span,
         bytecode: &mut Vec<IrNode>,
@@ -201,7 +192,7 @@ impl IRgen {
     fn gen_unary(
         &mut self,
         kind: UnaryOp,
-        expr: RNodeRef,
+        expr: RNodeSpan,
         span: Span,
         bytecode: &mut Vec<IrNode>,
     ) -> Result {
@@ -219,7 +210,7 @@ impl IRgen {
     /// Generates the expression's value, then stores it in a local.
     fn gen_vardecl(&mut self, decl: Decl, span: Span, bytecode: &mut Vec<IrNode>) -> Result {
         let start = bytecode.len();
-        self.node_gen(decl.expr, bytecode)?;
+        self.node_gen(decl.expr.deref_item(), bytecode)?;
         if decl.is_global {
             bytecode.push(Op::StoreGlobal(decl.id));
         } else {
@@ -232,15 +223,15 @@ impl IRgen {
 
     fn gen_assignment(
         &mut self,
-        target_ref: RNodeRef,
-        value_ref: RNodeRef,
+        target: RNodeSpan,
+        value: RNodeSpan,
         span: Span,
         bytecode: &mut Vec<IrNode>,
     ) -> Result {
         let start = bytecode.len();
-        match self.node_pool[target_ref].item.clone() {
+        match target.item.clone() {
             RNode::Variable { id, is_global } => {
-                self.node_gen(value_ref, bytecode)?;
+                self.node_gen(value, bytecode)?;
                 bytecode.push(if is_global {
                     Op::StoreGlobal(id)
                 } else {
@@ -295,7 +286,7 @@ impl IRgen {
             return Ok(());
         }
         let start = bytecode.len();
-        self.node_gen(branch.condition, bytecode)?;
+        self.node_gen(branch.condition.deref_item(), bytecode)?;
 
         let branch_op_index = bytecode.len();
         bytecode.push(Op::NoOp);
@@ -324,7 +315,7 @@ impl IRgen {
     /// Generates a loop with a conditional exit and a jump back to the start.
     fn gen_while(
         &mut self,
-        condition: RNodeRef,
+        condition: RNodeSpan,
         block: Block,
         span: Span,
         bytecode: &mut Vec<IrNode>,
@@ -395,8 +386,8 @@ impl IRgen {
     /// Generates code to evaluate arguments, then the callee, then call.
     fn gen_call(
         &mut self,
-        callee: RNodeRef,
-        args: Vec<RNodeRef>,
+        callee: RNodeSpan,
+        args: Vec<RNodeSpan>,
         span: Span,
         bytecode: &mut Vec<IrNode>,
     ) -> Result {
@@ -419,7 +410,7 @@ impl IRgen {
     }
 
     /// Generates the return value, then the `Ret` instruction.
-    fn gen_return(&mut self, expr: RNodeRef, span: Span, bytecode: &mut Vec<IrNode>) -> Result {
+    fn gen_return(&mut self, expr: RNodeSpan, span: Span, bytecode: &mut Vec<IrNode>) -> Result {
         let start = bytecode.len();
         self.node_gen(expr, bytecode)?;
         bytecode.push(Op::Ret);

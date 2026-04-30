@@ -5,6 +5,7 @@ pub use error::ParseError;
 use frontend::opkind::*;
 
 use crate::hashmap;
+use core::panic;
 use frontend::ast::nodes::*;
 use frontend::lexemes::lexer::Lexer;
 use frontend::lexemes::tokens::*;
@@ -845,6 +846,7 @@ impl<'input> Parser<'input> {
         let mut body: Vec<NodeSpan> = vec![];
         while self.peek_opt()?.is_some() {
             let expr = self.parse_node(false)?;
+
             if expr.item == Node::DontResult {
                 continue;
             }

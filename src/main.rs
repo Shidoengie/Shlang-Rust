@@ -55,13 +55,13 @@ fn run_stage(compiler: &mut Compiler, stage: &Stage, content: &str, is_expr: boo
         Stage::Codegen if is_expr => display_if_ok(compiler.compile_expr(content)),
         Stage::Codegen => display_if_ok(compiler.compile(content)),
         Stage::Bytecode if is_expr => {
-            let mut runtime = Runtime::make(compiler.get_filestore().clone(), false);
+            let mut runtime = Runtime::make(compiler.get_filestore().clone(), false, false);
             let bytecode = runtime.assemble_expr(content);
             compiler.file_store = runtime.get_filestore();
             display_if_ok(bytecode);
         }
         Stage::Bytecode => {
-            let mut runtime = Runtime::make(compiler.get_filestore().clone(), false);
+            let mut runtime = Runtime::make(compiler.get_filestore().clone(), false, false);
             let bytecode = runtime.assemble(content);
             compiler.file_store = runtime.get_filestore();
             display_if_ok(bytecode);
@@ -70,7 +70,7 @@ fn run_stage(compiler: &mut Compiler, stage: &Stage, content: &str, is_expr: boo
 }
 
 /// Starts an interactive Read-Eval-Print-Loop (REPL).
-fn run_repl(compiler: &mut Compiler, stage: Option<Stage>) {
+fn run_repl(compiler: &mut Compiler, args: &Args) {
     let mut runtime = Runtime::new();
     println!("Shlang REPL. Enter an empty line or press Ctrl+C to exit.");
     loop {
@@ -81,11 +81,13 @@ fn run_repl(compiler: &mut Compiler, stage: Option<Stage>) {
             break;
         }
 
-        if let Some(ref stage) = stage {
+        if let Some(ref stage) = args.stage {
             run_stage(compiler, stage, line.trim(), true);
-        } else {
-            // Execute the expression; errors are printed by the runtime.
+        }
+        if args.is_expr {
             let _ = runtime.execute_expr(line.trim());
+        } else {
+            let _ = runtime.execute(line.trim());
         }
     }
 }
@@ -121,6 +123,6 @@ fn main() {
     if let Some(content) = args.content.clone() {
         run_once(&args, &mut compiler, content);
     } else {
-        run_repl(&mut compiler, args.stage);
+        run_repl(&mut compiler, &args);
     }
 }

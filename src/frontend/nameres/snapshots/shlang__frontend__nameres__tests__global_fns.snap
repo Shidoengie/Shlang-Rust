@@ -4,31 +4,43 @@ description: test_globals
 expression: "test_global_nameres\n(r#\"\n    var b = a();\n    func a() {\n        return 10;\n    } \n    \"#)"
 ---
 Ok(
-    Ast(
-      global_count: 3,
-      local_count: 0,
-    ) = {
-      Decl(
-        id: 1
-        global: true
-        expr: Call(
-          callee:Variable(id: 2, global: true)[13,14],
-          args:[]
-        )[15,16]
-      )[5,16];
-      Decl(
-        id: 2
-        global: true
-        expr: FuncDef(
-          captures: false,
-          idents: [],
-          local_count: 0,
-          block:{
-            ReturnNode(
-              Int(10)[48,50]
-            )[41,47];
-          }
-        )[27,32]
-      )[27,32];
+    ResolvedAst {
+        proc: [
+            Decl(
+                Decl {
+                    id: 0,
+                    expr: Call {
+                        callee: Variable {
+                            id: 2,
+                            is_global: true,
+                        }[13,14],
+                        args: [],
+                    }[15,16],
+                    is_global: false,
+                },
+            )[5,16],
+            Decl(
+                Decl {
+                    id: 2,
+                    expr: FunctionLit(
+                        FunctionLit {
+                            captures: false,
+                            idents: [],
+                            block: [
+                                Return(
+                                    Int(
+                                        10,
+                                    )[48,50],
+                                )[41,47],
+                            ][31,57],
+                            local_count: 0,
+                        },
+                    )[27,32],
+                    is_global: true,
+                },
+            )[27,32],
+        ],
+        global_count: 3,
+        local_count: 1,
     },
 )

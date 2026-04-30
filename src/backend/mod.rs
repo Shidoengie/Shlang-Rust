@@ -14,22 +14,31 @@ pub mod vm;
 pub struct Runtime {
     compiler: Compiler,
     silent: bool,
+    expr_output: bool,
 }
 impl Runtime {
     pub fn new() -> Self {
         Self {
             compiler: Compiler::new(),
             silent: false,
+            expr_output: false,
         }
     }
     pub fn get_filestore(self) -> FileStore {
         self.compiler.file_store
     }
-    pub fn make(file_store: FileStore, silent: bool) -> Self {
+    pub fn make(file_store: FileStore, silent: bool, expr_output: bool) -> Self {
         Self {
             compiler: Compiler::make(file_store, silent),
             silent,
+            expr_output,
         }
+    }
+    pub fn with_expr_output(self, expr_output: bool) -> Self {
+        return Self {
+            expr_output,
+            ..self
+        };
     }
     pub fn assemble(&mut self, input: &str) -> Result<ByteCode, Box<dyn LangError>> {
         let ir = self.compiler.compile(input)?;
@@ -40,11 +49,13 @@ impl Runtime {
         Ok(Assembler::assemble(ir))
     }
     pub fn execute(&mut self, input: &str) -> Result<(), Box<dyn LangError>> {
-        let ir = self.compiler.compile(input)?;
+        let ir = self.compiler.compile(&input)?;
         let bytecode = Assembler::assemble(ir);
-        let res = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count).exec();
+        let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
+        let res = vm.exec();
         res.map_err(|err| {
             let code = err.into_spanned_code(&bytecode.span_map);
+
             Box::new(code) as Box<dyn LangError>
         })
         .inspect_err(|err| {
@@ -54,9 +65,13 @@ impl Runtime {
                     .expect("Could not print error.");
             }
         })
+        .inspect(|_| {
+            if self.expr_output {
+                println!("{:?}", vm.values)
+            }
+        })
     }
     pub fn execute_expr(&mut self, input: &str) -> Result<(), Box<dyn LangError>> {
-        let input = format!("do {{ {input} }}");
         let ir = self.compiler.compile_expr(&input)?;
         let bytecode = Assembler::assemble(ir);
         let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
@@ -73,6 +88,10 @@ impl Runtime {
                     .expect("Could not print error.");
             }
         })
-        .inspect(|_| println!("{:?}", vm.values))
+        .inspect(|_| {
+            if self.expr_output {
+                println!("{:?}", vm.values)
+            }
+        })
     }
 }

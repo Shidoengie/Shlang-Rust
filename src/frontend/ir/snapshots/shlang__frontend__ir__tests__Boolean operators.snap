@@ -12,7 +12,7 @@ Ok(
             1..4 = Span[9,22],
             0..5 = Span[0,22],
         },
-        global_count: 1,
+        global_count: 2,
     } = [
         Push(Bool(true)),
         Push(Bool(false)),

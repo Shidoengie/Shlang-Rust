@@ -1,29 +1,31 @@
 ---
 source: src/frontend/ir/tests.rs
 description: ir_expr
-expression: "test_ir (\"func hello(a) {print(a);}\")"
+expression: "test_ir (\"func hello(a) {println(a);}\")"
 ---
 Ok(
     Ir {
         span_map: SpanMap {
-            0..1 = Span[21,22],
-            0..1 = Span[21,23],
-            1..2 = Span[15,20],
-            0..3 = Span[21,23],
-            0..3 = Span[14,25],
-            6..7 = Span[5,15],
-            1..7 = Span[5,15],
-            0..8 = Span[5,15],
+            0..1 = Span[23,24],
+            0..1 = Span[23,25],
+            1..2 = Span[15,22],
+            0..3 = Span[23,25],
+            0..3 = Span[14,27],
+            8..9 = Span[5,15],
+            1..9 = Span[5,15],
+            0..10 = Span[5,15],
         },
-        global_count: 1,
+        global_count: 2,
     } = [
         Label("func_start@0"),
         Goto("func_end@1"),
         LoadLocal(0),
         LoadGlobal(0),
         Call(1),
+        Push(Null),
+        Ret,
         Label("func_end@1"),
-        Push(Function(Function { address: "func_start@0", local_count: 2, param_count: 1 })),
+        Push(Function(Function { address: "func_start@0", local_count: 1, param_count: 1 })),
         StoreLocal(1),
     ],
 )

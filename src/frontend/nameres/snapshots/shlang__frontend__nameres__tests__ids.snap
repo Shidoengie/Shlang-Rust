@@ -1,0 +1,97 @@
+---
+source: src/frontend/nameres/tests.rs
+description: test_locals
+expression: "test_nameres\n(r#\"\n            var a = 10;\n            do {\n                var b = 20;\n                var c = 30;\n                var d = 123;\n            }\n            var c = 10;\n            do {\n                var b = 20;\n                var c = 30;\n                var d = 123;\n            }\n        \"#)"
+---
+Ok(
+    ResolvedAstNode {
+        node: DoBlock(
+            [
+                Decl(
+                    Decl {
+                        id: 0,
+                        expr: Int(
+                            10,
+                        )[26,28],
+                        is_global: false,
+                    },
+                )[18,28],
+                DoBlock(
+                    [
+                        Decl(
+                            Decl {
+                                id: 1,
+                                expr: Int(
+                                    20,
+                                )[71,73],
+                                is_global: false,
+                            },
+                        )[63,73],
+                        Decl(
+                            Decl {
+                                id: 2,
+                                expr: Int(
+                                    30,
+                                )[99,101],
+                                is_global: false,
+                            },
+                        )[91,101],
+                        Decl(
+                            Decl {
+                                id: 3,
+                                expr: Int(
+                                    123,
+                                )[127,130],
+                                is_global: false,
+                            },
+                        )[119,130],
+                    ][45,145],
+                )[45,145],
+                Decl(
+                    Decl {
+                        id: 1,
+                        expr: Int(
+                            10,
+                        )[166,168],
+                        is_global: false,
+                    },
+                )[158,168],
+                Result(
+                    DoBlock(
+                        [
+                            Decl(
+                                Decl {
+                                    id: 2,
+                                    expr: Int(
+                                        20,
+                                    )[211,213],
+                                    is_global: false,
+                                },
+                            )[203,213],
+                            Decl(
+                                Decl {
+                                    id: 3,
+                                    expr: Int(
+                                        30,
+                                    )[239,241],
+                                    is_global: false,
+                                },
+                            )[231,241],
+                            Decl(
+                                Decl {
+                                    id: 4,
+                                    expr: Int(
+                                        123,
+                                    )[267,270],
+                                    is_global: false,
+                                },
+                            )[259,270],
+                        ][185,285],
+                    )[185,285],
+                )[185,285],
+            ][3,296],
+        )[3,296],
+        global_count: 2,
+        local_count: 5,
+    },
+)

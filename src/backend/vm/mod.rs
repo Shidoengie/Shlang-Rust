@@ -294,6 +294,7 @@ impl StackVM {
     fn pop_pair_raw(&mut self) -> Result<((Value, usize), (Value, usize))> {
         let right = self.pop_raw()?;
         let left = self.pop_raw()?;
+
         Ok((left, right))
     }
 }

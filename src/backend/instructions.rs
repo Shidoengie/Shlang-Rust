@@ -1,9 +1,10 @@
 use crate::{backend::vm::StackVM, spanmap::SpanMap, utils::compact_iter_debug};
 use core::fmt;
 use std::{
-    fmt::{Debug, Display},
+    fmt::{Debug, Display, Write},
     sync::Arc,
 };
+
 pub struct ByteCode {
     pub ops: Vec<OpCode>,
     pub span_map: SpanMap,
@@ -64,7 +65,7 @@ pub enum OpCode {
     Not,
     Neg,
     /// Halts program execution
-    Stop,
+    Exit,
     Ret,
     /// Pops a function out of the current stack, their arguments, then calling it
     Call(u8),
@@ -73,7 +74,10 @@ impl Display for OpCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NoOp => f.write_str("noop"),
-            Self::Push(lit) => write!(f, "push {}", lit),
+            Self::Push(lit) => {
+                write!(f, "push ")?;
+                lit.lang_debug_fmt(f)
+            }
             Self::LoadLocal(index) => write!(f, "loadlocal {}", index),
             Self::StoreLocal(index) => write!(f, "storelocal {}", index),
             Self::LoadGlobal(index) => write!(f, "loadglobal {}", index),
@@ -98,7 +102,7 @@ impl Display for OpCode {
             Self::NullCo => f.write_str("nullco"),
             Self::Not => f.write_str("not"),
             Self::Neg => f.write_str("neg"),
-            Self::Stop => f.write_str("stop"),
+            Self::Exit => f.write_str("exit"),
             Self::Ret => f.write_str("ret"),
             Self::Call(arity) => write!(f, "call {}", arity),
         }
@@ -116,6 +120,20 @@ pub enum Value {
     String(String),
     Function(Arc<Function>),
     NativeFunction(NativeFunction),
+}
+impl Value {
+    pub fn lang_debug_fmt(&self, f: &mut impl Write) -> std::fmt::Result {
+        match self {
+            Self::Bool(v) => write!(f, "{v}"),
+            Self::Int(v) => write!(f, "{v}i"),
+            Self::Float(v) => write!(f, "{v}f"),
+            Self::String(v) => write!(f, "\"{v}\""),
+            Self::Null => write!(f, "null"),
+            Self::Undefined => write!(f, "undefined"),
+            Self::Function(v) => write!(f, "<function@{}>", v.address),
+            Self::NativeFunction(_) => write!(f, "<nativefunction>"),
+        }
+    }
 }
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

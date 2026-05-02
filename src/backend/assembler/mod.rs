@@ -79,7 +79,7 @@ impl Assembler {
             IrNode::NullCo => OpCode::NullCo,
             IrNode::Not => OpCode::Not,
             IrNode::Neg => OpCode::Neg,
-            IrNode::Stop => OpCode::Stop,
+            IrNode::Stop => OpCode::Exit,
             IrNode::Ret => OpCode::Ret,
             IrNode::Call(arity) => OpCode::Call(arity),
         }
@@ -93,7 +93,7 @@ impl Assembler {
             IrLiteral::Bool(v) => Value::Bool(v),
             IrLiteral::String(v) => Value::String(v),
             IrLiteral::Function(func) => {
-                let address = self.get_label_address(&func.address) + 1;
+                let address = self.get_label_address(&func.address);
                 Value::Function(Arc::new(Function {
                     address,
                     local_count: func.local_count,

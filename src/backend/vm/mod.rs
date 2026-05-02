@@ -272,6 +272,10 @@ impl StackVM {
                 }
                 Ok(())
             }
+            OpCode::Exit => {
+                self.stop();
+                Ok(())
+            }
             OpCode::Ret => self.exec_ret(),
             _ => todo!("OpCode {:?} is not yet implemented!", op),
         }
@@ -466,7 +470,6 @@ impl StackVM {
         Ok(())
     }
     fn exec_func_call(&mut self, func: Arc<Function>, arg_len: u8) -> Result {
-        //dbg!(self.ip, &self.values);
         if arg_len != func.param_count {
             return Err(ErrCode::InvalidArgs {
                 expected: arg_len,
@@ -479,6 +482,7 @@ impl StackVM {
         } else {
             self.pop_chunk(arg_len as usize)
         };
+
         let mut frame = Frame::new(func.clone(), self.ip);
         frame.set_values(&args);
         let func_address = frame.func.address;

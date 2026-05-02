@@ -6,6 +6,7 @@ pub use error::GenErr;
 use super::instructions::{IrNode as Op, *};
 
 use crate::{
+    backend::instructions::Value,
     frontend::{
         nameres::resolved_nodes::{ResolvedNode as RNode, *},
         opkind::*,
@@ -42,6 +43,7 @@ impl From<BinaryOp> for Op {
 }
 pub struct Ir {
     pub ops: Vec<Op>,
+    pub globals: Vec<IrLiteral>,
     pub span_map: SpanMap,
     pub global_count: usize,
     pub local_count: usize,
@@ -75,6 +77,8 @@ pub struct IRgen {
     span_map: SpanMap,
     label_counter: usize,
     loop_stack: Vec<usize>,
+    globals: Vec<IrLiteral>,
+    functions: Vec<IrNode>,
 }
 
 impl IRgen {
@@ -87,15 +91,19 @@ impl IRgen {
     /// Generates bytecode and a source map for a single expression.
     pub fn generate_expr(expr: ResolvedAstNode) -> Result<Ir> {
         let mut codegen = Self {
+            globals: Vec::with_capacity(expr.global_count),
+            loop_stack: Vec::with_capacity(4),
             ..Default::default()
         };
         let mut bytecode = Vec::new();
         codegen.node_gen(expr.node, &mut bytecode)?;
-
+        bytecode.push(Op::Stop);
+        bytecode.append(&mut codegen.functions);
         Ok(Ir {
             ops: bytecode,
             span_map: codegen.span_map,
             global_count: expr.global_count,
+            globals: codegen.globals,
             local_count: expr.local_count,
         })
     }
@@ -103,12 +111,17 @@ impl IRgen {
     /// Generates bytecode and a source map for a full program.
     pub fn generate(prog: ResolvedAst) -> Result<Ir> {
         let mut codegen = Self {
+            globals: Vec::with_capacity(prog.global_count),
+            loop_stack: Vec::with_capacity(4),
             ..Default::default()
         };
         let mut bytecode = Vec::new();
         codegen.gen_top_level(prog.proc, &mut bytecode)?;
+        bytecode.push(Op::Stop);
+        bytecode.append(&mut codegen.functions);
         Ok(Ir {
             ops: bytecode,
+            globals: codegen.globals,
             span_map: codegen.span_map,
             global_count: prog.global_count,
             local_count: prog.local_count,
@@ -135,16 +148,22 @@ impl IRgen {
         self.span_map.push(bytecode.len(), bytecode.len() + 1, span);
         bytecode.push(Op::Push(val));
     }
+    fn gen_literal(&mut self, node: RNodeSpan) -> Result<IrLiteral> {
+        let lit = match node.item {
+            RNode::Null => IrLiteral::Null,
+            RNode::Float(num) => IrLiteral::Float(num),
+            RNode::Int(num) => IrLiteral::Int(num),
+            RNode::Bool(cond) => IrLiteral::Bool(cond),
+            RNode::String(txt) => IrLiteral::String(txt),
+            RNode::FunctionLit(func) => self.gen_func_lit(func, node.span)?.into(),
+            _ => unimplemented!(),
+        };
+        Ok(lit)
+    }
     /// Dispatches bytecode generation to a specific function based on the node's type.
     fn node_gen(&mut self, node: RNodeSpan, bytecode: &mut Vec<IrNode>) -> Result {
         let span = node.span;
         match node.item {
-            RNode::Null => self.push_val(IrLiteral::Null, span, bytecode),
-            RNode::Float(num) => self.push_val(IrLiteral::Float(num), span, bytecode),
-            RNode::Int(num) => self.push_val(IrLiteral::Int(num), span, bytecode),
-            RNode::Bool(cond) => self.push_val(IrLiteral::Bool(cond), span, bytecode),
-            RNode::String(txt) => self.push_val(IrLiteral::String(txt), span, bytecode),
-
             RNode::BinaryNode { left, right, kind } => {
                 self.gen_binary(left.deref_item(), right.deref_item(), kind, span, bytecode)?
             }
@@ -165,7 +184,7 @@ impl IRgen {
             RNode::While { condition, block } => {
                 self.gen_while(condition.deref_item(), block, span, bytecode)?
             }
-            RNode::FunctionLit(func) => self.gen_func_lit(func, span, bytecode)?,
+
             RNode::Call { callee, args } => {
                 self.gen_call(callee.deref_item(), args, span, bytecode)?
             }
@@ -184,6 +203,10 @@ impl IRgen {
                 bytecode.push(IrNode::Goto(format!("loop_end@{loopid}")))
             }
             RNode::Return(expr) => self.gen_return(expr.deref_item(), span, bytecode)?,
+            ref item if item.is_literal() => {
+                let lit = self.gen_literal(node)?;
+                self.push_val(lit, span, bytecode);
+            }
             node => {
                 todo!("{node:?}");
             }
@@ -231,6 +254,11 @@ impl IRgen {
     /// Generates the expression's value, then stores it in a local.
     fn gen_vardecl(&mut self, decl: Decl, span: Span, bytecode: &mut Vec<IrNode>) -> Result {
         let start = bytecode.len();
+        if decl.is_global && decl.expr.is_literal() {
+            let lit = self.gen_literal(decl.expr.deref_item())?;
+            self.globals.push(lit);
+            return Ok(());
+        }
         self.node_gen(decl.expr.deref_item(), bytecode)?;
         if decl.is_global {
             bytecode.push(Op::StoreGlobal(decl.id));
@@ -359,19 +387,14 @@ impl IRgen {
     }
 
     /// Compiles a function's body and wraps it in a callable `Function` value.
-    fn gen_func_lit(
-        &mut self,
-        func: FunctionLit,
-        span: Span,
-        bytecode: &mut Vec<IrNode>,
-    ) -> Result {
+    fn gen_func_lit(&mut self, func: FunctionLit, span: Span) -> Result<Function> {
+        let mut bytecode = vec![];
         if func.captures {
             todo!()
         }
         let func_start_label = self.gen_label_name("func_start");
         bytecode.push(IrNode::Label(func_start_label.clone()));
         let start = bytecode.len();
-        bytecode.push(IrNode::NoOp); // Placeholder offset
 
         let mut func_code = Vec::new();
         if func.block.is_empty() {
@@ -389,21 +412,17 @@ impl IRgen {
         func_code.push(Op::Ret);
         bytecode.append(&mut func_code);
         let func_end_label = self.gen_label_name("func_end");
-        bytecode[start] = IrNode::Goto(func_end_label.clone());
         bytecode.push(IrNode::Label(func_end_label));
 
-        self.push_val(
-            Function {
-                address: func_start_label,
-                local_count,
-                param_count,
-            }
-            .into(),
-            span,
-            bytecode,
-        );
-        self.span_map.push(start, bytecode.len(), span);
-        Ok(())
+        let val = Function {
+            address: func_start_label,
+            local_count,
+            param_count,
+        };
+        self.functions.append(&mut bytecode);
+        //TODO!: self.span_map.push(start, bytecode.len(), span);
+
+        Ok(val)
     }
 
     /// Generates code to evaluate arguments, then the callee, then call.

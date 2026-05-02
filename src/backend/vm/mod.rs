@@ -84,18 +84,25 @@ pub struct StackVM {
 
 pub type Result<T = ()> = std::result::Result<T, VmErr>;
 impl StackVM {
-    pub fn new(proc: Vec<OpCode>, global_count: usize, local_count: usize) -> Self {
+    pub fn new(
+        proc: Vec<OpCode>,
+        global_count: usize,
+        local_count: usize,
+        mut globals: Vec<Value>,
+    ) -> Self {
+        // this is done so the builtins dont colide with the user defined globals
+        let mut new_globals = BUILTINS.to_vec();
+        new_globals.append(&mut globals);
+        new_globals.resize(global_count, Value::Undefined);
         let mut vm = Self {
             ip: 0,
             proc,
             is_finished: false,
             call_stack: vec![],
             values: vec![],
-            globals: vec![Value::Null; global_count].into_boxed_slice(),
+            globals: new_globals.into_boxed_slice(),
         };
-        for (i, val) in BUILTINS.into_iter().enumerate() {
-            vm.globals[i] = val
-        }
+
         let synthetic = Function {
             local_count,
             address: 0,
@@ -135,6 +142,9 @@ impl StackVM {
             .get(id)
             .cloned()
             .ok_or(ErrCode::InvalidStackIndex(id).into_vmerr(self.ip))?;
+        if matches!(val, Value::Undefined) {
+            return Err(ErrCode::UsedBeforeInit.into_vmerr(self.ip));
+        }
         self.push(val);
         self.inc_ip();
         Ok(())
@@ -215,6 +225,10 @@ impl StackVM {
                     .get(index)
                     .cloned()
                     .ok_or(ErrCode::InvalidStackIndex(index).into_vmerr(self.ip))?;
+
+                if matches!(val, Value::Undefined) {
+                    return Err(ErrCode::UsedBeforeInit.into_vmerr(self.ip));
+                }
                 self.push(val);
                 self.inc_ip();
                 Ok(())

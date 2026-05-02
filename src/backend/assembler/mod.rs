@@ -14,6 +14,7 @@ impl Assembler {
     pub fn assemble(ir: Ir) -> ByteCode {
         let mut label_map = HashMap::new();
         let mut output_offset = 0;
+
         for node in &ir.ops {
             match node {
                 IrNode::Label(name) => {
@@ -27,7 +28,10 @@ impl Assembler {
 
         let assembler = Self { label_map };
         let mut output: Vec<OpCode> = Vec::new();
-
+        let mut globals = vec![];
+        for lit in ir.globals {
+            globals.push(assembler.literal_to_value(lit));
+        }
         for node in ir.ops {
             if let IrNode::Label(_) = node {
                 continue;
@@ -42,6 +46,7 @@ impl Assembler {
             span_map: ir.span_map,
             global_count: ir.global_count,
             local_count: ir.local_count,
+            globals,
         }
     }
 

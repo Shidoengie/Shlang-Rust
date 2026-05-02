@@ -9,6 +9,7 @@ pub struct ByteCode {
     pub span_map: SpanMap,
     pub global_count: usize,
     pub local_count: usize,
+    pub globals: Vec<Value>,
 }
 impl Debug for ByteCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -65,7 +66,7 @@ pub enum OpCode {
     /// Halts program execution
     Stop,
     Ret,
-    /// Pops a function out of stack, and their arguments, then calling it
+    /// Pops a function out of the current stack, their arguments, then calling it
     Call(u8),
 }
 impl Display for OpCode {

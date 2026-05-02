@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    fmt::Debug,
-};
+use std::{collections::HashMap, fmt::Debug};
 
 use crate::{
     frontend::opkind::*,
@@ -69,6 +66,20 @@ pub enum ResolvedNode {
     StructDef(HashMap<String, Spanned<Box<ResolvedNode>>>),
     RecordLit(HashMap<String, Spanned<Box<ResolvedNode>>>),
     FieldAccess(Spanned<Box<ResolvedNode>>, Spanned<AccessType>),
+}
+impl ResolvedNode {
+    pub fn is_literal(&self) -> bool {
+        return matches!(
+            self,
+            Self::RecordLit(_)
+                | Self::FunctionLit(_)
+                | Self::Null
+                | Self::Bool(_)
+                | Self::String(_)
+                | Self::Float(_)
+                | Self::Int(_)
+        );
+    }
 }
 pub type Block = Spanned<Vec<RNodeSpan>>;
 

@@ -74,18 +74,19 @@ impl NameRes {
         }
 
         let mut root = Scope::default();
-        let mut buffer = vec![];
+        let mut local_decls = vec![];
+        let mut hoisted_decls = vec![];
         let base_locals = 0usize;
         self.push_scope();
         for node in exprs {
             let AstNode::Decl(decl) = &node.item else {
                 let node = self.resolve_node(node, &mut root)?;
-                buffer.push(node);
+                local_decls.push(node);
                 continue;
             };
             if !decl.hoisted {
                 let node = self.resolve_node(node, &mut root)?;
-                buffer.push(node);
+                local_decls.push(node);
                 continue;
             }
             let expr = self
@@ -94,7 +95,7 @@ impl NameRes {
 
             let id = &self.globals[&decl.name];
 
-            buffer.push(
+            hoisted_decls.push(
                 Decl {
                     id: *id,
                     expr,
@@ -108,7 +109,9 @@ impl NameRes {
         if let Some(max) = self.scope_locals_stack.last_mut() {
             *max = (*max).max(inner_max);
         }
-        Ok(buffer)
+        let mut decls = hoisted_decls;
+        decls.append(&mut local_decls);
+        Ok(decls)
     }
     fn push_scope(&mut self) {
         self.scope_locals_stack.push(0);

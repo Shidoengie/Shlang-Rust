@@ -9,7 +9,12 @@ use crate::{
 
 pub fn run_expr(input: &str) -> vm::Result<Vec<(Value, usize)>> {
     let bytecode = Runtime::default().assemble_expr(input).unwrap();
-    let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
+    let mut vm = StackVM::new(
+        bytecode.ops,
+        bytecode.global_count,
+        bytecode.local_count,
+        bytecode.globals,
+    );
     vm.exec()?;
     Ok(vm.values)
 }

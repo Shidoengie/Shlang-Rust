@@ -51,7 +51,12 @@ impl Runtime {
     pub fn execute(&mut self, input: &str) -> Result<(), Box<dyn LangError>> {
         let ir = self.compiler.compile(input)?;
         let bytecode = Assembler::assemble(ir);
-        let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
+        let mut vm = StackVM::new(
+            bytecode.ops,
+            bytecode.global_count,
+            bytecode.local_count,
+            bytecode.globals,
+        );
         let res = vm.exec();
         res.map_err(|err| {
             let code = err.into_spanned_code(&bytecode.span_map);
@@ -74,7 +79,12 @@ impl Runtime {
     pub fn execute_expr(&mut self, input: &str) -> Result<(), Box<dyn LangError>> {
         let ir = self.compiler.compile_expr(input)?;
         let bytecode = Assembler::assemble(ir);
-        let mut vm = StackVM::new(bytecode.ops, bytecode.global_count, bytecode.local_count);
+        let mut vm = StackVM::new(
+            bytecode.ops,
+            bytecode.global_count,
+            bytecode.local_count,
+            bytecode.globals,
+        );
         let res = vm.exec();
         res.map_err(|err| {
             let code = err.into_spanned_code(&bytecode.span_map);

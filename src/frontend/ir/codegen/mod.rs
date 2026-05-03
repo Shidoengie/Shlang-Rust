@@ -79,6 +79,7 @@ pub struct IRgen {
     loop_stack: Vec<usize>,
     globals: Vec<IrLiteral>,
     functions: Vec<IrNode>,
+    fn_end_indexes: Vec<Spanned<usize>>,
 }
 
 impl IRgen {
@@ -118,7 +119,10 @@ impl IRgen {
         let mut bytecode = Vec::new();
         codegen.gen_top_level(prog.proc, &mut bytecode)?;
         bytecode.push(Op::Stop);
+        let prev_len = bytecode.len();
         bytecode.append(&mut codegen.functions);
+        codegen.fn_indexes_to_spans(prev_len);
+
         Ok(Ir {
             ops: bytecode,
             globals: codegen.globals,
@@ -159,6 +163,13 @@ impl IRgen {
             _ => unimplemented!(),
         };
         Ok(lit)
+    }
+    fn fn_indexes_to_spans(&mut self, prev_len: usize) {
+        let mut start = 0;
+        for Spanned { item: end, span } in self.fn_end_indexes.iter().copied() {
+            self.span_map.push(prev_len + start, prev_len + end, span);
+            start = end + 1;
+        }
     }
     /// Dispatches bytecode generation to a specific function based on the node's type.
     fn node_gen(&mut self, node: RNodeSpan, bytecode: &mut Vec<IrNode>) -> Result {
@@ -394,7 +405,6 @@ impl IRgen {
         }
         let func_start_label = self.gen_label_name("func_start");
         bytecode.push(IrNode::Label(func_start_label.clone()));
-        let start = bytecode.len();
 
         let mut func_code = Vec::new();
         if func.block.is_empty() {
@@ -420,7 +430,8 @@ impl IRgen {
             param_count,
         };
         self.functions.append(&mut bytecode);
-        //TODO!: self.span_map.push(start, bytecode.len(), span);
+        self.fn_end_indexes
+            .push((self.functions.len() - 2).to_spanned(span));
 
         Ok(val)
     }

@@ -27,7 +27,7 @@ impl<T> Spanned<T> {
         }
     }
 }
-
+impl<T: Copy> Copy for Spanned<T> {}
 impl<T: IntoIterator> IntoIterator for Spanned<T> {
     type IntoIter = T::IntoIter;
     type Item = T::Item;
@@ -78,6 +78,7 @@ pub trait IntoSpanned {
     }
 }
 impl<T> IntoSpanned for T {}
+
 pub type FileID = usize;
 #[derive(Clone, PartialEq, Eq, Hash, Copy)]
 pub struct Span {
@@ -128,6 +129,7 @@ impl Debug for Span {
         write!(f, "{}:{}", self.start, self.end)
     }
 }
+
 impl Add<Self> for Span {
     type Output = Span;
     fn add(self, rhs: Span) -> Self::Output {

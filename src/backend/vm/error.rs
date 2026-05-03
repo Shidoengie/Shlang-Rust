@@ -19,6 +19,7 @@ pub enum ErrCode {
     UnsupportedOperation { op: String, target: Type },
     InvalidStackIndex(usize),
     InvalidArgs { expected: u8, got: u8 },
+    StackOverflow,
 }
 impl LangError for Spanned<ErrCode> {
     fn msg(&self) -> ariadne::Report<Span> {
@@ -75,6 +76,9 @@ impl LangError for Spanned<ErrCode> {
                     .with_err_label("This points to an invalid address.".to_string())
                     .finish()
             }
+            ErrCode::StackOverflow => MsgBuilder::build_err(format!("Stack overflow"), self.span)
+                .with_err_label("This made the stack run out of size.".to_string())
+                .finish(),
         }
     }
 }

@@ -6,13 +6,16 @@ mod tests;
 
 use std::{mem, sync::Arc};
 
-use crate::backend::{
-    instructions::*,
-    vm::{
-        builtins::BUILTINS,
-        error::{ErrCode, Type, VmErr},
-        frame::Frame,
+use crate::{
+    backend::{
+        instructions::*,
+        vm::{
+            builtins::BUILTINS,
+            error::{ErrCode, Type, VmErr},
+            frame::{CallStack, Frame},
+        },
     },
+    frontend::ast::nodes::Call,
 };
 
 macro_rules! impl_binary_op {
@@ -73,7 +76,7 @@ pub struct StackVM {
     ip: usize,
 
     proc: Vec<OpCode>,
-    call_stack: Vec<Frame>,
+    call_stack: CallStack,
     is_finished: bool,
     /// The runtime value stack. Each value is paired with the instruction pointer
     /// that pushed it, for accurate error reporting.
@@ -98,7 +101,7 @@ impl StackVM {
             ip: 0,
             proc,
             is_finished: false,
-            call_stack: vec![],
+            call_stack: CallStack::new(),
             values: vec![],
             globals: new_globals.into_boxed_slice(),
         };
@@ -109,7 +112,9 @@ impl StackVM {
             param_count: 0,
         };
         let frame = Frame::new(Arc::new(synthetic), 0);
-        vm.call_stack = vec![frame];
+        vm.call_stack = CallStack::new();
+        vm.push_frame(frame)
+            .expect("If this ever occurs something went wrong");
         vm
     }
 
@@ -131,7 +136,7 @@ impl StackVM {
     }
 
     fn expect_frame(&mut self) -> Result<&mut Frame> {
-        let Some(frame) = self.call_stack.last_mut() else {
+        let Some(frame) = self.call_stack.peek_mut() else {
             return Err(ErrCode::ExpectedStackFrame.into_vmerr(self.ip));
         };
         Ok(frame)
@@ -486,7 +491,7 @@ impl StackVM {
         let mut frame = Frame::new(func.clone(), self.ip);
         frame.set_values(&args);
         let func_address = frame.func.address;
-        self.call_stack.push(frame);
+        self.push_frame(frame)?;
         self.ip = func_address;
         Ok(())
     }
@@ -514,6 +519,12 @@ impl StackVM {
             }
         };
 
+        Ok(())
+    }
+    fn push_frame(&mut self, frame: Frame) -> Result {
+        if let Err(_) = self.call_stack.push(frame) {
+            return Err(ErrCode::StackOverflow.into_vmerr(self.ip));
+        };
         Ok(())
     }
 }

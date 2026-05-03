@@ -18,18 +18,6 @@ test_func!(
         while true {
             break
         }
-        while true {
-            break
-        }
-        while true {
-            break
-        }
-        while true {
-            break
-        }
-        while true {
-            break
-    }; }
         "#
     }
 );

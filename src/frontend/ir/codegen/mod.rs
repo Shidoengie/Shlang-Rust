@@ -1,6 +1,7 @@
 mod error;
 use std::fmt::{Debug, Display, format};
 
+use derive_more::From;
 pub use error::GenErr;
 
 use super::instructions::{IrNode as Op, *};
@@ -70,6 +71,7 @@ impl Display for Ir {
         Ok(())
     }
 }
+
 /// `IRgen` is responsible for traversing the Resolved AST (`RNode`) and
 /// generating a linear stream of virtual machine instructions (`OpCode`).
 #[derive(Default)]
@@ -171,7 +173,6 @@ impl IRgen {
             start = end + 1;
         }
     }
-
     /// Generates `left`, `right`, then the `op` to act on them.
     fn gen_binary(
         &mut self,
@@ -275,8 +276,21 @@ impl IRgen {
     fn gen_block(&mut self, block: Block, bytecode: &mut Vec<IrNode>) -> Result {
         let start_index = bytecode.len();
         let span = block.span;
+        if block.is_empty() {
+            bytecode.push(IrNode::Push(IrLiteral::Null));
+        }
         for node in block {
+            if let RNode::Result(node) = node.item {
+                self.node_gen(node.deref_item(), bytecode)?;
+                continue;
+            }
             self.node_gen(node, bytecode)?;
+            if let Some(IrNode::Push(_)) = bytecode.last() {
+                bytecode.pop();
+                bytecode.push(IrNode::Push(IrLiteral::Null));
+                continue;
+            };
+            bytecode.push(IrNode::SetNull);
         }
         let end_index = bytecode.len();
         self.span_map.push(start_index, end_index, span);
@@ -299,8 +313,8 @@ impl IRgen {
         bytecode.push(Op::NoOp);
         self.gen_block(branch.if_block, bytecode)?;
         let if_block_end_index = bytecode.len();
-        bytecode.push(Op::NoOp);
         if let Some(else_block) = branch.else_block {
+            bytecode.push(Op::NoOp);
             let else_label = self.gen_label_name("else");
             bytecode[branch_op_index] = IrNode::Branch(else_label.clone());
             bytecode.push(IrNode::Label(else_label));

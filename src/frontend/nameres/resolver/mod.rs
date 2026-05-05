@@ -29,7 +29,8 @@ impl NameRes {
             file_store,
             globals: hashmap!(
                 println => 0,
-                input => 1
+                input => 1,
+                str_len => 2
             ),
             ..Default::default()
         }

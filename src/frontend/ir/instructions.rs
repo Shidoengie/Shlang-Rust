@@ -1,9 +1,10 @@
 use core::fmt;
 use std::fmt::{Debug, Display};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[repr(u8)]
 pub enum IrNode {
+    #[default]
     NoOp = 0,
     Label(String),
     Push(IrLiteral),
@@ -35,6 +36,8 @@ pub enum IrNode {
     /// Halts program execution
     Stop,
     Ret,
+    SetNull,
+    SwapWith(IrLiteral),
     /// Pops a function out of stack, and their arguments, then calling it
     Call(u8),
 }
@@ -44,6 +47,8 @@ impl Display for IrNode {
             IrNode::NoOp => f.write_str("noop"),
             IrNode::Label(label) => write!(f, "{}:", label),
             IrNode::Push(lit) => write!(f, "push {}", lit),
+            IrNode::SetNull => write!(f, "setnull"),
+            IrNode::SwapWith(value) => write!(f, "swapwith {value}"),
             IrNode::LoadLocal(index) => write!(f, "loadlocal {}", index),
             IrNode::StoreLocal(index) => write!(f, "storelocal {}", index),
             IrNode::LoadGlobal(index) => write!(f, "loadglobal {}", index),

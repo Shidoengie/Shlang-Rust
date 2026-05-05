@@ -282,6 +282,22 @@ impl StackVM {
                 Ok(())
             }
             OpCode::Ret => self.exec_ret(),
+            OpCode::SwapWith(value) => {
+                if let Some(cur) = self.values.last_mut() {
+                    *cur = (value, self.ip);
+                    return Ok(());
+                };
+                self.push(value);
+                Ok(())
+            }
+            OpCode::SetNull => {
+                if let Some(cur) = self.values.last_mut() {
+                    *cur = (Value::Null, self.ip);
+                    return Ok(());
+                };
+                self.push(Value::Null);
+                Ok(())
+            }
             _ => todo!("OpCode {:?} is not yet implemented!", op),
         }
     }

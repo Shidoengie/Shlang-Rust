@@ -39,10 +39,12 @@ impl Display for ByteCode {
 pub enum OpCode {
     NoOp = 0,
     Push(Value),
+    SwapWith(Value),
     LoadLocal(usize),
     StoreLocal(usize),
     LoadGlobal(usize),
     StoreGlobal(usize),
+    SetNull,
     Pop,
     Goto(usize),
     Branch(usize),
@@ -78,6 +80,11 @@ impl Display for OpCode {
                 write!(f, "push ")?;
                 lit.lang_debug_fmt(f)
             }
+            Self::SwapWith(value) => {
+                write!(f, "swapwith ",)?;
+                value.lang_debug_fmt(f)
+            }
+            Self::SetNull => write!(f, "setnull"),
             Self::LoadLocal(index) => write!(f, "loadlocal {}", index),
             Self::StoreLocal(index) => write!(f, "storelocal {}", index),
             Self::LoadGlobal(index) => write!(f, "loadglobal {}", index),

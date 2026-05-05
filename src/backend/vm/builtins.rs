@@ -4,10 +4,20 @@ use std::io::{self, Write};
 ///! It will get replaced with FFI
 use crate::backend::instructions::{NativeFunction, Value};
 
-pub const BUILTINS: [Value; 2] = [
+pub const BUILTINS: [Value; 3] = [
     Value::NativeFunction(NATIVE_PRINTLN),
     Value::NativeFunction(NATIVE_INPUT),
+    Value::NativeFunction(STR_LEN),
 ];
+pub const STR_LEN: NativeFunction = NativeFunction::new(
+    |_, args| {
+        let Value::String(string) = &args[0] else {
+            return Value::Null;
+        };
+        return Value::Int(string.len() as i64);
+    },
+    1,
+);
 pub const NATIVE_PRINTLN: NativeFunction = NativeFunction::new_variadic(|_, args| {
     if args.is_empty() {
         println!();
@@ -32,5 +42,6 @@ pub const NATIVE_INPUT: NativeFunction = NativeFunction::new_variadic(|_, args| 
     if read.is_err() {
         result = "".to_string()
     }
+    result = result.trim().to_owned();
     Value::String(result)
 });

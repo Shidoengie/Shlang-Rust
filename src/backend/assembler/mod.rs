@@ -81,6 +81,8 @@ impl Assembler {
             IrNode::Neg => OpCode::Neg,
             IrNode::Stop => OpCode::Exit,
             IrNode::Ret => OpCode::Ret,
+            IrNode::SwapWith(lit) => OpCode::SwapWith(self.literal_to_value(lit)),
+            IrNode::SetNull => OpCode::SetNull,
             IrNode::Call(arity) => OpCode::Call(arity),
         }
     }

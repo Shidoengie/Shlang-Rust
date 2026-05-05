@@ -1,7 +1,7 @@
 ---
 source: src/frontend/ir/tests.rs
 description: ir_expr
-expression: "test_ir (\"if true {1+2;3+4;} else {2+4;}\")"
+expression: "test_ir (_test_func! ({if true {1+2;3;} else {2+4;}}))"
 ---
 Ok(
     Ir {
@@ -11,14 +11,12 @@ Ok(
             3..4 = Span[11,12],
             2..5 = Span[9,12],
             5..6 = Span[13,14],
-            6..7 = Span[15,16],
-            5..8 = Span[13,16],
-            2..8 = Span[8,18],
-            10..11 = Span[25,26],
-            11..12 = Span[27,28],
-            10..13 = Span[25,28],
-            10..13 = Span[24,30],
-            0..14 = Span[3,9],
+            2..6 = Span[8,16],
+            8..9 = Span[23,24],
+            9..10 = Span[25,26],
+            8..11 = Span[23,26],
+            8..11 = Span[22,28],
+            0..12 = Span[3,9],
         },
         global_count: 2,
     } = [
@@ -28,13 +26,12 @@ Ok(
         Push(Int(2)),
         Add,
         Push(Int(3)),
-        Push(Int(4)),
-        Add,
         Goto("end_if@1"),
         Label("else@0"),
         Push(Int(2)),
         Push(Int(4)),
         Add,
         Label("end_if@1"),
+        Stop,
     ],
 )

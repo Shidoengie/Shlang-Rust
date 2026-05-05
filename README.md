@@ -1,14 +1,24 @@
-## Shlang a toy language made to learn about language development
+# Shlang v4 (codename cider)
 
-Run --help for more information about the command line options
+This is a near complete rewrite of the language keeping only the parser and mostly the lexer.
 
-```swift
-func main() {
-    println("hello world");
-}
+## TODO
 
-```
+- [x] Loops
+- [ ] Results (Block returns)
+- [ ] Classes
+- [ ] Garbage collection
+- [ ] Lists and indexing
+- [ ] For loops
+- [ ] Records
 
-For more information about the language itself read the wiki!
-Note: As of this commit the [wiki](https://github.com/Shidoengie/Shlang-Rust/wiki) is unfinished but most of the additions are """documented""" in the release notes of v2.
-Examples are on the examples folder
+## Planned
+
+- [ ] Modules
+- [ ] FFI
+- [ ] An okay standard library
+
+## Future ideas
+
+- [ ] Cfg
+- [ ] Static types

@@ -39,5 +39,6 @@ Ok(
         GreaterEq,
         Greater,
         NotEq,
+        Stop,
     ],
 )

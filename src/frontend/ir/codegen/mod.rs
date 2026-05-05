@@ -171,59 +171,6 @@ impl IRgen {
             start = end + 1;
         }
     }
-    /// Dispatches bytecode generation to a specific function based on the node's type.
-    fn node_gen(&mut self, node: RNodeSpan, bytecode: &mut Vec<IrNode>) -> Result {
-        let span = node.span;
-        match node.item {
-            RNode::BinaryNode { left, right, kind } => {
-                self.gen_binary(left.deref_item(), right.deref_item(), kind, span, bytecode)?
-            }
-            RNode::UnaryNode(kind, expr) => {
-                self.gen_unary(kind, expr.deref_item(), span, bytecode)?
-            }
-            RNode::Decl(decl) => self.gen_vardecl(decl, span, bytecode)?,
-            RNode::Assignment { target, value } => {
-                self.gen_assignment(target.deref_item(), value.deref_item(), span, bytecode)?
-            }
-            RNode::DoBlock(block) => {
-                self.gen_block(block, bytecode)?;
-            }
-            RNode::Variable { id, is_global } => {
-                self.gen_variable_load(id, is_global, span, bytecode)?
-            }
-            RNode::Branch(branch) => self.gen_branch(branch, span, bytecode)?,
-            RNode::While { condition, block } => {
-                self.gen_while(condition.deref_item(), block, span, bytecode)?
-            }
-
-            RNode::Call { callee, args } => {
-                self.gen_call(callee.deref_item(), args, span, bytecode)?
-            }
-            RNode::Continue => {
-                let Some(loopid) = self.loop_stack.last() else {
-                    return Err(GenErr::Unspecified("Invalid loop controlflow".to_owned())
-                        .to_spanned(node.span));
-                };
-                bytecode.push(IrNode::Goto(format!("loop_start@{loopid}")))
-            }
-            RNode::Break => {
-                let Some(loopid) = self.loop_stack.last() else {
-                    return Err(GenErr::Unspecified("Invalid loop controlflow".to_owned())
-                        .to_spanned(node.span));
-                };
-                bytecode.push(IrNode::Goto(format!("loop_end@{loopid}")))
-            }
-            RNode::Return(expr) => self.gen_return(expr.deref_item(), span, bytecode)?,
-            ref item if item.is_literal() => {
-                let lit = self.gen_literal(node)?;
-                self.push_val(lit, span, bytecode);
-            }
-            node => {
-                todo!("{node:?}");
-            }
-        };
-        Ok(())
-    }
 
     /// Generates `left`, `right`, then the `op` to act on them.
     fn gen_binary(
@@ -372,6 +319,19 @@ impl IRgen {
         Ok(())
     }
 
+    fn gen_loop(&mut self, block: Block, span: Span, bytecode: &mut Vec<IrNode>) -> Result {
+        let start = bytecode.len();
+        self.loop_stack.push(self.label_counter);
+        let end_label = format!("loop_end@{}", self.label_counter);
+        let start_label = self.gen_label_name("loop_start");
+        bytecode.push(IrNode::Label(start_label.clone()));
+        self.gen_block(block, bytecode)?;
+        bytecode.push(IrNode::Goto(start_label));
+        bytecode.push(IrNode::Label(end_label.clone()));
+        self.loop_stack.pop();
+        self.span_map.push(start, bytecode.len(), span);
+        Ok(())
+    }
     /// Generates a loop with a conditional exit and a jump back to the start.
     fn gen_while(
         &mut self,
@@ -468,6 +428,63 @@ impl IRgen {
         self.node_gen(expr, bytecode)?;
         bytecode.push(Op::Ret);
         self.span_map.push(start, bytecode.len(), span);
+        Ok(())
+    }
+}
+impl IRgen {
+    /// Dispatches bytecode generation to a specific function based on the node's type.
+    fn node_gen(&mut self, node: RNodeSpan, bytecode: &mut Vec<IrNode>) -> Result {
+        let span = node.span;
+        match node.item {
+            RNode::BinaryNode { left, right, kind } => {
+                self.gen_binary(left.deref_item(), right.deref_item(), kind, span, bytecode)?
+            }
+            RNode::UnaryNode(kind, expr) => {
+                self.gen_unary(kind, expr.deref_item(), span, bytecode)?
+            }
+            RNode::Decl(decl) => self.gen_vardecl(decl, span, bytecode)?,
+            RNode::Assignment { target, value } => {
+                self.gen_assignment(target.deref_item(), value.deref_item(), span, bytecode)?
+            }
+            RNode::DoBlock(block) => {
+                self.gen_block(block, bytecode)?;
+            }
+            RNode::Variable { id, is_global } => {
+                self.gen_variable_load(id, is_global, span, bytecode)?
+            }
+            RNode::Branch(branch) => self.gen_branch(branch, span, bytecode)?,
+            RNode::While { condition, block } => {
+                self.gen_while(condition.deref_item(), block, span, bytecode)?
+            }
+            RNode::Loop(block) => {
+                self.gen_loop(block, span, bytecode)?;
+            }
+            RNode::Call { callee, args } => {
+                self.gen_call(callee.deref_item(), args, span, bytecode)?
+            }
+            RNode::Continue => {
+                let Some(loopid) = self.loop_stack.last() else {
+                    return Err(GenErr::Unspecified("Invalid loop controlflow".to_owned())
+                        .to_spanned(node.span));
+                };
+                bytecode.push(IrNode::Goto(format!("loop_start@{loopid}")))
+            }
+            RNode::Break => {
+                let Some(loopid) = self.loop_stack.last() else {
+                    return Err(GenErr::Unspecified("Invalid loop controlflow".to_owned())
+                        .to_spanned(node.span));
+                };
+                bytecode.push(IrNode::Goto(format!("loop_end@{loopid}")))
+            }
+            RNode::Return(expr) => self.gen_return(expr.deref_item(), span, bytecode)?,
+            ref item if item.is_literal() => {
+                let lit = self.gen_literal(node)?;
+                self.push_val(lit, span, bytecode);
+            }
+            node => {
+                todo!("{node:?}");
+            }
+        };
         Ok(())
     }
 }

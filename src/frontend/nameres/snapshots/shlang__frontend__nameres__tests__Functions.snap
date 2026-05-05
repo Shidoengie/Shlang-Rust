@@ -1,50 +1,28 @@
 ---
 source: src/frontend/nameres/tests.rs
 description: test_locals
-expression: "test_nameres\n(r#\"\n            var b = 10; \n            func a(c) {\n                var d = b;\n            }\n        \"#)"
+expression: "test_nameres (_test_func! ({ var b = 10; func a(c) { var d = b; } }))"
 ---
 Ok(
     ResolvedAstNode {
-        node: DoBlock(
-            [
-                Decl(
+        node: Do {
+            Decl {
+                id: 0,
+                expr: Int(10)[13,15],
+                is_global: false,
+            }[5,15],
+            Decl {
+                id: 2,
+                expr: Function(1){
                     Decl {
                         id: 0,
-                        expr: Int(
-                            10,
-                        )[26,28],
+                        expr: Variable(0)[37,38],
                         is_global: false,
-                    },
-                )[18,28],
-                Decl(
-                    Decl {
-                        id: 2,
-                        expr: FunctionLit(
-                            FunctionLit {
-                                captures: false,
-                                idents: [
-                                    1,
-                                ],
-                                block: [
-                                    Decl(
-                                        Decl {
-                                            id: 0,
-                                            expr: Variable {
-                                                id: 0,
-                                                is_global: false,
-                                            }[79,80],
-                                            is_global: false,
-                                        },
-                                    )[71,80],
-                                ][53,95],
-                                local_count: 1,
-                            },
-                        )[48,54],
-                        is_global: false,
-                    },
-                )[48,54],
-            ][3,106],
-        )[3,106],
+                    }[29,38],
+                }[22,28],
+                is_global: false,
+            }[22,28],
+        }[3,43],
         global_count: 2,
         local_count: 3,
     },

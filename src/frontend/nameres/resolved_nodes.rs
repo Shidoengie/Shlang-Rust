@@ -5,7 +5,7 @@ use crate::{
     spans::{Span, Spanned},
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum ResolvedNode {
     Null,
     Bool(bool),
@@ -66,6 +66,123 @@ pub enum ResolvedNode {
     StructDef(HashMap<String, Spanned<Box<ResolvedNode>>>),
     RecordLit(HashMap<String, Spanned<Box<ResolvedNode>>>),
     FieldAccess(Spanned<Box<ResolvedNode>>, Spanned<AccessType>),
+}
+impl Debug for ResolvedNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Bool(val) => {
+                if *val {
+                    write!(f, "true")
+                } else {
+                    write!(f, "false")
+                }
+            }
+            Self::RecordLit(map) => f.debug_map().entries(map).finish(),
+            Self::Int(num) => write!(f, "Int({num})"),
+            Self::Float(num) => write!(f, "Float({num})"),
+            Self::String(val) => write!(f, r#""{val}""#),
+            Self::Variable { id, is_global } => {
+                write!(f, "Variable(")?;
+                if *is_global {
+                    write!(f, "global {id})")?;
+                } else {
+                    write!(f, "{id})")?;
+                };
+                Ok(())
+            }
+            Self::Null => f.write_str("Null"),
+            Self::Break => f.write_str("Break"),
+            Self::Continue => f.write_str("Continue"),
+            Self::Decl(decl) => f
+                .debug_struct("Decl")
+                .field("id", &decl.id)
+                .field("expr", &decl.expr)
+                .field("is_global", &decl.is_global)
+                .finish(),
+            Self::Index { target, index } => f
+                .debug_struct("Index")
+                .field("target", target)
+                .field("index", index)
+                .finish(),
+            Self::ListLit(list) => {
+                f.write_str("List")?;
+                f.debug_list().entries(list).finish()
+            }
+            Self::DoBlock(block) => {
+                write!(f, "Do ")?;
+                f.debug_set().entries(&block.item).finish()
+            }
+            Self::Loop(block) => {
+                write!(f, "Loop ")?;
+                f.debug_set().entries(&block.item).finish()
+            }
+
+            Self::Return(ret) => f.debug_tuple("Return").field(&ret.item).finish(),
+            Self::Result(ret) => f.debug_tuple("Result").field(&ret.item).finish(),
+            Self::BinaryNode { kind, left, right } => f
+                .debug_struct("BinaryNode")
+                .field("left", left)
+                .field("right", right)
+                .field("op", kind)
+                .finish(),
+            Self::UnaryNode(op, node) => f.debug_tuple("Unary").field(op).field(node).finish(),
+            Self::Constructor { target, params } => f
+                .debug_struct("Constructor")
+                .field("target", target)
+                .field("params", params)
+                .finish(),
+            Self::Branch(branch) => f
+                .debug_struct("Branch")
+                .field("condition", &branch.condition)
+                .field("if_block", &branch.if_block)
+                .field("else_block", &branch.else_block)
+                .finish(),
+            Self::ForLoop {
+                loop_var,
+                list,
+                block,
+            } => f
+                .debug_struct("ForLoop")
+                .field("loop_var", loop_var)
+                .field("list", list)
+                .field("block", block)
+                .finish(),
+            Self::Assignment { target, value } => write!(f, "Assign({target:#?} = {value:#?})"),
+            Self::FieldAccess(target, access) => f
+                .debug_tuple("FieldAccess")
+                .field(target)
+                .field(access)
+                .finish(),
+            Self::While { condition, block } => f
+                .debug_struct("While")
+                .field("condition", condition)
+                .field("block", block)
+                .finish(),
+            Self::Call { callee, args } => f
+                .debug_struct("Call")
+                .field("callee", callee)
+                .field("args", args)
+                .finish(),
+            Self::StructDef(map) => f.debug_map().entries(map).finish(),
+            Self::FunctionLit(func) => {
+                if func.captures {
+                    write!(f, "Closure(")?;
+                } else {
+                    write!(f, "Function(")?;
+                }
+
+                for (index, id) in func.idents.iter().enumerate() {
+                    write!(f, "{}", id)?;
+                    if index + 1 != func.idents.len() {
+                        write!(f, ", ")?;
+                    }
+                }
+                write!(f, ")")?;
+
+                f.debug_set().entries(&func.block.item).finish()
+            }
+        }
+    }
 }
 impl ResolvedNode {
     pub fn is_literal(&self) -> bool {

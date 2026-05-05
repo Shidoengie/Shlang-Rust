@@ -1,51 +1,31 @@
 ---
 source: src/frontend/nameres/tests.rs
 description: test_globals
-expression: "test_global_nameres\n(r#\"\n        func main(){\n            var a = 10;\n            do {\n                var a = a;\n            }\n        }\n    \n    \"#)"
+expression: "test_global_nameres\n(_test_func!\n(r#\"\n        func main(){\n            var a = 10;\n            do {\n                var a = a;\n            }\n        }\n    \n    \"#))"
 ---
 Ok(
     ResolvedAst {
         proc: [
-            Decl(
-                Decl {
-                    id: 2,
-                    expr: FunctionLit(
-                        FunctionLit {
-                            captures: false,
-                            idents: [],
-                            block: [
-                                Decl(
-                                    Decl {
-                                        id: 0,
-                                        expr: Int(
-                                            10,
-                                        )[42,44],
-                                        is_global: false,
-                                    },
-                                )[34,44],
-                                Result(
-                                    DoBlock(
-                                        [
-                                            Decl(
-                                                Decl {
-                                                    id: 1,
-                                                    expr: Variable {
-                                                        id: 0,
-                                                        is_global: false,
-                                                    }[87,88],
-                                                    is_global: false,
-                                                },
-                                            )[79,88],
-                                        ][61,103],
-                                    )[61,103],
-                                )[61,103],
-                            ][20,113],
-                            local_count: 2,
+            Decl {
+                id: 2,
+                expr: Function(){
+                    Decl {
+                        id: 0,
+                        expr: Int(10)[42,44],
+                        is_global: false,
+                    }[34,44],
+                    Result(
+                        Do {
+                            Decl {
+                                id: 1,
+                                expr: Variable(0)[87,88],
+                                is_global: false,
+                            }[79,88],
                         },
-                    )[14,21],
-                    is_global: true,
-                },
-            )[14,21],
+                    )[61,103],
+                }[14,21],
+                is_global: true,
+            }[14,21],
         ],
         global_count: 3,
         local_count: 0,

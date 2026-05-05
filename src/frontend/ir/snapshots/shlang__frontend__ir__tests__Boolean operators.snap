@@ -19,5 +19,6 @@ Ok(
         Push(Bool(true)),
         And,
         Or,
+        Stop,
     ],
 )

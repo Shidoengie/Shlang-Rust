@@ -31,5 +31,6 @@ Ok(
         Mult,
         Sub,
         Add,
+        Stop,
     ],
 )

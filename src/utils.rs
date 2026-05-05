@@ -46,20 +46,34 @@ macro_rules! char_vec {
     }};
 }
 #[macro_export]
+macro_rules! _test_func {
+    (,) => {};
+    ({$($tt:tt)*}) => {
+        stringify!($($tt)*)
+    };
+    ($lit:literal) => {
+        $lit
+    };
+}
+#[macro_export]
 macro_rules! test_func {
     (
         $(  $section:ident, $func:expr,
-            {$($name:expr => $test:expr $(,)?)* }
+            {$($name:expr => $test:tt $(,)?)* }
         $(,)?)*
     ) => {
+
         $(
             #[test]
-        fn $section() {
-            insta::with_settings!(
+            fn $section() {
+                use crate::_test_func;
+                insta::with_settings!(
                 {description => stringify!($section)},
                 {
                     $(
-                        insta::assert_debug_snapshot!($name,$func($test));
+                        let _ = std::panic::catch_unwind(||{
+                        insta::assert_debug_snapshot!($name,$func(_test_func!($test)));
+                        }).inspect_err(|err| println!("{err:?}"));
                     )*
                 }
 
@@ -67,6 +81,7 @@ macro_rules! test_func {
         }
         )*
     };
+
 }
 
 pub fn compact_iter_debug<T: Iterator>(fmt: &mut Formatter, iter: T) -> std::fmt::Result

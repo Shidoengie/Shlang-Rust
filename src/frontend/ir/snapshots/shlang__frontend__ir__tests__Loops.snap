@@ -1,0 +1,21 @@
+---
+source: src/frontend/ir/tests.rs
+description: ir_expr
+expression: "test_ir (_test_func! ({ loop { continue; break; } }))"
+---
+Ok(
+    Ir {
+        span_map: SpanMap {
+            1..3 = Span[5,25],
+            0..5 = Span[5,25],
+        },
+        global_count: 2,
+    } = [
+        Label("loop_start@0"),
+        Goto("loop_start@0"),
+        Goto("loop_end@0"),
+        Goto("loop_start@0"),
+        Label("loop_end@0"),
+        Stop,
+    ],
+)

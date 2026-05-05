@@ -5,47 +5,28 @@ expression: "test_nameres (\"var a = 1; var a = 1; var a = 1; var b = a;\")"
 ---
 Ok(
     ResolvedAstNode {
-        node: DoBlock(
-            [
-                Decl(
-                    Decl {
-                        id: 0,
-                        expr: Int(
-                            1,
-                        )[13,14],
-                        is_global: false,
-                    },
-                )[5,14],
-                Decl(
-                    Decl {
-                        id: 1,
-                        expr: Int(
-                            1,
-                        )[24,25],
-                        is_global: false,
-                    },
-                )[16,25],
-                Decl(
-                    Decl {
-                        id: 2,
-                        expr: Int(
-                            1,
-                        )[35,36],
-                        is_global: false,
-                    },
-                )[27,36],
-                Decl(
-                    Decl {
-                        id: 3,
-                        expr: Variable {
-                            id: 2,
-                            is_global: false,
-                        }[46,47],
-                        is_global: false,
-                    },
-                )[38,47],
-            ][3,50],
-        )[3,50],
+        node: Do {
+            Decl {
+                id: 0,
+                expr: Int(1)[13,14],
+                is_global: false,
+            }[5,14],
+            Decl {
+                id: 1,
+                expr: Int(1)[24,25],
+                is_global: false,
+            }[16,25],
+            Decl {
+                id: 2,
+                expr: Int(1)[35,36],
+                is_global: false,
+            }[27,36],
+            Decl {
+                id: 3,
+                expr: Variable(2)[46,47],
+                is_global: false,
+            }[38,47],
+        }[3,50],
         global_count: 2,
         local_count: 4,
     },

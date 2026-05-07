@@ -77,7 +77,9 @@ impl LangError for Spanned<ErrCode> {
                     .finish()
             }
             ErrCode::StackOverflow => MsgBuilder::build_err(format!("Stack overflow"), self.span)
-                .with_err_label("This made the stack run out of size.".to_string())
+                .with_err_label(
+                    "A call to this function was made and it overflowed the stack.".to_string(),
+                )
                 .finish(),
         }
     }

@@ -1,15 +1,12 @@
 ---
 source: src/backend/vm/tests.rs
 description: vm_expr
-expression: "run_expr (\"10 % 3\")"
+expression: "run_expr (_test_func! (\"10 % 3\"))"
 ---
 Ok(
     [
-        (
-            Int(
-                1,
-            ),
-            2,
+        Int(
+            1,
         ),
     ],
 )

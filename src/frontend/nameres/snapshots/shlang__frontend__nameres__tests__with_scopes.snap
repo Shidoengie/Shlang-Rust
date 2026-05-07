@@ -7,7 +7,7 @@ Ok(
     ResolvedAst {
         proc: [
             Decl {
-                id: 2,
+                id: 3,
                 expr: Function(){
                     Decl {
                         id: 0,
@@ -27,7 +27,7 @@ Ok(
                 is_global: true,
             }[14,21],
         ],
-        global_count: 3,
+        global_count: 4,
         local_count: 0,
     },
 )

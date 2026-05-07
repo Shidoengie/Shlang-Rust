@@ -1,15 +1,12 @@
 ---
 source: src/backend/vm/tests.rs
 description: vm_expr
-expression: "run_expr (\"\\\"hello\\\" == \\\"hello\\\"\")"
+expression: "run_expr (_test_func! (\"\\\"hello\\\" == \\\"hello\\\"\"))"
 ---
 Ok(
     [
-        (
-            Bool(
-                true,
-            ),
-            2,
+        Bool(
+            true,
         ),
     ],
 )

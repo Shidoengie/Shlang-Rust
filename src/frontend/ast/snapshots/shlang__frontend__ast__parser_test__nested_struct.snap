@@ -1,10 +1,10 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"struct abc{struct dfg{};};\")"
+expression: "parse_expr (_test_func! (\"struct abc{struct dfg{};};\"))"
 ---
 Ok(
-    LetDecl(abc = {
+    Decl(readonly)::abc = {
         "dfg": {}[18,23],
-    }[7,25])[7,25],
+    }[7,25][7,25],
 )

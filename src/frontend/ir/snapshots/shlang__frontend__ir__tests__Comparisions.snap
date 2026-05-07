@@ -1,7 +1,7 @@
 ---
 source: src/frontend/ir/tests.rs
 description: ir_expr
-expression: "test_ir (\"1 != (2 > (3 >= ( 4 < ( 5 <= (6 == (8 ?? 9) ) ) ) ) )\")"
+expression: "test_ir\n(_test_func! (\"1 != (2 > (3 >= ( 4 < ( 5 <= (6 == (8 ?? 9) ) ) ) ) )\"))"
 ---
 Ok(
     Ir {
@@ -22,7 +22,7 @@ Ok(
             1..14 = Span[6,42],
             0..15 = Span[0,42],
         },
-        global_count: 2,
+        global_count: 3,
     } = [
         Push(Int(1)),
         Push(Int(2)),

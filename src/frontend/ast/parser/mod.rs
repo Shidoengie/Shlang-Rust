@@ -73,8 +73,44 @@ pub struct Parser<'input> {
     file_id: FileID,
     input: &'input str,
     tokens: Lexer<'input>,
+    in_toplevel: bool,
 }
 
+///base parser
+impl<'input> Parser<'input> {
+    pub fn parse_expr(input: &'input str, file_id: FileID) -> Result {
+        let mut parser = Parser {
+            file_id,
+            input,
+            tokens: Lexer::new(input, file_id),
+            in_toplevel: false,
+        };
+        parser.parse_node(false)
+    }
+    pub fn parse(input: &'input str, file_id: FileID) -> Result<Vec<NodeSpan>> {
+        let mut parser = Parser {
+            file_id,
+            input,
+            tokens: Lexer::new(input, file_id),
+            in_toplevel: true,
+        };
+        parser.parse_toplevel()
+    }
+    /// Parses input as expressions and collects it into a block
+    fn parse_toplevel(&mut self) -> Result<Vec<NodeSpan>> {
+        let mut body: Vec<NodeSpan> = vec![];
+        while self.peek_opt()?.is_some() {
+            self.in_toplevel = true;
+            let expr = self.parse_node(false)?;
+
+            if expr.item == Node::DontResult {
+                continue;
+            }
+            body.push(expr);
+        }
+        Ok(body)
+    }
+}
 ///utils and block parsing
 impl Parser<'_> {
     /// converts token spans into text
@@ -178,6 +214,8 @@ impl Parser<'_> {
     /// Parses and collects expressions into a Block node
     /// this is used for expressions with blocks like if
     fn parse_block(&mut self) -> Result<Block> {
+        let prev = self.in_toplevel;
+        self.in_toplevel = false;
         let mut body = vec![];
         let start_span = self.next()?.span;
         let token = self.peek_some()?;
@@ -195,18 +233,47 @@ impl Parser<'_> {
         }
         let end_span = self.peek()?.span;
         body = Self::filter_block(body);
+        self.in_toplevel = prev;
         Ok(body.to_spanned(start_span + end_span))
     }
 }
 
 ///variable and assignment parsing
 impl Parser<'_> {
+    fn empty_let_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
+        let name = self.text(&var_ident);
+        let span = first.span + var_ident.span;
+        Decl::new(name, Node::Null.to_spanned(first.span).box_item())
+            .as_readonly()
+            .to_nodespan(span)
+    }
+    fn let_decl(&mut self, name: String, name_ident: &Token) -> Result {
+        self.next()?; // Consume '='
+        let val = self.parse_only_expr(false)?;
+        let span = name_ident.span + val.span;
+        Ok(Decl::new(name, val.box_item())
+            .as_readonly()
+            .to_nodespan(span))
+    }
+    fn parse_readonly_def(&mut self, first: &Token) -> Result {
+        let ident = self.expect(TokenType::Identifier)?;
+        let var_name = self.text(&ident);
+        self.next()?;
+        let Some(last) = self.peek_opt()? else {
+            return Ok(self.empty_let_decl(first, ident));
+        };
+        match last.kind {
+            TokenType::Equal => self.let_decl(var_name, first),
+            _ => Ok(self.empty_let_decl(first, ident)),
+        }
+    }
     /// These Parse variable definitions/declarations
     fn empty_var_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
         let name = self.text(&var_ident);
         let span = first.span + var_ident.span;
         Decl::new(name, Node::Null.to_spanned(first.span).box_item()).to_nodespan(span)
     }
+
     fn var_decl(&mut self, name: String, name_ident: &Token) -> Result {
         self.next()?; // Consume '='
         let val = self.parse_only_expr(false)?;
@@ -337,7 +404,7 @@ impl Parser<'_> {
         let block = self.parse_block()?;
 
         let func_span = name_ident.span + last.span;
-        Ok(Decl::new(
+        let mut decl = Decl::new(
             name,
             FunctionLit {
                 block,
@@ -347,8 +414,10 @@ impl Parser<'_> {
             .to_nodespan(func_span)
             .box_item(),
         )
-        .as_hoisted()
-        .to_nodespan(func_span))
+        .as_readonly();
+
+        decl.hoisted = self.in_toplevel;
+        Ok(decl.to_nodespan(func_span))
     }
     /// This creates the function object which is passed as a value
     fn build_func(&mut self) -> Result<Node> {
@@ -378,6 +447,15 @@ impl Parser<'_> {
             _ => {}
         };
         unexpected_token(first)
+    }
+    fn parse_return(&mut self, value: &Token) -> Result {
+        let expr = self.parse_only_expr(false)?;
+        if expr.item == Node::DontResult {
+            return Ok(
+                Node::Return(Node::Null.to_spanned(expr.span).box_item()).to_spanned(value.span)
+            );
+        }
+        Ok(Node::Return(expr.box_item()).to_spanned(value.span))
     }
 }
 
@@ -472,15 +550,7 @@ impl Parser<'_> {
         Ok(Branch::new(condition, if_block, elif_block).to_nodespan(span))
     }
     /// parses if expressions
-    fn parse_return(&mut self, value: &Token) -> Result {
-        let expr = self.parse_only_expr(false)?;
-        if expr.item == Node::DontResult {
-            return Ok(
-                Node::Return(Node::Null.to_spanned(expr.span).box_item()).to_spanned(value.span)
-            );
-        }
-        Ok(Node::Return(expr.box_item()).to_spanned(value.span))
-    }
+
     fn parse_branch(&mut self) -> Result {
         let first = self.peek_some()?;
         let condition = self.parse_only_expr(true)?;
@@ -575,6 +645,7 @@ impl Parser<'_> {
             TokenType::Str(lit) => Ok(Node::Str(lit.to_string()).to_spanned(token.span)),
             TokenType::Struct => self.parse_struct(),
             TokenType::Var => self.parse_vardef(token),
+            TokenType::Let => self.parse_readonly_def(token),
             TokenType::Float => Ok(self.parse_float(token).to_spanned(token.span)),
             TokenType::Int => Ok(self.parse_int(token).to_spanned(token.span)),
             TokenType::False => Ok(Node::Bool(false).to_spanned(token.span)),
@@ -739,11 +810,9 @@ impl Parser<'_> {
             fields.insert(field.0, field.1);
         }
         let expr = Node::StructLit(fields).to_spanned(span).box_item();
-        let def = Decl::new(name, expr)
-            .as_hoisted()
-            .as_readonly()
-            .to_nodespan(span);
-        Ok(def)
+        let mut def = Decl::new(name, expr).as_readonly();
+        def.hoisted = self.in_toplevel;
+        Ok(def.to_nodespan(span))
     }
 
     fn struct_params(&mut self) -> Result<HashMap<String, NodeSpan>> {
@@ -820,39 +889,6 @@ impl Parser<'_> {
         } else {
             self.parse_method(target, requested, ident)
         }
-    }
-}
-
-///base parser
-impl<'input> Parser<'input> {
-    pub fn parse_expr(input: &'input str, file_id: FileID) -> Result {
-        let mut parser = Parser {
-            file_id,
-            input,
-            tokens: Lexer::new(input, file_id),
-        };
-        parser.parse_node(false)
-    }
-    pub fn parse(input: &'input str, file_id: FileID) -> Result<Vec<NodeSpan>> {
-        let mut parser = Parser {
-            file_id,
-            input,
-            tokens: Lexer::new(input, file_id),
-        };
-        parser.parse_toplevel()
-    }
-    /// Parses input as expressions and collects it into a block
-    fn parse_toplevel(&mut self) -> Result<Vec<NodeSpan>> {
-        let mut body: Vec<NodeSpan> = vec![];
-        while self.peek_opt()?.is_some() {
-            let expr = self.parse_node(false)?;
-
-            if expr.item == Node::DontResult {
-                continue;
-            }
-            body.push(expr);
-        }
-        Ok(body)
     }
 }
 

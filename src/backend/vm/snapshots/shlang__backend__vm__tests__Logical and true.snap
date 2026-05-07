@@ -1,15 +1,12 @@
 ---
 source: src/backend/vm/tests.rs
 description: vm_expr
-expression: "run_expr (\"true and true\")"
+expression: "run_expr (_test_func! (\"true and true\"))"
 ---
 Ok(
     [
-        (
-            Bool(
-                true,
-            ),
-            2,
+        Bool(
+            true,
         ),
     ],
 )

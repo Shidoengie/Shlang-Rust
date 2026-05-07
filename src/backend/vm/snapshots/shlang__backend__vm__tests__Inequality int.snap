@@ -1,15 +1,12 @@
 ---
 source: src/backend/vm/tests.rs
 description: vm_expr
-expression: "run_expr (\"10 != 5\")"
+expression: "run_expr (_test_func! (\"10 != 5\"))"
 ---
 Ok(
     [
-        (
-            Bool(
-                true,
-            ),
-            3,
+        Bool(
+            true,
         ),
     ],
 )

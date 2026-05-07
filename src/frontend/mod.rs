@@ -1,10 +1,7 @@
 use crate::{
     filestore::FileStore,
     frontend::{
-        ast::{
-            nodes::Node,
-            parser::Parser,
-        },
+        ast::{nodes::Node, parser::Parser},
         ir::codegen::{IRgen, Ir},
         lexemes::{
             lexer::Lexer,
@@ -88,11 +85,6 @@ impl Compiler {
         let mut nameres = NameRes::new(self.file_store.clone());
         let resolved = nameres
             .resolve(parsed)
-            .inspect_err(|err| {
-                if !self.silent {
-                    self.print_langerr(err).expect("Could not print error.");
-                }
-            })
             .inspect_err(|err| {
                 if !self.silent {
                     self.print_langerr(err).expect("Could not print error.");

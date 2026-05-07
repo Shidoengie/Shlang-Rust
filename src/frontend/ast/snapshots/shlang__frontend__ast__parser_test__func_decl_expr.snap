@@ -1,12 +1,12 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"func a (b){1}\")"
+expression: "parse_expr (_test_func! (\"func a (b){1}\"))"
 ---
 Ok(
-    VarDecl(a = Function(b){
+    Decl(readonly)::a = Function(b){
         Result(
             Int(1),
         )[11,12],
-    }[5,11])[5,11],
+    }[5,11][5,11],
 )

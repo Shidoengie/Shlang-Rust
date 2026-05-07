@@ -1,12 +1,13 @@
 use crate::{
     frontend::{
-        FileStore,
+        Compiler, FileStore,
         ast::parser::Parser,
         nameres::{
             resolved_nodes::{ResolvedAst, ResolvedAstNode},
             resolver::{self, NameRes},
         },
     },
+    lang_errors::LangResult,
     test_func,
 };
 
@@ -17,11 +18,8 @@ fn test_nameres(body: &str) -> resolver::Result<ResolvedAstNode> {
     let ast = Parser::parse_expr(&input, file_id).unwrap();
     NameRes::new(file_store).resolve_expr(ast)
 }
-fn test_global_nameres(body: &str) -> resolver::Result<ResolvedAst> {
-    let mut file_store = FileStore::new();
-    let file_id = file_store.add(body.to_owned());
-    let ast = Parser::parse(body, file_id).unwrap();
-    NameRes::new(file_store).resolve(ast)
+fn test_global_nameres(body: &str) -> LangResult<ResolvedAst> {
+    Compiler::new().resolve(body)
 }
 
 test_func!(
@@ -83,12 +81,12 @@ test_func!(
 
     },
     test_globals,test_global_nameres, {
-        "global_fns"=> r#"
+        "global_fns"=> {
     var b = a();
     func a() {
         return 10;
-    } 
-    "#,
+    }
+    },
     "with_scopes" => r#"
         func main(){
             var a = 10;

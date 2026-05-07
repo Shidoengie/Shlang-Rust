@@ -16,7 +16,7 @@ pub enum ParseError {
 }
 
 impl LangError for Spanned<ParseError> {
-    fn msg(&self) -> Report<Span> {
+    fn msg(&'_ self) -> Report<'_, Span> {
         use ParseError as Pe;
         match &self.item {
             Pe::UnexpectedFieldNode(node) => {

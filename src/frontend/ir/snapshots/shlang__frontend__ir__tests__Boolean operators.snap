@@ -1,7 +1,7 @@
 ---
 source: src/frontend/ir/tests.rs
 description: ir_expr
-expression: "test_ir (\"true || (false && true)\")"
+expression: "test_ir (_test_func! (\"true || (false && true)\"))"
 ---
 Ok(
     Ir {
@@ -12,7 +12,7 @@ Ok(
             1..4 = Span[9,22],
             0..5 = Span[0,22],
         },
-        global_count: 2,
+        global_count: 3,
     } = [
         Push(Bool(true)),
         Push(Bool(false)),

@@ -7,15 +7,16 @@ Ok(
     Ir {
         span_map: SpanMap {
             1..2 = Span[6,10],
-            3..4 = Span[11,20],
-            0..6 = Span[6,12],
+            3..5 = Span[11,20],
+            0..7 = Span[6,12],
         },
-        global_count: 2,
+        global_count: 3,
     } = [
         Label("loop_start@0"),
         Push(Bool(true)),
         Branch("loop_end@0"),
         Goto("loop_end@0"),
+        SetNull,
         Goto("loop_start@0"),
         Label("loop_end@0"),
         Stop,

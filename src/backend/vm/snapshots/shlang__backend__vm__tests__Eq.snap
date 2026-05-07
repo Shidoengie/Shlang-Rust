@@ -1,15 +1,12 @@
 ---
 source: src/backend/vm/tests.rs
 description: vm_expr
-expression: "run_expr (\"1.0/2.0 == 0.5\")"
+expression: "run_expr (_test_func! (\"1.0/2.0 == 0.5\"))"
 ---
 Ok(
     [
-        (
-            Bool(
-                true,
-            ),
-            4,
+        Bool(
+            true,
         ),
     ],
 )

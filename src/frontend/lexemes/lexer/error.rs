@@ -11,7 +11,7 @@ pub enum LexError {
     InvalidEscape,
 }
 impl LangError for Spanned<LexError> {
-    fn msg(&self) -> ariadne::Report<crate::spans::Span> {
+    fn msg(&'_ self) -> ariadne::Report<'_, crate::spans::Span> {
         use LexError as Le;
         match self.item {
             Le::InvalidIdent => MsgBuilder::build_err("Invalid identifier", self.span)

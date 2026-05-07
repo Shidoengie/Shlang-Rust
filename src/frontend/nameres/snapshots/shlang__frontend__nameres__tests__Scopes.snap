@@ -21,7 +21,7 @@ Ok(
                 },
             )[20,34],
         }[3,36],
-        global_count: 2,
+        global_count: 3,
         local_count: 2,
     },
 )

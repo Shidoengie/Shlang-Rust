@@ -1,10 +1,10 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"var a = 1+2+b;\")"
+expression: "parse_expr (_test_func! (\"var a = 1+2+b;\"))"
 ---
 Ok(
-    VarDecl(a = BinaryNode {
+    Decl::a = BinaryNode {
         kind: Add,
         left: BinaryNode {
             kind: Add,
@@ -12,5 +12,5 @@ Ok(
             right: Int(2)[10,11],
         }[8,11],
         right: Var(b)[12,13],
-    }[8,13])[0,13],
+    }[8,13][0,13],
 )

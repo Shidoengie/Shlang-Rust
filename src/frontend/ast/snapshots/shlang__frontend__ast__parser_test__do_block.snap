@@ -1,11 +1,11 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"do{var a = 1;1+a}\")"
+expression: "parse_expr (_test_func! (\"do{var a = 1;1+a}\"))"
 ---
 Ok(
     Do{
-        VarDecl(a = Int(1)[11,12])[3,12],
+        Decl::a = Int(1)[11,12][3,12],
         Result(
             BinaryNode {
                 kind: Add,

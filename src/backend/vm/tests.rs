@@ -7,7 +7,7 @@ use crate::{
     test_func,
 };
 
-pub fn run_expr(input: &str) -> vm::Result<Vec<(Value, usize)>> {
+pub fn run_expr(input: &str) -> vm::Result<Vec<Value>> {
     let bytecode = Runtime::default().assemble_expr(input).unwrap();
     let mut vm = StackVM::new(
         bytecode.ops,

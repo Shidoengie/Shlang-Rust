@@ -21,7 +21,7 @@ storelocal 0
 var a = if true  {
 	var b = 2;
 	var c = 3;
-	b + c;
+	;
 } else  {
     50
 };
@@ -38,6 +38,7 @@ storelocal 1
 loadlocal 1
 loadlocal 2
 add
+pop
 else@0:
     push 50
 endif@0:

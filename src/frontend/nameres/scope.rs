@@ -4,13 +4,15 @@ pub struct VarInfo {
     pub name: String,
     pub id: usize,
     pub global: bool,
+    pub readonly: bool,
 }
 impl VarInfo {
-    pub fn new(name: String, global: bool, id: usize) -> Self {
+    pub fn new(name: String, global: bool, readonly: bool, id: usize) -> Self {
         Self {
             name: name.to_string(),
             global,
             id,
+            readonly,
         }
     }
 }

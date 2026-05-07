@@ -1,30 +1,30 @@
 ---
 source: src/frontend/nameres/tests.rs
 description: test_globals
-expression: "test_global_nameres\n(r#\"\n    var b = a();\n    func a() {\n        return 10;\n    } \n    \"#)"
+expression: "test_global_nameres (_test_func! ({ var b = a(); func a() { return 10; } }))"
 ---
 Ok(
     ResolvedAst {
         proc: [
             Decl {
-                id: 2,
+                id: 3,
                 expr: Function(){
                     Return(
                         Int(10),
-                    )[41,47],
-                }[27,32],
+                    )[24,30],
+                }[18,23],
                 is_global: true,
-            }[27,32],
+            }[18,23],
             Decl {
                 id: 0,
                 expr: Call {
-                    callee: Variable(global 2)[13,14],
+                    callee: Variable(global 3)[8,9],
                     args: [],
-                }[15,16],
+                }[10,11],
                 is_global: false,
-            }[5,16],
+            }[0,11],
         ],
-        global_count: 3,
+        global_count: 4,
         local_count: 1,
     },
 )

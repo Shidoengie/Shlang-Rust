@@ -1,7 +1,7 @@
 ---
 source: src/frontend/ir/tests.rs
 description: ir_expr
-expression: "test_ir (\"-1 != !true\")"
+expression: "test_ir (_test_func! (\"-1 != !true\"))"
 ---
 Ok(
     Ir {
@@ -12,7 +12,7 @@ Ok(
             2..4 = Span[7,11],
             0..5 = Span[1,11],
         },
-        global_count: 2,
+        global_count: 3,
     } = [
         Push(Int(1)),
         Neg,

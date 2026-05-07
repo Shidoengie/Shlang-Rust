@@ -1,15 +1,12 @@
 ---
 source: src/backend/vm/tests.rs
 description: vm_expr
-expression: "run_expr (\"-(5 + 2) * 3\")"
+expression: "run_expr (_test_func! (\"-(5 + 2) * 3\"))"
 ---
 Ok(
     [
-        (
-            Int(
-                -21,
-            ),
-            5,
+        Int(
+            -21,
         ),
     ],
 )

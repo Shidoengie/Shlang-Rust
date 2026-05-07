@@ -78,9 +78,8 @@ pub struct StackVM {
     proc: Vec<OpCode>,
     call_stack: CallStack,
     is_finished: bool,
-    /// The runtime value stack. Each value is paired with the instruction pointer
-    /// that pushed it, for accurate error reporting.
-    pub values: Vec<(Value, usize)>,
+    pub value_map: Vec<usize>,
+    pub values: Vec<Value>,
 
     pub globals: Box<[Value]>,
 }
@@ -103,6 +102,7 @@ impl StackVM {
             is_finished: false,
             call_stack: CallStack::new(),
             values: vec![],
+            value_map: vec![],
             globals: new_globals.into_boxed_slice(),
         };
 
@@ -163,10 +163,6 @@ impl StackVM {
         Ok(())
     }
     fn peek(&self) -> Option<&Value> {
-        self.values.last().map(|(v, _)| v)
-    }
-
-    fn peek_raw(&self) -> Option<&(Value, usize)> {
         self.values.last()
     }
     fn type_error<T>(&self, expected: Type, got: Value) -> Result<T> {
@@ -284,50 +280,60 @@ impl StackVM {
             OpCode::Ret => self.exec_ret(),
             OpCode::SwapWith(value) => {
                 if let Some(cur) = self.values.last_mut() {
-                    *cur = (value, self.ip);
+                    *cur = value;
+                    self.inc_ip();
                     return Ok(());
                 };
                 self.push(value);
+                self.inc_ip();
                 Ok(())
             }
             OpCode::SetNull => {
                 if let Some(cur) = self.values.last_mut() {
-                    *cur = (Value::Null, self.ip);
+                    *cur = Value::Null;
+                    self.inc_ip();
                     return Ok(());
                 };
                 self.push(Value::Null);
+                self.inc_ip();
                 Ok(())
             }
             _ => todo!("OpCode {:?} is not yet implemented!", op),
         }
     }
     fn pop(&mut self) -> Result<Value> {
-        let (value, _) = self.pop_raw()?;
-        Ok(value)
-    }
-    fn pop_raw(&mut self) -> Result<(Value, usize)> {
-        //dbg!(&self.values);
+        self.value_map.pop();
         self.values
             .pop()
             .ok_or(ErrCode::EmptyStack.into_vmerr(self.ip))
-            .inspect_err(|_| {
-                dbg!(&self.ip, &self.values);
-            })
+    }
+    fn pop_raw(&mut self) -> Result<(Value, usize)> {
+        //dbg!(&self.values);
+        Ok((
+            self.values
+                .pop()
+                .ok_or(ErrCode::EmptyStack.into_vmerr(self.ip))?,
+            self.value_map
+                .pop()
+                .ok_or(ErrCode::EmptyStack.into_vmerr(self.ip))?,
+        ))
     }
     fn push(&mut self, value: Value) {
-        self.values.push((value, self.ip));
+        self.values.push(value);
+        self.value_map.push(self.ip);
     }
     fn pop_chunk(&mut self, len: usize) -> Vec<Value> {
-        self.values
-            .drain(self.values.len() - len..)
-            .map(|(value, _)| value)
-            .collect()
-    }
-    fn pop_chunk_raw(&mut self, len: usize) -> Vec<(Value, usize)> {
         self.values.drain(self.values.len() - len..).collect()
     }
+    fn pop_chunk_raw(&mut self, len: usize) -> Vec<(Value, usize)> {
+        self.values
+            .drain(self.values.len() - len..)
+            .zip(self.value_map.drain(self.value_map.len() - len..))
+            .collect()
+    }
     fn pop_pair(&mut self) -> Result<(Value, Value)> {
-        let ((left, _), (right, _)) = self.pop_pair_raw()?;
+        let right = self.pop()?;
+        let left = self.pop()?;
         Ok((left, right))
     }
     fn pop_pair_raw(&mut self) -> Result<((Value, usize), (Value, usize))> {

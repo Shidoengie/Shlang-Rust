@@ -23,7 +23,7 @@ Ok(
                 is_global: false,
             }[22,28],
         }[3,43],
-        global_count: 2,
+        global_count: 3,
         local_count: 3,
     },
 )

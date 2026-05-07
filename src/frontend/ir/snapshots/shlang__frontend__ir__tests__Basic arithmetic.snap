@@ -1,7 +1,7 @@
 ---
 source: src/frontend/ir/tests.rs
 description: ir_expr
-expression: "test_ir (\"1+(2-(3*(4/(5 % 6))))\")"
+expression: "test_ir (_test_func! ({1+(2-(3*(4/(5 % 6))))}))"
 ---
 Ok(
     Ir {
@@ -18,7 +18,7 @@ Ok(
             1..10 = Span[3,17],
             0..11 = Span[0,17],
         },
-        global_count: 2,
+        global_count: 3,
     } = [
         Push(Int(1)),
         Push(Int(2)),

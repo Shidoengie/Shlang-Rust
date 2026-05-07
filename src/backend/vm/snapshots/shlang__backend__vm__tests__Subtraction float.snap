@@ -1,15 +1,12 @@
 ---
 source: src/backend/vm/tests.rs
 description: vm_expr
-expression: "run_expr (\"5.5 - 1.25\")"
+expression: "run_expr (_test_func! (\"5.5 - 1.25\"))"
 ---
 Ok(
     [
-        (
-            Float(
-                4.25,
-            ),
-            2,
+        Float(
+            4.25,
         ),
     ],
 )

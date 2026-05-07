@@ -1,7 +1,7 @@
 ---
 source: src/frontend/ir/tests.rs
 description: ir_expr
-expression: "test_ir (\"func hello(a) {println(a);}\")"
+expression: "test_ir (_test_func! (\"func hello(a) {println(a);}\"))"
 ---
 Ok(
     Ir {
@@ -10,11 +10,11 @@ Ok(
             0..1 = Span[23,25],
             1..2 = Span[15,22],
             0..3 = Span[23,25],
-            0..3 = Span[14,27],
+            0..4 = Span[14,27],
             0..1 = Span[5,15],
             0..2 = Span[5,15],
         },
-        global_count: 2,
+        global_count: 3,
     } = [
         Push(Function(Function { address: "func_start@0", local_count: 1, param_count: 1 })),
         StoreLocal(1),
@@ -23,6 +23,7 @@ Ok(
         LoadLocal(0),
         LoadGlobal(0),
         Call(1),
+        SetNull,
         Push(Null),
         Ret,
         Label("func_end@1"),

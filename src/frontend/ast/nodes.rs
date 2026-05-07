@@ -119,12 +119,15 @@ impl Debug for Node {
             Node::BreakNode => f.write_str("Break"),
             Node::ContinueNode => f.write_str("Continue"),
             Node::Decl(decl) => {
-                if decl.readonly {
-                    write!(f, "LetDecl")?;
-                } else {
-                    write!(f, "VarDecl")?;
+                f.write_str("Decl")?;
+                if decl.readonly && decl.hoisted {
+                    f.write_str("(global readonly)")?;
+                } else if decl.readonly {
+                    f.write_str("(readonly)")?;
+                } else if decl.hoisted {
+                    f.write_str("(global)")?;
                 }
-                write!(f, "({name} = {expr:?})", name = decl.name, expr = decl.expr)
+                write!(f, "::{name} = {expr:?}", name = decl.name, expr = decl.expr,)
             }
             Node::Index { target, index } => f
                 .debug_struct("Index")

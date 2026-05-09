@@ -298,7 +298,17 @@ impl StackVM {
                 self.inc_ip();
                 Ok(())
             }
-            _ => todo!("OpCode {:?} is not yet implemented!", op),
+            OpCode::Flush => {
+                self.values.clear();
+                self.inc_ip();
+                Ok(())
+            }
+            OpCode::FlushNull => {
+                self.values.clear();
+                self.push(Value::Null);
+                self.inc_ip();
+                Ok(())
+            }
         }
     }
     fn pop(&mut self) -> Result<Value> {

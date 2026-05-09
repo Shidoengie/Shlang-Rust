@@ -6,16 +6,15 @@ expression: "test_ir (_test_func! ({ loop { continue; break; } }))"
 Ok(
     Ir {
         span_map: SpanMap {
-            1..5 = Span[5,25],
-            0..7 = Span[5,25],
+            1..4 = Span[5,25],
+            0..6 = Span[5,25],
         },
         global_count: 3,
     } = [
         Label("loop_start@0"),
         Goto("loop_start@0"),
-        SetNull,
         Goto("loop_end@0"),
-        SetNull,
+        FlushNull,
         Goto("loop_start@0"),
         Label("loop_end@0"),
         Stop,

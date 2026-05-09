@@ -83,6 +83,8 @@ impl Assembler {
             IrNode::Ret => OpCode::Ret,
             IrNode::SwapWith(lit) => OpCode::SwapWith(self.literal_to_value(lit)),
             IrNode::SetNull => OpCode::SetNull,
+            IrNode::Flush => OpCode::Flush,
+            IrNode::FlushNull => OpCode::FlushNull,
             IrNode::Call(arity) => OpCode::Call(arity),
         }
     }

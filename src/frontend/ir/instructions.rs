@@ -40,6 +40,8 @@ pub enum IrNode {
     SwapWith(IrLiteral),
     /// Pops a function out of stack, and their arguments, then calling it
     Call(u8),
+    Flush,
+    FlushNull,
 }
 impl Display for IrNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -76,6 +78,8 @@ impl Display for IrNode {
             IrNode::Stop => f.write_str("stop"),
             IrNode::Ret => f.write_str("ret"),
             IrNode::Call(arity) => write!(f, "call {}", arity),
+            IrNode::Flush => f.write_str("flush"),
+            IrNode::FlushNull => f.write_str("flushnull"),
         }
     }
 }

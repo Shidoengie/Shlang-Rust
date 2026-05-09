@@ -80,6 +80,9 @@ test_func!(
         "NullCoalescing with number" => "5 ?? 10",
         "NullCoalescing with string" => "\"hello\" ?? \"world\"",
         "NullCoalescing with false" => "false ?? true", // false is not null
-        "Chained NullCoalescing" => "null ?? null ?? 20"
+        "Chained NullCoalescing" => "null ?? null ?? 20",
+
+        "Block Return" => { if true {10} }
+        "Block Returns Null" => { if true {10;} }
     }
 );

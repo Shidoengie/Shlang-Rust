@@ -16,7 +16,7 @@ Ok(
         Push(Bool(true)),
         Branch("loop_end@0"),
         Goto("loop_end@0"),
-        SetNull,
+        FlushNull,
         Goto("loop_start@0"),
         Label("loop_end@0"),
         Stop,

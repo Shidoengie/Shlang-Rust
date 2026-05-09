@@ -1,0 +1,12 @@
+---
+source: src/backend/vm/tests.rs
+description: vm_expr
+expression: "run_expr (_test_func! ({ if true {10} }))"
+---
+Ok(
+    [
+        Int(
+            10,
+        ),
+    ],
+)

@@ -71,6 +71,8 @@ pub enum OpCode {
     Ret,
     /// Pops a function out of the current stack, their arguments, then calling it
     Call(u8),
+    Flush,
+    FlushNull,
 }
 impl Display for OpCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -112,6 +114,8 @@ impl Display for OpCode {
             Self::Exit => f.write_str("exit"),
             Self::Ret => f.write_str("ret"),
             Self::Call(arity) => write!(f, "call {}", arity),
+            Self::Flush => f.write_str("flush"),
+            Self::FlushNull => f.write_str("flushnull"),
         }
     }
 }

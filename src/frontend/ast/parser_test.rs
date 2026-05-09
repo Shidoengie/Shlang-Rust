@@ -37,4 +37,5 @@ test_func!(test_parsing,parse_expr, {
 "index"=>"a[1]",
 "index_with_call"=>"a[1]()[2]",
 "list_literal"=>"[1,2,3]",
+"index_assign" => "a[1] = 10"
 });

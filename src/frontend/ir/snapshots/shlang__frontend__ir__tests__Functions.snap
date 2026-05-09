@@ -23,7 +23,7 @@ Ok(
         LoadLocal(0),
         LoadGlobal(0),
         Call(1),
-        SetNull,
+        FlushNull,
         Push(Null),
         Ret,
         Label("func_end@1"),

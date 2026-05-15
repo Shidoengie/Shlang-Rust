@@ -11,7 +11,7 @@ test_func!(
         "Boolean operators" => "true || (false && true)"
         "Unary operators" => "-1 != !true"
         "Branches" => {if true {1+2;3;} else {2+4;}}
-        "Functions" => "func hello(a) {println(a);}"
+        "Functions" => "func hello(a) {println(a,2,3);}"
         "Loops" => {
             loop {
                 continue;

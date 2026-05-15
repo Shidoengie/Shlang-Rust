@@ -3,19 +3,19 @@ mod error;
 mod frame;
 #[cfg(test)]
 mod tests;
+pub mod values;
+use rayon::{iter::ParallelIterator, str::ParallelString};
+use slab::Slab;
+use std::{fmt::format, mem, ops::Index};
+use values::*;
 
-use std::{mem, sync::Arc};
-
-use crate::{
-    backend::{
-        instructions::*,
-        vm::{
-            builtins::BUILTINS,
-            error::{ErrCode, Type, VmErr},
-            frame::{CallStack, Frame},
-        },
+use crate::backend::{
+    instructions::*,
+    vm::{
+        builtins::BUILTINS,
+        error::{ErrCode, Type, VmErr},
+        frame::{CallStack, Frame},
     },
-    frontend::ast::nodes::Call,
 };
 
 macro_rules! impl_binary_op {
@@ -71,6 +71,58 @@ macro_rules! impl_logical_op {
     }};
 }
 #[derive(Debug)]
+pub struct ManagedObject {
+    pub obj: Object,
+    pub refcount: usize,
+}
+impl From<Object> for ManagedObject {
+    fn from(value: Object) -> Self {
+        Self {
+            obj: value,
+            refcount: 0,
+        }
+    }
+}
+#[derive(Debug, Default)]
+pub struct ObjectHeap {
+    items: Slab<ManagedObject>,
+}
+impl ObjectHeap {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn add(&mut self, obj: Object) -> Value {
+        let id = self.items.insert(obj.into());
+        return Value::ObjectRef(id);
+    }
+    ///TODO! needs better name
+    pub fn inc_ref(&mut self, id: usize) -> Value {
+        self.items[id].refcount += 1;
+        return Value::ObjectRef(id);
+    }
+    pub fn pop_ref(&mut self, id: usize) {
+        if !self.items.contains(id) {
+            return;
+        }
+        let obj = &mut self.items[id];
+        if obj.refcount <= 0 {
+            self.items.remove(id);
+            return;
+        }
+        obj.refcount += 1;
+    }
+    pub fn get(&self, id: usize) -> Option<&Object> {
+        Some(&self.items.get(id)?.obj)
+    }
+}
+impl Index<usize> for ObjectHeap {
+    type Output = Object;
+    fn index(&self, index: usize) -> &Self::Output {
+        return &self.items[index].obj;
+    }
+}
+
+#[derive(Debug)]
 pub struct StackVM {
     /// Instruction pointer
     ip: usize,
@@ -78,9 +130,9 @@ pub struct StackVM {
     proc: Vec<OpCode>,
     call_stack: CallStack,
     is_finished: bool,
+    objects: ObjectHeap,
     pub value_map: Vec<usize>,
     pub values: Vec<Value>,
-
     pub globals: Box<[Value]>,
 }
 
@@ -99,6 +151,7 @@ impl StackVM {
         let mut vm = Self {
             ip: 0,
             proc,
+            objects: ObjectHeap::new(),
             is_finished: false,
             call_stack: CallStack::new(),
             values: vec![],
@@ -111,7 +164,7 @@ impl StackVM {
             address: 0,
             param_count: 0,
         };
-        let frame = Frame::new(Arc::new(synthetic), 0);
+        let frame = Frame::new(synthetic, 0);
         vm.call_stack = CallStack::new();
         vm.push_frame(frame)
             .expect("If this ever occurs something went wrong");
@@ -172,81 +225,71 @@ impl StackVM {
         }
         .into_vmerr(self.ip))
     }
+    fn add_object(&mut self, obj: impl Into<Object>) -> Value {
+        self.objects.add(obj.into())
+    }
+
+    fn exec_index(&mut self) -> Result {
+        let refid = self.pop()?;
+        let index = self.pop()?;
+        if let Value::String(content) = refid {
+            return self.index_string(content, index);
+        }
+        let Value::ObjectRef(refid) = refid else {
+            return self.type_error(Type::ObjectRef, refid);
+        };
+        let Some(obj) = self.objects.get(refid) else {
+            return Err(ErrCode::Unspecified(format!("Invalid object id")).into_vmerr(self.ip));
+        };
+        match obj {
+            Object::List(list) => {
+                let res = list
+                    .lang_index(index)
+                    .map_err(|err| VmErr::new(self.ip, err))?;
+                self.push(res);
+                return Ok(());
+            }
+        }
+        todo!()
+    }
+    fn index_string(&mut self, content: String, index: Value) -> Result {
+        let Value::Int(index) = index else {
+            return self.type_error(Type::Int, index);
+        };
+        if index < 0 {
+            return Err(ErrCode::IndexOutOfBounds.into_vmerr(self.ip));
+        }
+
+        if content.is_ascii() {
+            let index = index as usize;
+            if index as usize >= content.len() {
+                return Err(ErrCode::IndexOutOfBounds.into_vmerr(self.ip));
+            }
+            let ch = &content[index..index + 1];
+            self.push(Value::String(ch.to_owned()));
+            return Ok(());
+        }
+        let Some((_, ch)) = content
+            .par_char_indices()
+            .find_first(|(idx, _)| *idx == index as usize)
+        else {
+            return Err(ErrCode::IndexOutOfBounds.into_vmerr(self.ip));
+        };
+        self.push(Value::String(ch.to_string()));
+        return Ok(());
+    }
+
     fn exec_op(&mut self, op: OpCode) -> Result<()> {
         match op {
             OpCode::NoOp => {
                 self.inc_ip();
                 Ok(())
             }
-            OpCode::NotBranch(position) => {
-                let (val, ip) = self.pop_raw()?;
-                let Value::Bool(b) = val else {
-                    return Err(ErrCode::InvalidType {
-                        expected: Type::Bool,
-                        got: val.into(),
-                    }
-                    .into_vmerr(ip));
-                };
-                // Branch if the condition is TRUE
-                if b {
-                    self.ip = position
-                } else {
-                    self.inc_ip();
-                }
-                Ok(())
-            }
-            OpCode::Add => self.exec_add(),
-            OpCode::Sub => self.exec_sub(),
-            OpCode::Mult => self.exec_mult(),
-            OpCode::Div => self.exec_div(),
-            OpCode::Mod => self.exec_mod(),
-            OpCode::Greater => self.exec_greater(),
-            OpCode::Lesser => self.exec_lesser(),
-
-            OpCode::GreaterEq => self.exec_greater_eq(),
-            OpCode::LesserEq => self.exec_lesser_eq(),
-            OpCode::And => self.exec_and(),
-            OpCode::Or => self.exec_or(),
-            OpCode::Eq => self.exec_eq(),
-            OpCode::NotEq => self.exec_not_eq(),
-            OpCode::Neg => self.exec_neg(),
-            OpCode::Not => self.exec_not(),
-            OpCode::NullCo => self.exec_null_co(),
-
             OpCode::Push(val) => {
                 self.push(val);
                 self.inc_ip();
                 Ok(())
             }
-            OpCode::Call(args) => self.exec_call(args),
-            OpCode::LoadGlobal(index) => {
-                // Using .get() for safe access in case of invalid index from codegen
-                let val = self
-                    .globals
-                    .get(index)
-                    .cloned()
-                    .ok_or(ErrCode::InvalidStackIndex(index).into_vmerr(self.ip))?;
-
-                if matches!(val, Value::Undefined) {
-                    return Err(ErrCode::UsedBeforeInit.into_vmerr(self.ip));
-                }
-                self.push(val);
-                self.inc_ip();
-                Ok(())
-            }
-            OpCode::StoreGlobal(index) => {
-                let val = self.pop()?;
-                // Ensure the index exists before storing
-                if self.globals.get_mut(index).is_some() {
-                    self.globals[index] = val;
-                } else {
-                    return Err(ErrCode::InvalidStackIndex(index).into_vmerr(self.ip));
-                }
-                self.inc_ip();
-                Ok(())
-            }
-            OpCode::LoadLocal(index) => self.load_local(index),
-            OpCode::StoreLocal(index) => self.store_local(index),
             OpCode::Pop => {
                 self.pop()?;
                 self.inc_ip();
@@ -256,60 +299,136 @@ impl StackVM {
                 self.ip = position;
                 Ok(())
             }
-            OpCode::Branch(position) => {
-                let (val, ip) = self.pop_raw()?;
-                let Value::Bool(b) = val else {
-                    return Err(ErrCode::InvalidType {
-                        expected: Type::Bool,
-                        got: val.into(),
-                    }
-                    .into_vmerr(ip));
-                };
-                // Branch if the condition is FALSE
-                if !b {
-                    self.ip = position
-                } else {
-                    self.inc_ip();
-                }
-                Ok(())
-            }
             OpCode::Exit => {
                 self.stop();
                 Ok(())
             }
-            OpCode::Ret => self.exec_ret(),
-            OpCode::SwapWith(value) => {
-                if let Some(cur) = self.values.last_mut() {
-                    *cur = value;
-                    self.inc_ip();
-                    return Ok(());
-                };
-                self.push(value);
-                self.inc_ip();
-                Ok(())
-            }
-            OpCode::SetNull => {
-                if let Some(cur) = self.values.last_mut() {
-                    *cur = Value::Null;
-                    self.inc_ip();
-                    return Ok(());
-                };
-                self.push(Value::Null);
-                self.inc_ip();
-                Ok(())
-            }
             OpCode::Flush => {
                 self.values.clear();
+                self.value_map.clear();
                 self.inc_ip();
                 Ok(())
             }
             OpCode::FlushNull => {
                 self.values.clear();
+                self.value_map.clear();
                 self.push(Value::Null);
                 self.inc_ip();
                 Ok(())
             }
+
+            // Extracted larger branches
+            OpCode::Branch(pos) => self.exec_branch(pos, false),
+            OpCode::NotBranch(pos) => self.exec_branch(pos, true),
+            OpCode::StoreGlobal(index) => self.exec_store_global(index),
+            OpCode::SwapWith(val) => self.exec_swap_with(val),
+            OpCode::SetNull => self.exec_set_null(),
+
+            // Already extracted or naturally complex
+            OpCode::Add => self.exec_add(),
+            OpCode::Sub => self.exec_sub(),
+            OpCode::Mult => self.exec_mult(),
+            OpCode::Div => self.exec_div(),
+            OpCode::Mod => self.exec_mod(),
+            OpCode::Greater => self.exec_greater(),
+            OpCode::Lesser => self.exec_lesser(),
+            OpCode::GreaterEq => self.exec_greater_eq(),
+            OpCode::LesserEq => self.exec_lesser_eq(),
+            OpCode::And => self.exec_and(),
+            OpCode::Or => self.exec_or(),
+            OpCode::Eq => self.exec_eq(),
+            OpCode::NotEq => self.exec_not_eq(),
+            OpCode::Neg => self.exec_neg(),
+            OpCode::Not => self.exec_not(),
+            OpCode::NullCo => self.exec_null_co(),
+            OpCode::Call(args) => self.exec_call(args),
+            OpCode::LoadGlobal(index) => self.exec_loadglobal(index),
+            OpCode::LoadLocal(index) => self.load_local(index),
+            OpCode::StoreLocal(index) => self.store_local(index),
+            OpCode::Ret => self.exec_ret(),
+            OpCode::Index => {
+                self.exec_index()?;
+                self.inc_ip();
+                Ok(())
+            }
+            OpCode::IndexMut => todo!(),
+            OpCode::MakeList(len) => {
+                let chunk = self.pop_chunk(len);
+                let val = self.add_object(ListObject(chunk));
+                self.push(val);
+                self.inc_ip();
+                Ok(())
+            }
+            _ => todo!(),
         }
+    }
+
+    // --- Helper logic for larger branches ---
+
+    fn exec_branch(&mut self, position: usize, jump_if_true: bool) -> Result {
+        let (val, ip) = self.pop_raw()?;
+        let Value::Bool(b) = val else {
+            return Err(ErrCode::InvalidType {
+                expected: Type::Bool,
+                got: val.into(),
+            }
+            .into_vmerr(ip));
+        };
+
+        // Your original logic: Branch jumps on False, NotBranch jumps on True
+        if b == jump_if_true {
+            self.ip = position;
+        } else {
+            self.inc_ip();
+        }
+        Ok(())
+    }
+
+    fn exec_store_global(&mut self, index: usize) -> Result {
+        let val = self.pop()?;
+        let slot = self
+            .globals
+            .get_mut(index)
+            .ok_or_else(|| ErrCode::InvalidStackIndex(index).into_vmerr(self.ip))?;
+        *slot = val;
+        self.inc_ip();
+        Ok(())
+    }
+
+    fn exec_swap_with(&mut self, value: Value) -> Result {
+        if let Some(cur) = self.values.last_mut() {
+            *cur = value;
+        } else {
+            self.push(value);
+        }
+        self.inc_ip();
+        Ok(())
+    }
+
+    fn exec_set_null(&mut self) -> Result {
+        if let Some(cur) = self.values.last_mut() {
+            *cur = Value::Null;
+        } else {
+            self.push(Value::Null);
+        }
+        self.inc_ip();
+        Ok(())
+    }
+
+    fn exec_loadglobal(&mut self, index: usize) -> Result {
+        // Using .get() for safe access in case of invalid index from codegen
+        let val = self
+            .globals
+            .get(index)
+            .cloned()
+            .ok_or(ErrCode::InvalidStackIndex(index).into_vmerr(self.ip))?;
+
+        if matches!(val, Value::Undefined) {
+            return Err(ErrCode::UsedBeforeInit.into_vmerr(self.ip));
+        }
+        self.push(val);
+        self.inc_ip();
+        Ok(())
     }
     fn pop(&mut self) -> Result<Value> {
         self.value_map.pop();
@@ -501,12 +620,19 @@ impl StackVM {
         }
         let args = self.pop_chunk(arg_len.into());
 
-        let res = (func.func)(self, &args);
-        self.push(res);
-        self.inc_ip();
-        Ok(())
+        match (func.func)(self, &args) {
+            Ok(res) => {
+                self.push(res);
+                self.inc_ip();
+                Ok(())
+            }
+            Err(err) => match err {
+                CallError::Major(err) => Err(err.into_vmerr(self.ip)),
+                CallError::Unspecified(err) => Err(VmErr::other(self.ip, err)),
+            },
+        }
     }
-    fn exec_func_call(&mut self, func: Arc<Function>, arg_len: u8) -> Result {
+    fn exec_func_call(&mut self, func: Function, arg_len: u8) -> Result {
         if arg_len != func.param_count {
             return Err(ErrCode::InvalidArgs {
                 expected: arg_len,
@@ -520,7 +646,7 @@ impl StackVM {
             self.pop_chunk(arg_len as usize)
         };
 
-        let mut frame = Frame::new(func.clone(), self.ip);
+        let mut frame = Frame::new(func, self.ip);
         frame.set_values(&args);
         let func_address = frame.func.address;
         self.push_frame(frame)?;

@@ -1,6 +1,8 @@
 use clap::{Parser, ValueEnum};
 use shlang::backend::Runtime;
+use shlang::backend::instructions::OpCode;
 use shlang::frontend::Compiler;
+use shlang::frontend::ir::instructions::IrNode;
 use std::fmt::{Debug, Display};
 use std::fs;
 use std::io::{self, Write};
@@ -34,13 +36,13 @@ enum Stage {
 /// If the result is Ok, pretty-prints the value. On Err, does nothing.
 fn print_if_ok<T: Debug, E>(result: Result<T, E>) {
     if let Ok(value) = result {
-        println!("{value:#?}");
+        print!("{value:#?}");
     }
 }
 /// If the result is Ok, pretty-prints the value. On Err, does nothing.
 fn display_if_ok<T: Display, E>(result: Result<T, E>) {
     if let Ok(value) = result {
-        println!("{value}");
+        print!("{value}");
     }
 }
 /// Runs a specific compiler stage on the given content.
@@ -83,6 +85,7 @@ fn run_repl(compiler: &mut Compiler, args: &Args) {
 
         if let Some(ref stage) = args.stage {
             run_stage(compiler, stage, line.trim(), true);
+            continue;
         }
         if args.is_expr {
             let _ = runtime.execute_expr(line.trim());

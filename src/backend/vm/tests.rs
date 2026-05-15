@@ -1,8 +1,7 @@
 use crate::{
     backend::{
         Runtime,
-        instructions::*,
-        vm::{self, StackVM},
+        vm::{self, StackVM, values::Value},
     },
     test_func,
 };

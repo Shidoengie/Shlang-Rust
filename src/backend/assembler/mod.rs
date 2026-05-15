@@ -1,9 +1,7 @@
-use crate::backend::instructions::ByteCode;
+use crate::backend::instructions::*;
+use crate::backend::vm::values::*;
 use crate::frontend::ir::instructions::IrNode;
-use crate::{
-    backend::instructions::{Function, OpCode, Value},
-    frontend::ir::{codegen::Ir, instructions::IrLiteral},
-};
+use crate::frontend::ir::{codegen::Ir, instructions::IrLiteral};
 use std::{collections::HashMap, sync::Arc};
 
 pub struct Assembler {
@@ -85,7 +83,10 @@ impl Assembler {
             IrNode::SetNull => OpCode::SetNull,
             IrNode::Flush => OpCode::Flush,
             IrNode::FlushNull => OpCode::FlushNull,
+            IrNode::Index => OpCode::Index,
+            IrNode::IndexMut => OpCode::IndexMut,
             IrNode::Call(arity) => OpCode::Call(arity),
+            IrNode::MakeList(list) => OpCode::MakeList(list),
         }
     }
 
@@ -98,11 +99,11 @@ impl Assembler {
             IrLiteral::String(v) => Value::String(v),
             IrLiteral::Function(func) => {
                 let address = self.get_label_address(&func.address);
-                Value::Function(Arc::new(Function {
+                Value::Function(Function {
                     address,
                     local_count: func.local_count,
                     param_count: func.param_count,
-                }))
+                })
             }
         }
     }

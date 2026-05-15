@@ -6,7 +6,6 @@ pub use error::GenErr;
 use super::instructions::{IrNode as Op, *};
 
 use crate::{
-    backend::instructions::Value,
     frontend::{
         nameres::resolved_nodes::{ResolvedNode as RNode, *},
         opkind::*,
@@ -245,6 +244,13 @@ impl IRgen {
                     Op::StoreLocal(id)
                 });
             }
+            RNode::Index { target, index } => {
+                self.node_gen(value, bytecode)?;
+                self.node_gen(index.deref_item(), bytecode)?;
+                self.node_gen(target.deref_item(), bytecode)?;
+                bytecode.push(Op::IndexMut);
+                self.span_map.push(start, bytecode.len(), span);
+            }
             _ => todo!(),
         };
         let stop = bytecode.len();
@@ -453,10 +459,34 @@ impl IRgen {
     }
 }
 impl IRgen {
+    fn gen_list(
+        &mut self,
+        list: Vec<Spanned<RNode>>,
+        span: Span,
+        bytecode: &mut Vec<Op>,
+    ) -> Result {
+        let start = bytecode.len();
+        let len = list.len();
+        for item in list {
+            self.node_gen(item, bytecode)?;
+        }
+        bytecode.push(Op::MakeList(len));
+        self.span_map.push(start, bytecode.len(), span);
+        Ok(())
+    }
+}
+impl IRgen {
     /// Dispatches bytecode generation to a specific function based on the node's type.
     fn node_gen(&mut self, node: RNodeSpan, bytecode: &mut Vec<Op>) -> Result {
         let span = node.span;
         match node.item {
+            RNode::Index { target, index } => {
+                let start = bytecode.len();
+                self.node_gen(index.deref_item(), bytecode)?;
+                self.node_gen(target.deref_item(), bytecode)?;
+                bytecode.push(Op::Index);
+                self.span_map.push(start, bytecode.len(), span);
+            }
             RNode::BinaryNode { left, right, kind } => {
                 self.gen_binary(left.deref_item(), right.deref_item(), kind, span, bytecode)?
             }
@@ -498,6 +528,7 @@ impl IRgen {
                 bytecode.push(Op::Goto(format!("loop_end@{loopid}")))
             }
             RNode::Return(expr) => self.gen_return(expr.deref_item(), span, bytecode)?,
+            RNode::ListLit(lit) => self.gen_list(lit, span, bytecode)?,
             ref item if item.is_literal() => {
                 let lit = self.gen_literal(node)?;
                 self.push_val(lit, span, bytecode);

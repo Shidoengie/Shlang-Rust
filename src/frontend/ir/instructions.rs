@@ -42,44 +42,24 @@ pub enum IrNode {
     Call(u8),
     Flush,
     FlushNull,
+    Index,
+    IndexMut,
+    MakeList(usize),
 }
 impl Display for IrNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            IrNode::NoOp => f.write_str("noop"),
             IrNode::Label(label) => write!(f, "{}:", label),
             IrNode::Push(lit) => write!(f, "push {}", lit),
             IrNode::SetNull => write!(f, "setnull"),
             IrNode::SwapWith(value) => write!(f, "swapwith {value}"),
-            IrNode::LoadLocal(index) => write!(f, "loadlocal {}", index),
-            IrNode::StoreLocal(index) => write!(f, "storelocal {}", index),
-            IrNode::LoadGlobal(index) => write!(f, "loadglobal {}", index),
-            IrNode::StoreGlobal(index) => write!(f, "storeglobal {}", index),
-            IrNode::Pop => f.write_str("pop"),
-            IrNode::Goto(label) => write!(f, "goto {}", label),
-            IrNode::Branch(label) => write!(f, "branch {}", label),
-            IrNode::NotBranch(label) => write!(f, "notbranch {}", label),
-            IrNode::Add => f.write_str("add"),
-            IrNode::Mult => f.write_str("mult"),
-            IrNode::Div => f.write_str("div"),
-            IrNode::Sub => f.write_str("sub"),
-            IrNode::Mod => f.write_str("mod"),
-            IrNode::And => f.write_str("and"),
-            IrNode::Or => f.write_str("or"),
-            IrNode::Greater => f.write_str("greater"),
-            IrNode::Lesser => f.write_str("lesser"),
-            IrNode::GreaterEq => f.write_str("greatereq"),
-            IrNode::LesserEq => f.write_str("lessereq"),
-            IrNode::NotEq => f.write_str("noteq"),
-            IrNode::Eq => f.write_str("eq"),
-            IrNode::NullCo => f.write_str("nullco"),
-            IrNode::Not => f.write_str("not"),
-            IrNode::Neg => f.write_str("neg"),
-            IrNode::Stop => f.write_str("stop"),
-            IrNode::Ret => f.write_str("ret"),
-            IrNode::Call(arity) => write!(f, "call {}", arity),
-            IrNode::Flush => f.write_str("flush"),
-            IrNode::FlushNull => f.write_str("flushnull"),
+            others => {
+                let mut string_repr = format!("{others:?}");
+                string_repr.make_ascii_lowercase();
+                string_repr = string_repr.replace('(', " ");
+                string_repr = string_repr.replace(")", "");
+                write!(f, "{}", string_repr)
+            }
         }
     }
 }

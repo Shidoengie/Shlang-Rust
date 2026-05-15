@@ -5,12 +5,12 @@ This is a near complete rewrite of the language keeping only the parser and most
 ## TODO
 
 - [x] Loops
-- [ ] Results (Block returns)
-- [ ] Classes
-- [ ] Garbage collection
+- [x] Results (Block returns)
 - [ ] Lists and indexing
 - [ ] For loops
+- [ ] Classes
 - [ ] Records
+- [ ] Garbage collection
 
 ## Planned
 

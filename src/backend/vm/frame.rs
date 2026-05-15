@@ -1,21 +1,14 @@
-use std::{
-    mem::MaybeUninit,
-    ops::{Index, IndexMut},
-    sync::Arc,
-};
+use std::ops::{Index, IndexMut};
 
-use crate::{
-    backend::instructions::{Function, Value},
-    frontend::ast::nodes::Call,
-};
+use super::values::{Function, Value};
 #[derive(Debug)]
 pub struct Frame {
-    pub func: Arc<Function>,
+    pub func: Function,
     pub ret_address: usize,
     pub locals: Box<[Value]>,
 }
 impl Frame {
-    pub fn new(func: Arc<Function>, ret_address: usize) -> Self {
+    pub fn new(func: Function, ret_address: usize) -> Self {
         let local_count = func.local_count;
         Self {
             func,

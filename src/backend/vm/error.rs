@@ -1,11 +1,10 @@
-use std::fmt::Display;
-
+use super::values::Value;
 use crate::{
-    backend::instructions::Value,
     lang_errors::{LangError, MsgBuilder},
     spanmap::SpanMap,
     spans::{IntoSpanned, Span, Spanned},
 };
+use std::fmt::Display;
 
 #[derive(Debug, Clone)]
 pub enum ErrCode {
@@ -20,9 +19,10 @@ pub enum ErrCode {
     InvalidStackIndex(usize),
     InvalidArgs { expected: u8, got: u8 },
     StackOverflow,
+    IndexOutOfBounds,
 }
 impl LangError for Spanned<ErrCode> {
-    fn msg(&self) -> ariadne::Report<Span> {
+    fn msg(&'_ self) -> ariadne::Report<'_, Span> {
         match &self.item {
             ErrCode::EmptyStack => {
                 MsgBuilder::build_err("Expected another item in the stack", self.span)
@@ -47,7 +47,9 @@ impl LangError for Spanned<ErrCode> {
             }
             ErrCode::UnsupportedOperation { op, target } => {
                 MsgBuilder::build_err("Invalid operand", self.span)
-                    .with_err_label(format!("Cant use operator {op} on type {target:?}"))
+                    .with_err_label(format!(
+                        "The operation \"{op}\" on type {target:?}, isnt valid."
+                    ))
                     .finish()
             }
             ErrCode::Unspecified(unspec) => {
@@ -76,10 +78,13 @@ impl LangError for Spanned<ErrCode> {
                     .with_err_label("This points to an invalid address.".to_string())
                     .finish()
             }
-            ErrCode::StackOverflow => MsgBuilder::build_err(format!("Stack overflow"), self.span)
+            ErrCode::StackOverflow => MsgBuilder::build_err("Stack overflow", self.span)
                 .with_err_label(
                     "A call to this function was made and it overflowed the stack.".to_string(),
                 )
+                .finish(),
+            ErrCode::IndexOutOfBounds => MsgBuilder::build_err("Index out of bounds", self.span)
+                .with_err_label("On this expression.")
                 .finish(),
         }
     }
@@ -101,6 +106,7 @@ pub enum Type {
     Null,
     Function,
     Custom(String),
+    ObjectRef,
 }
 impl From<Value> for Type {
     fn from(value: Value) -> Self {
@@ -113,6 +119,7 @@ impl From<Value> for Type {
             Value::String(_) => Self::String,
             Value::Function(_) => Self::Function,
             Value::NativeFunction(_) => Self::Function,
+            Value::ObjectRef(_) => Self::ObjectRef,
         }
     }
 }
@@ -122,8 +129,11 @@ pub struct VmErr {
     code: ErrCode,
 }
 impl VmErr {
-    pub fn new(index: usize, code: ErrCode) -> Self {
-        Self { index, code }
+    pub fn new(index: usize, code: impl Into<ErrCode>) -> Self {
+        Self {
+            index,
+            code: code.into(),
+        }
     }
 
     pub fn other(index: usize, msg: impl Display) -> Self {

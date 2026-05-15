@@ -2,7 +2,7 @@ use std::io::{self, Write};
 
 ///! This module is temporary, as it is not the ideal solution
 ///! It will get replaced with FFI
-use crate::backend::instructions::{NativeFunction, Value};
+use super::values::{NativeFunction, Value};
 
 pub const BUILTINS: [Value; 3] = [
     Value::NativeFunction(NATIVE_PRINTLN),
@@ -12,22 +12,22 @@ pub const BUILTINS: [Value; 3] = [
 pub const STR_LEN: NativeFunction = NativeFunction::new(
     |_, args| {
         let Value::String(string) = &args[0] else {
-            return Value::Null;
+            return Ok(Value::Null);
         };
-        return Value::Int(string.len() as i64);
+        return Ok(Value::Int(string.len() as i64));
     },
     1,
 );
 pub const NATIVE_PRINTLN: NativeFunction = NativeFunction::new_variadic(|_, args| {
     if args.is_empty() {
         println!();
-        return Value::Null;
+        return Ok(Value::Null);
     }
     for value in args {
         print!("{} ", value);
     }
     println!();
-    Value::Null
+    Ok(Value::Null)
 });
 pub const NATIVE_INPUT: NativeFunction = NativeFunction::new_variadic(|_, args| {
     if !args.is_empty() {
@@ -43,5 +43,5 @@ pub const NATIVE_INPUT: NativeFunction = NativeFunction::new_variadic(|_, args| 
         result = "".to_string()
     }
     result = result.trim().to_owned();
-    Value::String(result)
+    Ok(Value::String(result))
 });

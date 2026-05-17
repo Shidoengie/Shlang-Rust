@@ -95,24 +95,30 @@ impl ObjectHeap {
         let id = self.items.insert(obj.into());
         return Value::ObjectRef(id);
     }
-    ///TODO! needs better name
-    pub fn inc_ref(&mut self, id: usize) -> Value {
-        self.items[id].refcount += 1;
-        return Value::ObjectRef(id);
-    }
-    pub fn pop_ref(&mut self, id: usize) {
+    pub fn inc_ref(&mut self, id: usize) -> Option<Value> {
         if !self.items.contains(id) {
-            return;
+            return None;
+        }
+        self.items[id].refcount += 1;
+        return Some(Value::ObjectRef(id));
+    }
+    pub fn dec_ref(&mut self, id: usize) -> Option<Value> {
+        if !self.items.contains(id) {
+            return None;
         }
         let obj = &mut self.items[id];
         if obj.refcount <= 0 {
             self.items.remove(id);
-            return;
+            return None;
         }
-        obj.refcount += 1;
+        obj.refcount -= 1;
+        Some(Value::ObjectRef(id))
     }
     pub fn get(&self, id: usize) -> Option<&Object> {
-        Some(&self.items.get(id)?.obj)
+        self.items.get(id).map(|m_object| &m_object.obj)
+    }
+    pub fn get_mut(&mut self, id: usize) -> Option<&mut Object> {
+        self.items.get_mut(id).map(|m_object| &mut m_object.obj)
     }
 }
 impl Index<usize> for ObjectHeap {
@@ -228,7 +234,11 @@ impl StackVM {
     fn add_object(&mut self, obj: impl Into<Object>) -> Value {
         self.objects.add(obj.into())
     }
-
+    fn push_object(&mut self, obj: impl Into<Object>) {
+        let objref = self.objects.add(obj.into());
+        self.values.push(objref);
+        self.value_map.push(self.ip);
+    }
     fn exec_index(&mut self) -> Result {
         let refid = self.pop()?;
         let index = self.pop()?;
@@ -242,15 +252,15 @@ impl StackVM {
             return Err(ErrCode::Unspecified(format!("Invalid object id")).into_vmerr(self.ip));
         };
         match obj {
-            Object::List(list) => {
+            Object::Native(list) => {
                 let res = list
                     .lang_index(index)
                     .map_err(|err| VmErr::new(self.ip, err))?;
                 self.push(res);
+
                 return Ok(());
             }
         }
-        todo!()
     }
     fn index_string(&mut self, content: String, index: Value) -> Result {
         let Value::Int(index) = index else {
@@ -278,7 +288,24 @@ impl StackVM {
         self.push(Value::String(ch.to_string()));
         return Ok(());
     }
-
+    fn exec_index_mut(&mut self) -> Result {
+        let target = self.pop()?;
+        let index = self.pop()?;
+        let value = self.pop()?;
+        let Value::ObjectRef(id) = target else {
+            return self.type_error(Type::ObjectRef, value);
+        };
+        let Some(obj) = self.objects.get_mut(id) else {
+            return Err(ErrCode::Unspecified(format!("Invalid object id")).into_vmerr(self.ip));
+        };
+        match obj {
+            Object::Native(list) => {
+                list.lang_index_mut(index, value)
+                    .map_err(|err| VmErr::new(self.ip, err))?;
+                return Ok(());
+            }
+        }
+    }
     fn exec_op(&mut self, op: OpCode) -> Result<()> {
         match op {
             OpCode::NoOp => {
@@ -291,7 +318,10 @@ impl StackVM {
                 Ok(())
             }
             OpCode::Pop => {
-                self.pop()?;
+                let val = self.pop()?;
+                if let Value::ObjectRef(id) = val {
+                    self.objects.dec_ref(id);
+                }
                 self.inc_ip();
                 Ok(())
             }
@@ -351,14 +381,18 @@ impl StackVM {
                 self.inc_ip();
                 Ok(())
             }
-            OpCode::IndexMut => todo!(),
-            OpCode::MakeList(len) => {
-                let chunk = self.pop_chunk(len);
-                let val = self.add_object(ListObject(chunk));
-                self.push(val);
+            OpCode::IndexMut => {
+                self.exec_index_mut()?;
                 self.inc_ip();
                 Ok(())
             }
+            OpCode::MakeList(len) => {
+                let chunk = self.pop_chunk(len);
+                self.push_object(ListObject(chunk));
+                self.inc_ip();
+                Ok(())
+            }
+
             _ => todo!(),
         }
     }
@@ -448,6 +482,10 @@ impl StackVM {
         ))
     }
     fn push(&mut self, value: Value) {
+        if let Value::ObjectRef(id) = &value {
+            let id = *id;
+            self.objects.inc_ref(id);
+        }
         self.values.push(value);
         self.value_map.push(self.ip);
     }

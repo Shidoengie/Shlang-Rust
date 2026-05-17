@@ -99,7 +99,7 @@ impl From<NativeFunction> for Value {
 pub type FuncPtr = fn(ctx: &mut StackVM, args: &[Value]) -> FuncResult;
 pub type FuncResult = Result<Value, CallError>;
 
-pub type NativeFuncResult = Result<Value, NativeCallError>;
+pub type NativeFuncResult<T = Value> = Result<T, NativeCallError>;
 pub enum CallError {
     Unspecified(String),
     Major(ErrCode),
@@ -144,7 +144,7 @@ impl From<CallError> for ErrCode {
         }
     }
 }
-impl From<ErrCode> for NativeFuncResult {
+impl<T> From<ErrCode> for NativeFuncResult<T> {
     fn from(value: ErrCode) -> Self {
         return Err(NativeCallError::Major(value));
     }
@@ -166,6 +166,7 @@ pub trait NativeTrait: std::fmt::Debug + Any {
     fn lang_get(&mut self, name: &str, ctx: &mut StackVM) -> Option<Value> {
         return None;
     }
+    #[inline(always)]
     fn get_typename(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
@@ -176,7 +177,7 @@ pub trait NativeTrait: std::fmt::Debug + Any {
         }
         .into();
     }
-    fn lang_index_mut(&self, key: Value, value: Value) -> NativeFuncResult {
+    fn lang_index_mut(&mut self, key: Value, value: Value) -> NativeFuncResult<()> {
         return ErrCode::UnsupportedOperation {
             op: format!("x[y] = z"),
             target: Type::Custom(self.get_typename().to_owned()),
@@ -190,9 +191,14 @@ pub trait NativeTrait: std::fmt::Debug + Any {
         return self.type_id();
     }
 }
-#[derive(Debug, From)]
+#[derive(Debug)]
 pub enum Object {
-    List(ListObject),
+    Native(Box<dyn NativeTrait>),
+}
+impl<T: NativeTrait> From<T> for Object {
+    fn from(value: T) -> Self {
+        return Self::Native(Box::new(value));
+    }
 }
 #[derive(Debug)]
 pub struct ListObject(pub Vec<Value>);
@@ -207,6 +213,21 @@ impl NativeTrait for ListObject {
     }
     fn get_typename(&self) -> &'static str {
         return "List";
+    }
+    fn lang_index_mut(&mut self, key: Value, value: Value) -> NativeFuncResult<()> {
+        let Value::Int(key) = key else {
+            return ErrCode::InvalidType {
+                expected: Type::Int,
+                got: key.into(),
+            }
+            .into();
+        };
+        if key < 0 || key as usize >= self.0.len() {
+            return ErrCode::IndexOutOfBounds.into();
+        }
+        let key = key as usize;
+        self.0[key] = value;
+        Ok(())
     }
     fn lang_index(&self, key: Value) -> NativeFuncResult {
         let Value::Int(key) = key else {

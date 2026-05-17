@@ -251,7 +251,9 @@ impl IRgen {
                 bytecode.push(Op::IndexMut);
                 self.span_map.push(start, bytecode.len(), span);
             }
-            _ => todo!(),
+            _ => {
+                return Err(GenErr::InvalidAssignTarget.to_spanned(target.span));
+            }
         };
         let stop = bytecode.len();
         self.span_map.push(start, stop, span);

@@ -1,3 +1,5 @@
+use derive_more::with_trait;
+
 use super::values::Value;
 use crate::{
     lang_errors::{LangError, MsgBuilder},
@@ -48,7 +50,7 @@ impl LangError for Spanned<ErrCode> {
             ErrCode::UnsupportedOperation { op, target } => {
                 MsgBuilder::build_err("Invalid operand", self.span)
                     .with_err_label(format!(
-                        "The operation \"{op}\" on type {target:?}, isnt valid."
+                        "The operation \"{op}\" on type {target}, isnt valid."
                     ))
                     .finish()
             }
@@ -120,6 +122,14 @@ impl From<Value> for Type {
             Value::Function(_) => Self::Function,
             Value::NativeFunction(_) => Self::Function,
             Value::ObjectRef(_) => Self::ObjectRef,
+        }
+    }
+}
+impl Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Custom(ty) => f.write_str(ty),
+            ty => write!(f, "{ty:?}"),
         }
     }
 }

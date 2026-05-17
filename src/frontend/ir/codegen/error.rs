@@ -7,7 +7,8 @@ use crate::{
 
 #[derive(Debug)]
 pub enum GenErr {
-    InvalidExpr,
+    InvalidAssignTarget,
+    InvalidSyntax,
     TooManyArguments(usize),
     Unspecified(String),
 }
@@ -17,6 +18,7 @@ impl LangError for Spanned<GenErr> {
             GenErr::Unspecified(err) => {
                 MsgBuilder::build_unspecified_err(err.to_string(), self.span)
             }
+            
             GenErr::TooManyArguments(arg_len) => {
                 MsgBuilder::build_err("Too many arguments", self.span)
                     .with_err_label(format!(
@@ -32,8 +34,11 @@ impl LangError for Spanned<GenErr> {
                     
                     .finish()
             }
-            GenErr::InvalidExpr => MsgBuilder::build_err("Invalid expression", self.span)
-                .with_err_label("This does not make an expression.")
+            GenErr::InvalidAssignTarget => MsgBuilder::build_err("Invalid assignment target", self.span)
+                .with_err_label("You cannot assign a value to this expression.")
+                .finish(),
+            GenErr::InvalidSyntax => MsgBuilder::build_err("Invalid syntax", self.span)
+                .with_err_label("This syntax is invalid.")
                 .finish(),
         }
     }

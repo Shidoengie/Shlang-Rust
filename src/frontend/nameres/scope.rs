@@ -9,6 +9,7 @@ pub struct VarInfo {
     pub readonly: bool,
     pub span: Option<Span>,
     pub modifier_span: Option<Span>,
+    pub is_item: bool,
 }
 #[allow(unused)]
 impl VarInfo {
@@ -21,6 +22,7 @@ impl VarInfo {
             readonly: false,
             span: None,
             modifier_span: None,
+            is_item: false,
         }
     }
 
@@ -61,6 +63,10 @@ impl VarInfo {
             modifier_span: Some(modifier_span),
             ..self
         }
+    }
+    #[inline(always)]
+    pub fn with_item(self, is_item: bool) -> Self {
+        Self { is_item, ..self }
     }
     pub fn define_in(self, scope: &mut Scope) {
         scope.define(self.name.clone(), self);

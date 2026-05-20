@@ -402,7 +402,7 @@ impl Parser<'_> {
 
     /// This creates a function object and creates a Declaration Node
     /// this is so it can then be cast into a variable
-    fn parse_named_func(&mut self, name_ident: &Token) -> Result {
+    fn parse_named_func(&mut self, name_ident: &Token, func_keyword: Span) -> Result {
         let name = self.text(name_ident);
         self.next()?;
         let params = self.parse_func_params()?;
@@ -420,7 +420,9 @@ impl Parser<'_> {
             .to_nodespan(func_span)
             .box_item(),
         )
-        .as_readonly();
+        .as_readonly()
+        .as_item()
+        .with_modifier_span(func_keyword);
 
         decl.hoisted = self.in_toplevel;
         Ok(decl.to_nodespan(func_span))
@@ -438,18 +440,18 @@ impl Parser<'_> {
     }
     /// This uses build_func to create the function and then converts it into a nodespan
     /// this is so it can be used in a block
-    fn parse_anon_func(&mut self, first: &Token) -> Result {
+    fn parse_anon_func(&mut self, func_keyword: Span) -> Result {
         let func = self.build_func()?;
         let last = self.peek_some()?;
-        let span = first.span + last.span;
+        let span = func_keyword + last.span;
         Ok(func.to_spanned(span))
     }
     /// Takes the aformentioned function and combines them to alow the current function syntax
-    fn parse_funcdef(&mut self) -> Result {
+    fn parse_funcdef(&mut self, func_keyword: Span) -> Result {
         let first = self.peek_some()?;
         match first.kind {
-            TokenType::Identifier => return self.parse_named_func(&first),
-            TokenType::LParen => return self.parse_anon_func(&first),
+            TokenType::Identifier => return self.parse_named_func(&first, func_keyword),
+            TokenType::LParen => return self.parse_anon_func(func_keyword),
             _ => {}
         };
         unexpected_token(first)
@@ -609,9 +611,7 @@ impl Parser<'_> {
     }
 }
 
-// This entire section replaces the old precedence climbing functions.
 impl Parser<'_> {
-    /// Gets the precedence of the upcoming token.
     fn peek_precedence(&mut self) -> Result<Precedence> {
         if let Some(t) = self.peek_opt()? {
             Ok(Precedence::from(&t.kind))
@@ -655,7 +655,7 @@ impl Parser<'_> {
     fn parse_prefix(&mut self, token: &Token) -> Result {
         match &token.kind {
             TokenType::Str(lit) => Ok(Node::Str(lit.to_string()).to_spanned(token.span)),
-            TokenType::Struct => self.parse_struct(),
+            TokenType::Struct => self.parse_struct(token.span),
             TokenType::Var => self.parse_vardef(token),
             TokenType::Let => self.parse_readonly_def(token),
             TokenType::Float => Ok(self.parse_float(token).to_spanned(token.span)),
@@ -664,7 +664,7 @@ impl Parser<'_> {
             TokenType::True => Ok(Node::Bool(true).to_spanned(token.span)),
             TokenType::Null => Ok(Node::Null.to_spanned(token.span)),
             TokenType::Func => {
-                let func = self.parse_funcdef()?;
+                let func = self.parse_funcdef(token.span)?;
                 self.next()?;
                 Ok(func)
             }
@@ -793,11 +793,11 @@ impl Parser<'_> {
         let span = token.span + self.next()?.span;
         Ok(Node::RecordLit(entries).to_spanned(span))
     }
-    fn parse_struct(&mut self) -> Result {
-        let first = self.peek_some()?;
+    fn parse_struct(&mut self, struct_keyword: Span) -> Result {
+        self.peek_some()?;
         let maybe_named = self.is_expected(TokenType::Identifier)?;
         if let Some(name_ident) = maybe_named {
-            return self.named_struct(&name_ident);
+            return self.named_struct(&name_ident, struct_keyword);
         }
         let block = self.parse_block()?;
         let mut fields: HashMap<String, NodeSpan> = hashmap!();
@@ -807,10 +807,10 @@ impl Parser<'_> {
         }
 
         let last = self.next()?;
-        let span = first.span + last.span;
+        let span = struct_keyword + last.span;
         Ok(Node::StructLit(fields).to_spanned(span))
     }
-    fn named_struct(&mut self, name_ident: &Token) -> Result {
+    fn named_struct(&mut self, name_ident: &Token, struct_keyword: Span) -> Result {
         self.next()?;
         let block = self.parse_block()?;
         let last = self.next()?;
@@ -822,7 +822,10 @@ impl Parser<'_> {
             fields.insert(field.0, field.1);
         }
         let expr = Node::StructLit(fields).to_spanned(span).box_item();
-        let mut def = Decl::new(name, expr).as_readonly();
+        let mut def = Decl::new(name, expr)
+            .as_readonly()
+            .with_modifier_span(struct_keyword)
+            .as_item();
         def.hoisted = self.in_toplevel;
         Ok(def.to_nodespan(span))
     }

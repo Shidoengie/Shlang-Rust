@@ -19,6 +19,7 @@ use ResolvedNode as RNode;
 #[derive(Debug)]
 struct GlobalEntry {
     pub span: Option<Span>,
+    pub modifier_span: Option<Span>,
     pub id: usize,
 }
 
@@ -26,15 +27,17 @@ impl From<usize> for GlobalEntry {
     fn from(value: usize) -> Self {
         Self {
             span: None,
+            modifier_span: None,
             id: value,
         }
     }
 }
 impl GlobalEntry {
-    fn new(id: usize, span: Span) -> Self {
+    fn new(id: usize, span: Span, modifier_span: Span) -> Self {
         Self {
             span: Some(span),
             id,
+            modifier_span: Some(modifier_span),
         }
     }
 }
@@ -102,8 +105,14 @@ impl NameRes {
 
             let name = decl.name.to_owned();
             let id = self.globals.len();
-            self.globals
-                .insert(name.to_string(), GlobalEntry::new(id, span));
+            self.globals.insert(
+                name.to_string(),
+                GlobalEntry {
+                    id,
+                    span: Some(span),
+                    modifier_span: decl.modifier_span,
+                },
+            );
         }
 
         let mut root = Scope::default();
@@ -179,7 +188,8 @@ impl NameRes {
                 id: global.id,
                 readonly: true,
                 span: global.span,
-                modifier_span: None,
+                modifier_span: global.modifier_span,
+                is_item: true,
             })
         }) else {
             return Err(NameErr::UndefinedVar(name.to_string()).to_spanned(span));
@@ -199,7 +209,9 @@ impl NameRes {
         let id = self.gen_name();
         let mut info = VarInfo::new(decl.name, id)
             .with_readonly(decl.readonly)
+            .with_item(decl.is_item)
             .with_span(span);
+
         info.modifier_span = decl.modifier_span;
         info.define_in(parent);
         Ok(Decl {
@@ -242,6 +254,7 @@ impl NameRes {
             let mut span = span;
             span.start = var_span.end + 1;
             return Err(NameErr::AssignmentToReadonly {
+                is_item: info.is_item,
                 decl_span: info.span,
                 modifier_span: info.modifier_span,
             }
@@ -266,6 +279,7 @@ impl NameRes {
                 let decl = self.resolve_var_decl(decl, parent, span)?;
                 Ok(RNode::Decl(decl).to_spanned(span))
             }
+
             AstNode::Assignment { target, value } => {
                 self.resolve_assignment(target, value, parent, span)
             }

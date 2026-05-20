@@ -5,6 +5,8 @@ use crate::{
     spans::{Span, Spanned},
 };
 
+type NodeRefSpan = Spanned<Box<ResolvedNode>>;
+
 #[derive(Clone)]
 pub enum ResolvedNode {
     Null,
@@ -14,18 +16,18 @@ pub enum ResolvedNode {
     Int(i64),
     BinaryNode {
         kind: BinaryOp,
-        left: Spanned<Box<ResolvedNode>>,
-        right: Spanned<Box<ResolvedNode>>,
+        left: NodeRefSpan,
+        right: NodeRefSpan,
     },
-    UnaryNode(UnaryOp, Spanned<Box<ResolvedNode>>),
-    Result(Spanned<Box<ResolvedNode>>),
-    Return(Spanned<Box<ResolvedNode>>),
+    UnaryNode(UnaryOp, NodeRefSpan),
+    Result(NodeRefSpan),
+    Return(NodeRefSpan),
     Break,
     Continue,
 
     Assignment {
-        target: Spanned<Box<ResolvedNode>>,
-        value: Spanned<Box<ResolvedNode>>,
+        target: NodeRefSpan,
+        value: NodeRefSpan,
     },
     Variable {
         id: usize,
@@ -35,13 +37,13 @@ pub enum ResolvedNode {
     Decl(Decl),
 
     Index {
-        target: Spanned<Box<ResolvedNode>>,
-        index: Spanned<Box<ResolvedNode>>,
+        target: NodeRefSpan,
+        index: NodeRefSpan,
     },
     FunctionLit(FunctionLit),
     ListLit(Vec<Spanned<ResolvedNode>>),
     Call {
-        callee: Spanned<Box<ResolvedNode>>,
+        callee: NodeRefSpan,
         args: Vec<Spanned<ResolvedNode>>,
     },
 
@@ -49,23 +51,23 @@ pub enum ResolvedNode {
 
     Loop(Block),
     While {
-        condition: Spanned<Box<ResolvedNode>>,
+        condition: NodeRefSpan,
         block: Block,
     },
     Constructor {
-        target: Spanned<Box<ResolvedNode>>,
+        target: NodeRefSpan,
         params: HashMap<String, Spanned<ResolvedNode>>,
     },
     ForLoop {
         loop_var: usize,
-        list: Spanned<Box<ResolvedNode>>,
+        list: NodeRefSpan,
         block: Block,
     },
 
     DoBlock(Block),
-    StructDef(HashMap<String, Spanned<Box<ResolvedNode>>>),
-    RecordLit(HashMap<String, Spanned<Box<ResolvedNode>>>),
-    FieldAccess(Spanned<Box<ResolvedNode>>, Spanned<AccessType>),
+    StructDef(HashMap<String, NodeRefSpan>),
+    RecordLit(HashMap<String, NodeRefSpan>),
+    FieldAccess(NodeRefSpan, Spanned<AccessType>),
 }
 impl Debug for ResolvedNode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -202,14 +204,14 @@ pub type Block = Spanned<Vec<RNodeSpan>>;
 
 #[derive(Clone, Debug)]
 pub struct Branch {
-    pub condition: Spanned<Box<ResolvedNode>>,
+    pub condition: NodeRefSpan,
     pub if_block: Block,
     pub else_block: Option<Block>,
 }
 #[derive(Clone, Debug)]
 pub struct Decl {
     pub id: usize,
-    pub expr: Spanned<Box<ResolvedNode>>,
+    pub expr: NodeRefSpan,
     pub is_global: bool,
 }
 

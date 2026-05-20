@@ -15,23 +15,50 @@ pub use error::NameErr;
 
 use std::collections::HashMap;
 pub type Result<T = RNodeSpan> = std::result::Result<T, Spanned<NameErr>>;
-type DeclStream = Vec<Spanned<ast::Item>>;
 use ResolvedNode as RNode;
+#[derive(Debug)]
+struct GlobalEntry {
+    pub span: Option<Span>,
+    pub id: usize,
+}
+
+impl From<usize> for GlobalEntry {
+    fn from(value: usize) -> Self {
+        Self {
+            span: None,
+            id: value,
+        }
+    }
+}
+impl GlobalEntry {
+    fn new(id: usize, span: Span) -> Self {
+        Self {
+            span: Some(span),
+            id,
+        }
+    }
+}
 #[derive(Default)]
 pub struct NameRes {
     ident_counter: usize,
-    globals: HashMap<String, usize>,
+    globals: HashMap<String, GlobalEntry>,
     pub(crate) file_store: FileStore,
     scope_locals_stack: Vec<usize>,
 }
+/// This is temporary;
+/// Currently theres no module system and no function signature declaration,
+/// as such each names index cooresponds directly to a slot on the backend
+
+pub const GLOBAL_NAME_MAP: [&'static str; 3] = ["println", "input", "str_len"];
 impl NameRes {
     pub fn new(file_store: FileStore) -> Self {
         Self {
             file_store,
-            globals: hashmap!(
-                println => 0,
-                input => 1,
-                str_len => 2
+            globals: HashMap::from_iter(
+                GLOBAL_NAME_MAP
+                    .into_iter()
+                    .enumerate()
+                    .map(|(idx, txt)| (txt.to_owned(), idx.into())),
             ),
             ..Default::default()
         }
@@ -60,11 +87,12 @@ impl NameRes {
             return;
         }
         let id = self.globals.len();
-        self.globals.insert(name.to_string(), id);
+        self.globals.insert(name.to_string(), GlobalEntry::from(id));
     }
 
     pub fn resolve_toplevel(&mut self, exprs: Vec<ast::NodeSpan>) -> Result<Vec<RNodeSpan>> {
         for val in exprs.iter() {
+            let span = val.span;
             let AstNode::Decl(decl) = &val.item else {
                 continue;
             };
@@ -72,7 +100,10 @@ impl NameRes {
                 continue;
             }
 
-            self.add_global(decl.name.to_owned());
+            let name = decl.name.to_owned();
+            let id = self.globals.len();
+            self.globals
+                .insert(name.to_string(), GlobalEntry::new(id, span));
         }
 
         let mut root = Scope::default();
@@ -94,12 +125,10 @@ impl NameRes {
             let expr = self
                 .resolve_node(decl.expr.clone().deref_item(), &mut root)?
                 .box_item();
-
-            let id = &self.globals[&decl.name];
-
+            let global = &self.globals[&decl.name];
             hoisted_decls.push(
                 Decl {
-                    id: *id,
+                    id: global.id,
                     expr,
                     is_global: true,
                 }
@@ -144,24 +173,35 @@ impl NameRes {
             return Ok(info);
         }
         let Some(info) = parent.get_var(name).or_else(|| {
-            self.globals
-                .get(name)
-                .map(|id| VarInfo::new(name.to_string(), true, true, *id))
+            self.globals.get(name).map(|global| VarInfo {
+                name: name.to_owned(),
+                global: true,
+                id: global.id,
+                readonly: true,
+                span: global.span,
+                modifier_span: None,
+            })
         }) else {
             return Err(NameErr::UndefinedVar(name.to_string()).to_spanned(span));
         };
         Ok(info)
     }
-    fn resolve_var_decl(&mut self, decl: ast::Decl, parent: &mut Scope) -> Result<Decl> {
+    fn resolve_var_decl(
+        &mut self,
+        decl: ast::Decl,
+        parent: &mut Scope,
+        span: Span,
+    ) -> Result<Decl> {
         let expr = self
             .resolve_node(decl.expr.deref_item(), parent)?
             .box_item();
-        let id = if decl.readonly {
-            self.def_readonly(decl.name, parent)
-        } else {
-            self.def_local(decl.name, parent)
-        };
 
+        let id = self.gen_name();
+        let mut info = VarInfo::new(decl.name, id)
+            .with_readonly(decl.readonly)
+            .with_span(span);
+        info.modifier_span = decl.modifier_span;
+        info.define_in(parent);
         Ok(Decl {
             expr,
             id,
@@ -179,16 +219,6 @@ impl NameRes {
         }
         Ok(new)
     }
-    fn def_local(&mut self, name: String, parent: &mut Scope) -> usize {
-        let id = self.gen_name();
-        parent.define(name.clone(), VarInfo::new(name, false, false, id));
-        id
-    }
-    fn def_readonly(&mut self, name: String, parent: &mut Scope) -> usize {
-        let id = self.gen_name();
-        parent.define(name.clone(), VarInfo::new(name, false, true, id));
-        id
-    }
     fn resolve_assignment(
         &mut self,
         target: Spanned<Box<AstNode>>,
@@ -199,7 +229,7 @@ impl NameRes {
         let target = target.deref_item();
         let Spanned {
             item: AstNode::Variable(ref name),
-            span,
+            span: var_span,
         } = target
         else {
             let target = self.resolve_node(target, parent)?.box_item();
@@ -207,24 +237,33 @@ impl NameRes {
             return Ok(RNode::Assignment { target, value }.to_spanned(span));
         };
         let info = self.get_var(name, parent, span)?;
+        let value = self.resolve_node(value.deref_item(), parent)?.box_item();
         if info.readonly {
-            return Err(
-                NameErr::Unspecified(format!("Cannot assign to a readonly variable"))
-                    .to_spanned(span),
-            );
+            let mut span = span;
+            span.start = var_span.end + 1;
+            return Err(NameErr::AssignmentToReadonly {
+                decl_span: info.span,
+                modifier_span: info.modifier_span,
+            }
+            .to_spanned(span));
         }
-        return Ok(RNode::Variable {
-            id: info.id,
-            is_global: info.global,
+        Ok(RNode::Assignment {
+            target: RNode::Variable {
+                id: info.id,
+                is_global: info.global,
+            }
+            .to_spanned(target.span)
+            .box_item(),
+            value,
         }
-        .to_spanned(span));
+        .to_spanned(span))
     }
     fn resolve_node(&mut self, node: ast::NodeSpan, parent: &mut Scope) -> Result<RNodeSpan> {
         use ResolvedNode as RNode;
         let span = node.span;
         match node.item {
             AstNode::Decl(decl) => {
-                let decl = self.resolve_var_decl(decl, parent)?;
+                let decl = self.resolve_var_decl(decl, parent, span)?;
                 Ok(RNode::Decl(decl).to_spanned(span))
             }
             AstNode::Assignment { target, value } => {
@@ -243,8 +282,11 @@ impl NameRes {
                 let mut func_scope = Scope::default();
                 let mut args = vec![];
                 for arg in func.args {
-                    let new_name = self.def_local(arg, &mut func_scope);
-                    args.push(new_name);
+                    let new_id = self.gen_name();
+                    VarInfo::new(arg.item, new_id)
+                        .with_span(arg.span)
+                        .define_in(&mut func_scope);
+                    args.push(new_id);
                 }
                 let old_ident_counter = self.ident_counter;
                 self.ident_counter = 0;
@@ -317,7 +359,11 @@ impl NameRes {
             }
             AstNode::ForLoop(forloop) => {
                 let mut base = Scope::default();
-                let loop_var = self.def_local(forloop.ident, &mut base);
+
+                let loop_var = self.gen_name();
+                VarInfo::new(forloop.ident, loop_var)
+                    .with_span(forloop.ident_span)
+                    .define_in(&mut base);
 
                 let list = self
                     .resolve_node(forloop.list.deref_item(), parent)?

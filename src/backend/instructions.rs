@@ -1,10 +1,6 @@
 use crate::{backend::vm::values::*, spanmap::SpanMap, utils::compact_iter_debug};
-use core::fmt;
-use std::{
-    any::Any,
-    fmt::{Debug, Display, Write, write},
-    sync::Arc,
-};
+
+use std::fmt::{Debug, Display};
 
 pub struct ByteCode {
     pub ops: Vec<OpCode>,

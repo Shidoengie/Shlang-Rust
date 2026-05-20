@@ -70,6 +70,19 @@ macro_rules! impl_logical_op {
         Ok(())
     }};
 }
+#[derive(Debug, Clone)]
+struct IndexOrigin<T = Value> {
+    pub value: T,
+    pub origin: usize,
+}
+impl<T> From<(T, usize)> for IndexOrigin<T> {
+    fn from(value: (T, usize)) -> Self {
+        Self {
+            value: value.0,
+            origin: value.1,
+        }
+    }
+}
 #[derive(Debug)]
 pub struct ManagedObject {
     pub obj: Object,
@@ -224,12 +237,13 @@ impl StackVM {
     fn peek(&self) -> Option<&Value> {
         self.values.last()
     }
-    fn type_error<T>(&self, expected: Type, got: Value) -> Result<T> {
+    fn type_error<T>(&self, expected: Type, got: IndexOrigin) -> Result<T> {
+        let origin = got.origin;
         Err(ErrCode::InvalidType {
             expected,
-            got: got.into(),
+            got: got.value.into(),
         }
-        .into_vmerr(self.ip))
+        .into_vmerr(origin))
     }
     fn add_object(&mut self, obj: impl Into<Object>) -> Value {
         self.objects.add(obj.into())
@@ -240,12 +254,12 @@ impl StackVM {
         self.value_map.push(self.ip);
     }
     fn exec_index(&mut self) -> Result {
-        let refid = self.pop()?;
-        let index = self.pop()?;
-        if let Value::String(content) = refid {
+        let refid = self.pop_raw()?;
+        let index = self.pop_raw()?;
+        if let Value::String(content) = refid.value {
             return self.index_string(content, index);
         }
-        let Value::ObjectRef(refid) = refid else {
+        let Value::ObjectRef(refid) = refid.value else {
             return self.type_error(Type::ObjectRef, refid);
         };
         let Some(obj) = self.objects.get(refid) else {
@@ -254,16 +268,16 @@ impl StackVM {
         match obj {
             Object::Native(list) => {
                 let res = list
-                    .lang_index(index)
-                    .map_err(|err| VmErr::new(self.ip, err))?;
+                    .lang_index(index.value)
+                    .map_err(|err| VmErr::new(index.origin, err))?;
                 self.push(res);
 
                 return Ok(());
             }
         }
     }
-    fn index_string(&mut self, content: String, index: Value) -> Result {
-        let Value::Int(index) = index else {
+    fn index_string(&mut self, content: String, index: IndexOrigin) -> Result {
+        let Value::Int(index) = index.value else {
             return self.type_error(Type::Int, index);
         };
         if index < 0 {
@@ -289,11 +303,11 @@ impl StackVM {
         return Ok(());
     }
     fn exec_index_mut(&mut self) -> Result {
-        let target = self.pop()?;
+        let target = self.pop_raw()?;
         let index = self.pop()?;
         let value = self.pop()?;
-        let Value::ObjectRef(id) = target else {
-            return self.type_error(Type::ObjectRef, value);
+        let Value::ObjectRef(id) = target.value else {
+            return self.type_error(Type::ObjectRef, target);
         };
         let Some(obj) = self.objects.get_mut(id) else {
             return Err(ErrCode::Unspecified(format!("Invalid object id")).into_vmerr(self.ip));
@@ -400,16 +414,10 @@ impl StackVM {
     // --- Helper logic for larger branches ---
 
     fn exec_branch(&mut self, position: usize, jump_if_true: bool) -> Result {
-        let (val, ip) = self.pop_raw()?;
-        let Value::Bool(b) = val else {
-            return Err(ErrCode::InvalidType {
-                expected: Type::Bool,
-                got: val.into(),
-            }
-            .into_vmerr(ip));
+        let cond = self.pop_raw()?;
+        let Value::Bool(b) = cond.value else {
+            return self.type_error(Type::Bool, cond);
         };
-
-        // Your original logic: Branch jumps on False, NotBranch jumps on True
         if b == jump_if_true {
             self.ip = position;
         } else {
@@ -470,7 +478,7 @@ impl StackVM {
             .pop()
             .ok_or(ErrCode::EmptyStack.into_vmerr(self.ip))
     }
-    fn pop_raw(&mut self) -> Result<(Value, usize)> {
+    fn pop_raw(&mut self) -> Result<IndexOrigin> {
         //dbg!(&self.values);
         Ok((
             self.values
@@ -479,7 +487,8 @@ impl StackVM {
             self.value_map
                 .pop()
                 .ok_or(ErrCode::EmptyStack.into_vmerr(self.ip))?,
-        ))
+        )
+            .into())
     }
     fn push(&mut self, value: Value) {
         if let Value::ObjectRef(id) = &value {
@@ -492,10 +501,11 @@ impl StackVM {
     fn pop_chunk(&mut self, len: usize) -> Vec<Value> {
         self.values.drain(self.values.len() - len..).collect()
     }
-    fn pop_chunk_raw(&mut self, len: usize) -> Vec<(Value, usize)> {
+    fn pop_chunk_raw(&mut self, len: usize) -> Vec<IndexOrigin> {
         self.values
             .drain(self.values.len() - len..)
             .zip(self.value_map.drain(self.value_map.len() - len..))
+            .map(|value| IndexOrigin::from(value))
             .collect()
     }
     fn pop_pair(&mut self) -> Result<(Value, Value)> {
@@ -503,7 +513,7 @@ impl StackVM {
         let left = self.pop()?;
         Ok((left, right))
     }
-    fn pop_pair_raw(&mut self) -> Result<((Value, usize), (Value, usize))> {
+    fn pop_pair_raw(&mut self) -> Result<(IndexOrigin, IndexOrigin)> {
         let right = self.pop_raw()?;
         let left = self.pop_raw()?;
 

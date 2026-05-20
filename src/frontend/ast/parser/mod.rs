@@ -243,8 +243,9 @@ impl Parser<'_> {
     fn empty_let_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
         let name = self.text(&var_ident);
         let span = first.span + var_ident.span;
-        Decl::new(name, Node::Null.to_spanned(first.span).box_item())
+        Decl::new(name, Node::Null.to_spanned(span).box_item())
             .as_readonly()
+            .with_modifier_span(first.span)
             .to_nodespan(span)
     }
     fn let_decl(&mut self, name: String, name_ident: &Token) -> Result {
@@ -253,6 +254,7 @@ impl Parser<'_> {
         let span = name_ident.span + val.span;
         Ok(Decl::new(name, val.box_item())
             .as_readonly()
+            .with_modifier_span(name_ident.span)
             .to_nodespan(span))
     }
     fn parse_readonly_def(&mut self, first: &Token) -> Result {
@@ -271,14 +273,18 @@ impl Parser<'_> {
     fn empty_var_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
         let name = self.text(&var_ident);
         let span = first.span + var_ident.span;
-        Decl::new(name, Node::Null.to_spanned(first.span).box_item()).to_nodespan(span)
+        Decl::new(name, Node::Null.to_spanned(span).box_item())
+            .with_modifier_span(first.span)
+            .to_nodespan(span)
     }
 
     fn var_decl(&mut self, name: String, name_ident: &Token) -> Result {
         self.next()?; // Consume '='
         let val = self.parse_only_expr(false)?;
         let span = name_ident.span + val.span;
-        Ok(Decl::new(name, val.box_item()).to_nodespan(span))
+        Ok(Decl::new(name, val.box_item())
+            .with_modifier_span(name_ident.span)
+            .to_nodespan(span))
     }
     fn parse_vardef(&mut self, first: &Token) -> Result {
         let ident = self.expect(TokenType::Identifier)?;
@@ -367,10 +373,10 @@ impl Parser<'_> {
         .to_nodespan(first_span + last_span))
     }
     /// This function parses the parameters of function definitions aka: func >(one,two)<
-    fn parse_func_params(&mut self) -> Result<Vec<String>> {
+    fn parse_func_params(&mut self) -> Result<Vec<Spanned<String>>> {
         self.next()?;
         let mut token = self.peek_some()?;
-        let mut params: Vec<String> = vec![];
+        let mut params: Vec<Spanned<String>> = vec![];
         while token.isnt(&TokenType::RParen) {
             if self.peek()?.is(&TokenType::RParen) {
                 break;
@@ -379,7 +385,7 @@ impl Parser<'_> {
             let var_name = self.text(&ident);
             self.next()?;
             token = self.peek_some()?;
-            params.push(var_name);
+            params.push(var_name.to_spanned(ident.span));
             match token.kind {
                 TokenType::RParen => break,
                 TokenType::Comma => {
@@ -522,7 +528,13 @@ impl Parser<'_> {
         let proc = self.parse_block()?;
         self.next()?;
         let span = ident_span + last.span;
-        Ok(ForLoop { ident, list, proc }.to_nodespan(span))
+        Ok(ForLoop {
+            ident,
+            list,
+            proc,
+            ident_span,
+        }
+        .to_nodespan(span))
     }
     fn parse_do(&mut self) -> Result {
         let first = self.expect(TokenType::LBrace)?;
@@ -579,15 +591,15 @@ impl Parser<'_> {
 ///list parsing
 impl Parser<'_> {
     fn parse_index(&mut self, target: NodeSpan) -> Result {
-        let first = self.peek_some()?;
-
+        let mut first = self.peek_some()?.span;
+        first.start -= 1;
         let index = self.parse_only_expr(false)?;
         let last = self.peek_some()?;
         if last.isnt(&TokenType::RBracket) {
             return unexpected_token(last);
         }
         self.next()?;
-        let span = first.span + last.span;
+        let span = first + last.span;
 
         Ok(Node::Index {
             target: target.box_item(),

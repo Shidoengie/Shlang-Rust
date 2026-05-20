@@ -60,6 +60,35 @@ impl SpanMap {
         false
     }
 
+    fn translate_index(old_index: usize, mapping: &[Option<usize>], output_len: usize) -> usize {
+        if old_index >= mapping.len() {
+            return output_len;
+        }
+        for index in old_index..mapping.len() {
+            if let Some(mapped) = mapping[index] {
+                return mapped;
+            }
+        }
+        output_len
+    }
+
+    /// Translates span ranges from a label-inclusive IR op stream into a label-stripped bytecode stream.
+    pub fn remap_op_ranges(&self, mapping: &[Option<usize>], output_len: usize) -> Self {
+        let mut result = Self::new();
+
+        for entry in &self.map {
+            let (start, stop) = entry.item;
+            let mapped_start = Self::translate_index(start, mapping, output_len);
+            let mapped_stop = Self::translate_index(stop, mapping, output_len);
+
+            if mapped_start < mapped_stop {
+                result.push(mapped_start, mapped_stop, entry.span);
+            }
+        }
+
+        result
+    }
+
     /// Gets a reference to the span containing a given `op_index`. Returns the most specific match (smallest range containing index).
     /// Ranges are treated as half-open: `[start, stop)`.
     pub fn get(&self, op_index: usize) -> Option<&Span> {

@@ -2,7 +2,7 @@ use crate::backend::instructions::*;
 use crate::backend::vm::values::*;
 use crate::frontend::ir::instructions::IrNode;
 use crate::frontend::ir::{codegen::Ir, instructions::IrLiteral};
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 pub struct Assembler {
     label_map: HashMap<String, usize>,
@@ -12,13 +12,16 @@ impl Assembler {
     pub fn assemble(ir: Ir) -> ByteCode {
         let mut label_map = HashMap::new();
         let mut output_offset = 0;
+        let mut index_map = Vec::with_capacity(ir.ops.len());
 
         for node in &ir.ops {
             match node {
                 IrNode::Label(name) => {
                     label_map.insert(name.clone(), output_offset);
+                    index_map.push(None);
                 }
                 _ => {
+                    index_map.push(Some(output_offset));
                     output_offset += 1;
                 }
             }
@@ -39,9 +42,11 @@ impl Assembler {
             output.push(op);
         }
 
+        let span_map = ir.span_map.remap_op_ranges(&index_map, output.len());
+
         ByteCode {
             ops: output,
-            span_map: ir.span_map,
+            span_map,
             global_count: ir.global_count,
             local_count: ir.local_count,
             globals,

@@ -6,7 +6,7 @@ pub trait LangError
 where
     Self: SpanUtil + Debug,
 {
-    fn msg(&self) -> Report<Span>;
+    fn msg(&'_ self) -> Report<'_, Span>;
 }
 pub type LangResult<T> = Result<T, Box<dyn LangError>>;
 pub struct MsgBuilder<'a> {
@@ -43,7 +43,7 @@ impl<'a> MsgBuilder<'a> {
     pub fn finish(self) -> Report<'a, Span> {
         self.inner.finish()
     }
-    ///[`ReportBuilder::with_help`]
+    ///[`ReportBuilder::with_code`]
     pub fn with_code(mut self, code: impl Display) -> Self {
         self.inner = self.inner.with_code(code);
 

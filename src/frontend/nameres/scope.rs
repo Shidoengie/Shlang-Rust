@@ -1,21 +1,72 @@
 use std::collections::HashMap;
-#[derive(Clone, Debug, PartialEq, Default)]
+
+use crate::spans::Span;
+#[derive(Clone, Debug, PartialEq)]
 pub struct VarInfo {
     pub name: String,
     pub id: usize,
     pub global: bool,
     pub readonly: bool,
+    pub span: Option<Span>,
+    pub modifier_span: Option<Span>,
 }
+#[allow(unused)]
 impl VarInfo {
-    pub fn new(name: String, global: bool, readonly: bool, id: usize) -> Self {
+    #[inline(always)]
+    pub const fn new(name: String, id: usize) -> Self {
         Self {
-            name: name.to_string(),
-            global,
+            name,
             id,
-            readonly,
+            global: false,
+            readonly: false,
+            span: None,
+            modifier_span: None,
         }
     }
+
+    #[inline(always)]
+    pub fn as_global(self) -> Self {
+        Self {
+            global: true,
+            ..self
+        }
+    }
+
+    #[inline(always)]
+    pub fn as_readonly(self) -> Self {
+        Self {
+            readonly: true,
+            ..self
+        }
+    }
+    #[inline(always)]
+    pub fn with_global(self, global: bool) -> Self {
+        Self { global, ..self }
+    }
+
+    #[inline(always)]
+    pub fn with_readonly(self, readonly: bool) -> Self {
+        Self { readonly, ..self }
+    }
+    #[inline(always)]
+    pub fn with_span(self, span: Span) -> Self {
+        Self {
+            span: Some(span),
+            ..self
+        }
+    }
+    #[inline(always)]
+    pub fn with_modifier_span(self, modifier_span: Span) -> Self {
+        Self {
+            modifier_span: Some(modifier_span),
+            ..self
+        }
+    }
+    pub fn define_in(self, scope: &mut Scope) {
+        scope.define(self.name.clone(), self);
+    }
 }
+
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Scope {
     pub parent: Option<Box<Scope>>,

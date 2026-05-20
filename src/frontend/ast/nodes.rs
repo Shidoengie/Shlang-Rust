@@ -294,8 +294,9 @@ pub struct While {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ForLoop {
     pub ident: String,
+    pub ident_span: Span,
     pub list: NodeRef,
-    pub proc: Block,
+    pub proc: Spanned<Vec<Spanned<Node>>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -304,6 +305,7 @@ pub struct Decl {
     pub expr: NodeRef,
     pub readonly: bool,
     pub hoisted: bool,
+    pub modifier_span: Option<Span>,
 }
 impl Decl {
     pub fn new(name: String, expr: NodeRef) -> Self {
@@ -312,6 +314,13 @@ impl Decl {
             expr,
             readonly: false,
             hoisted: false,
+            modifier_span: None,
+        }
+    }
+    pub fn with_modifier_span(self, span: Span) -> Self {
+        Self {
+            modifier_span: Some(span),
+            ..self
         }
     }
     pub fn as_readonly(self) -> Self {
@@ -331,7 +340,7 @@ impl Decl {
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunctionLit {
     pub block: Block,
-    pub args: Vec<String>,
+    pub args: Vec<Spanned<String>>,
     pub captures: bool,
 }
 

@@ -7,10 +7,10 @@ This is a near complete rewrite of the language keeping only the parser and most
 - [x] Loops
 - [x] Results (Block returns)
 - [x] Lists and indexing
-- [ ] For loops
 - [ ] Classes
 - [ ] Records
 - [ ] Garbage collection
+- [ ] For loops
 
 ## Planned
 

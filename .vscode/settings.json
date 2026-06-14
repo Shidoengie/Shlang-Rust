@@ -9,6 +9,6 @@
 		".\\Cargo.toml"
 	],
 	"[rust]": {
-		"editor.tabSize": 2
+		"editor.tabSize": 4
 	}
 }

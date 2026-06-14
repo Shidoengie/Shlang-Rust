@@ -1,0 +1,15 @@
+---
+source: src/frontend/ast/parser_test.rs
+assertion_line: 10
+description: test_parsing
+expression: "parse_expr (_test_func! (\"func(b){do{1};}\"))"
+---
+Ok(
+    Function(b){
+        Do{
+            Result(
+                Int(1),
+            )[11,12],
+        }[10,13],
+    }[0,15],
+)

@@ -4,7 +4,7 @@ use crate::test_func;
 use std::{usize, *};
 
 fn parse_expr(source: &str) -> parser::Result<NodeSpan> {
-    Parser::parse_expr(source, usize::MAX)
+	Parser::parse_expr(source, usize::MAX)
 }
 
 test_func!(test_parsing,parse_expr, {

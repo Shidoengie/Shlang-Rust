@@ -1,0 +1,18 @@
+---
+source: src/frontend/ast/parser_test.rs
+assertion_line: 10
+description: test_parsing
+expression: "parse_expr (_test_func! (\"a[1]()[2]\"))"
+---
+Ok(
+    Index {
+        target: Call {
+            callee: Index {
+                target: Var(a)[0,1],
+                index: Int(1)[2,3],
+            }[1,4],
+            args: [],
+        }[5,6],
+        index: Int(2)[7,8],
+    }[6,9],
+)

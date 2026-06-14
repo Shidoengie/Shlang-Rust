@@ -1,0 +1,9 @@
+---
+source: src/frontend/ast/parser_test.rs
+assertion_line: 10
+description: test_parsing
+expression: "parse_expr (_test_func! (\"var a;\"))"
+---
+Ok(
+    Decl::a = Null[0,5][0,5],
+)

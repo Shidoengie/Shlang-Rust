@@ -1,11 +1,11 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"a[1]\")"
+expression: "parse_expr (_test_func! (\"a[1]\"))"
 ---
 Ok(
     Index {
-        target: Var(a)[0,1],
+        target: Var(IdentId(3))[0,1],
         index: Int(1)[2,3],
-    }[2,4],
+    }[1,4],
 )

@@ -3,13 +3,17 @@ use crate::{
 	collections::spans::{IntoSpanned, Span, Spanned},
 	frontend::{
 		FileStore,
-		ast::nodes::{self as ast, Node as AstNode},
+		ast::{
+			nodes::{self as ast, Node as AstNode},
+			parser::GLOBAL_NAME_MAP,
+		},
 		nameres::{
 			resolved_nodes::*,
 			scope::{Scope, VarInfo},
 		},
 	},
 	hashmap,
+	idents::IdentId,
 };
 pub use error::NameErr;
 
@@ -41,27 +45,22 @@ impl GlobalEntry {
 		}
 	}
 }
+
 #[derive(Default)]
 pub struct NameRes {
 	ident_counter: usize,
-	globals: HashMap<String, GlobalEntry>,
+	globals: HashMap<IdentId, GlobalEntry>,
 	pub(crate) file_store: FileStore,
 	scope_locals_stack: Vec<usize>,
 }
-/// This is temporary;
-/// Currently theres no module system and no function signature declaration,
-/// as such each names index cooresponds directly to a slot on the backend
-
-pub const GLOBAL_NAME_MAP: [&'static str; 3] = ["println", "input", "str_len"];
 impl NameRes {
 	pub fn new(file_store: FileStore) -> Self {
 		Self {
 			file_store,
 			globals: HashMap::from_iter(
-				GLOBAL_NAME_MAP
+				(0..GLOBAL_NAME_MAP.len())
 					.into_iter()
-					.enumerate()
-					.map(|(idx, txt)| (txt.to_owned(), idx.into())),
+					.map(|idx| (IdentId(idx), idx.into())),
 			),
 			..Default::default()
 		}
@@ -85,12 +84,12 @@ impl NameRes {
 		self.ident_counter = start_ident;
 		Ok(ResolvedAstNode::new(node, self.globals.len(), local_count))
 	}
-	fn add_global(&mut self, name: String) {
+	fn add_global(&mut self, name: IdentId) {
 		if self.globals.contains_key(&name) {
 			return;
 		}
 		let id = self.globals.len();
-		self.globals.insert(name.to_string(), GlobalEntry::from(id));
+		self.globals.insert(name, GlobalEntry::from(id));
 	}
 
 	pub fn resolve_toplevel(&mut self, exprs: Vec<ast::NodeSpan>) -> Result<Vec<RNodeSpan>> {
@@ -106,7 +105,7 @@ impl NameRes {
 			let name = decl.name.to_owned();
 			let id = self.globals.len();
 			self.globals.insert(
-				name.to_string(),
+				name,
 				GlobalEntry {
 					id,
 					span: Some(span),
@@ -170,19 +169,12 @@ impl NameRes {
 		self.update_scope_locals();
 		old_count
 	}
-	fn get_var(
-		&mut self,
-		name: impl AsRef<str>,
-		parent: &mut Scope,
-		span: Span,
-	) -> Result<VarInfo> {
-		let name = name.as_ref();
-
+	fn get_var(&mut self, name: IdentId, parent: &mut Scope, span: Span) -> Result<VarInfo> {
 		if let Some(info) = parent.get_var(name) {
 			return Ok(info);
 		}
 		let Some(info) = parent.get_var(name).or_else(|| {
-			self.globals.get(name).map(|global| VarInfo {
+			self.globals.get(&name).map(|global| VarInfo {
 				name: name.to_owned(),
 				global: true,
 				id: global.id,
@@ -192,7 +184,7 @@ impl NameRes {
 				is_item: true,
 			})
 		}) else {
-			return Err(NameErr::UndefinedVar(name.to_string()).to_spanned(span));
+			return Err(NameErr::UndefinedVar(name).to_spanned(span));
 		};
 		Ok(info)
 	}
@@ -248,7 +240,7 @@ impl NameRes {
 			let value = self.resolve_node(value.deref_item(), parent)?.box_item();
 			return Ok(RNode::Assignment { target, value }.to_spanned(span));
 		};
-		let info = self.get_var(name, parent, span)?;
+		let info = self.get_var(*name, parent, span)?;
 		let value = self.resolve_node(value.deref_item(), parent)?.box_item();
 		if info.readonly {
 			let mut span = span;
@@ -430,7 +422,7 @@ impl NameRes {
 						arg_span,
 						args: self.resolve_list(args, parent)?,
 					},
-					ast::AccessType::Property(prop) => AccessType::Property(prop),
+					ast::AccessType::Property(prop) => AccessType::Property(*prop),
 				}
 				.to_spanned(field.requested.span);
 				Ok(RNode::FieldAccess(target, requested).to_spanned(span))

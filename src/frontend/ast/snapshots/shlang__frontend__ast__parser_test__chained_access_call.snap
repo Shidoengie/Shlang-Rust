@@ -1,37 +1,45 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"a.b().c().d().e()\")"
+expression: "parse_expr (_test_func! (\"a.b().c().d().e()\"))"
 ---
 Ok(
     FieldAccess {
         target: FieldAccess {
             target: FieldAccess {
                 target: FieldAccess {
-                    target: Var(a)[0,1],
+                    target: Var(IdentId(3))[0,1],
                     requested: Method {
-                        callee: "b",
+                        callee: IdentId(
+                            4,
+                        ),
                         callee_span: 2:3,
                         args: [],
                         arg_span: 4:5,
                     }[2,5],
                 }[0,5],
                 requested: Method {
-                    callee: "c",
+                    callee: IdentId(
+                        5,
+                    ),
                     callee_span: 6:7,
                     args: [],
                     arg_span: 8:9,
                 }[6,9],
             }[0,9],
             requested: Method {
-                callee: "d",
+                callee: IdentId(
+                    6,
+                ),
                 callee_span: 10:11,
                 args: [],
                 arg_span: 12:13,
             }[10,13],
         }[0,13],
         requested: Method {
-            callee: "e",
+            callee: IdentId(
+                7,
+            ),
             callee_span: 14:15,
             args: [],
             arg_span: 16:17,

@@ -1,21 +1,25 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"a.b().c\")"
+expression: "parse_expr (_test_func! (\"a.b().c\"))"
 ---
 Ok(
     FieldAccess {
         target: FieldAccess {
-            target: Var(a)[0,1],
+            target: Var(IdentId(3))[0,1],
             requested: Method {
-                callee: "b",
+                callee: IdentId(
+                    4,
+                ),
                 callee_span: 2:3,
                 args: [],
                 arg_span: 4:5,
             }[2,5],
         }[0,5],
         requested: Property(
-            "c",
+            IdentId(
+                5,
+            )[6,7],
         )[6,7],
     }[0,7],
 )

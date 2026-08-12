@@ -1,8 +1,8 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"b = 1;\")"
+expression: "parse_expr (_test_func! (\"b = 1;\"))"
 ---
 Ok(
-    Assign(Var(b)[0,1] = Int(1)[4,5])[0,5],
+    Assign(Var(IdentId(3))[0,1] = Int(1)[4,5])[0,5],
 )

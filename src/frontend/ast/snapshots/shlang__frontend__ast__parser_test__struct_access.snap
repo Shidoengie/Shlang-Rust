@@ -1,15 +1,17 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"b.a*2\")"
+expression: "parse_expr (_test_func! (\"b.a*2\"))"
 ---
 Ok(
     BinaryNode {
         kind: Multiply,
         left: FieldAccess {
-            target: Var(b)[0,1],
+            target: Var(IdentId(3))[0,1],
             requested: Property(
-                "a",
+                IdentId(
+                    4,
+                )[2,3],
             )[2,3],
         }[0,3],
         right: Int(2)[4,5],

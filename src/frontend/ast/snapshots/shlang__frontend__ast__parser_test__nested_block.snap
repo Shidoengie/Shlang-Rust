@@ -1,14 +1,14 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"func(b){do{1};}\")"
+expression: "parse_expr (_test_func! (\"func(b){do{1};}\"))"
 ---
 Ok(
-    Function(b){
+    Function(IdentId(3)){
         Do{
             Result(
                 Int(1),
             )[11,12],
         }[10,13],
-    }[4,15],
+    }[0,15],
 )

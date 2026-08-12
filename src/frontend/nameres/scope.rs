@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::collections::spans::Span;
+use crate::{collections::spans::Span, idents::IdentId};
 #[derive(Clone, Debug, PartialEq)]
 pub struct VarInfo {
-	pub name: String,
+	pub name: IdentId,
 	pub id: usize,
 	pub global: bool,
 	pub readonly: bool,
@@ -14,7 +14,7 @@ pub struct VarInfo {
 #[allow(unused)]
 impl VarInfo {
 	#[inline(always)]
-	pub const fn new(name: String, id: usize) -> Self {
+	pub const fn new(name: IdentId, id: usize) -> Self {
 		Self {
 			name,
 			id,
@@ -69,19 +69,19 @@ impl VarInfo {
 		Self { is_item, ..self }
 	}
 	pub fn define_in(self, scope: &mut Scope) {
-		scope.define(self.name.clone(), self);
+		scope.define(self.name, self);
 	}
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct Scope {
 	pub parent: Option<Box<Scope>>,
-	pub vars: HashMap<String, VarInfo>,
+	pub vars: HashMap<IdentId, VarInfo>,
 }
 
 impl Scope {
-	pub fn get_var(&self, var_name: impl AsRef<str>) -> Option<VarInfo> {
-		if let Some(var) = self.vars.get(var_name.as_ref()) {
+	pub fn get_var(&self, var_name: IdentId) -> Option<VarInfo> {
+		if let Some(var) = self.vars.get(&var_name) {
 			return Some(var.clone());
 		}
 		if let Some(parent) = &self.parent {
@@ -89,28 +89,15 @@ impl Scope {
 		}
 		None
 	}
-	pub fn get_vars<const U: usize>(&self, vars: [impl AsRef<str>; U]) -> [Option<VarInfo>; U] {
+	pub fn get_vars<const U: usize>(&self, vars: [IdentId; U]) -> [Option<VarInfo>; U] {
 		const ARRAY_REPEAT_VALUE: Option<VarInfo> = None;
 		let mut out: [Option<VarInfo>; U] = [ARRAY_REPEAT_VALUE; U];
-		for (i, v) in vars.iter().enumerate() {
+		for (i, v) in vars.iter().copied().enumerate() {
 			out[i] = self.get_var(v);
 		}
 		out
 	}
-	pub fn define(&mut self, var_name: String, value: VarInfo) {
+	pub fn define(&mut self, var_name: IdentId, value: VarInfo) {
 		self.vars.insert(var_name, value);
-	}
-
-	pub fn new(parent: Option<Box<Scope>>, vars: HashMap<String, VarInfo>) -> Self {
-		Scope { parent, vars }
-	}
-	pub fn from_vars(vars: HashMap<String, VarInfo>) -> Self {
-		Scope { parent: None, vars }
-	}
-	pub fn new_child_in(parent: Scope) -> Self {
-		Scope {
-			parent: Some(Box::new(parent)),
-			vars: HashMap::from([]),
-		}
 	}
 }

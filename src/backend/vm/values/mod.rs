@@ -56,14 +56,14 @@ impl fmt::Display for Value {
 }
 #[derive(Debug, Clone)]
 pub struct Class {
-	pub name: Option<String>,
-	pub static_fields: HashMap<String, Value>,
-	pub instance_fields: HashMap<String, Value>,
+	pub name: Option<usize>,
+	pub static_fields: HashMap<usize, Value>,
+	pub instance_fields: HashMap<usize, Value>,
 }
 #[derive(Debug, Clone)]
 pub struct Instance {
-	pub name: Option<String>,
-	pub fields: HashMap<String, Value>,
+	pub name: Option<usize>,
+	pub fields: HashMap<usize, Value>,
 }
 #[derive(Debug, Clone, Copy)]
 pub struct Function {

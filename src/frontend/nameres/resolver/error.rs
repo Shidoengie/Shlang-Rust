@@ -2,11 +2,12 @@ use ariadne::{Label, Report};
 
 use crate::{
 	collections::spans::{Span, Spanned},
+	idents::IdentId,
 	lang_errors::{LangError, MsgBuilder},
 };
 #[derive(Debug)]
 pub enum NameErr {
-	UndefinedVar(String),
+	UndefinedVar(IdentId),
 	UnexpectedSemi,
 	AssignmentToReadonly {
 		is_item: bool,
@@ -90,11 +91,12 @@ impl LangError for Spanned<NameErr> {
 			NameErr::UnexpectedSemi => MsgBuilder::build_err("Invalid expression", self.span)
 				.with_err_label("This does not make an expression.")
 				.finish(),
-			NameErr::UndefinedVar(name) => {
-				MsgBuilder::build_err(format!("Undefined variable with name '{name}'"), self.span)
-					.with_err_label("This does not exist")
-					.finish()
-			}
+			NameErr::UndefinedVar(name) => MsgBuilder::build_err(
+				format!("Undefined variable with name '{name:?}'"),
+				self.span,
+			)
+			.with_err_label("This does not exist")
+			.finish(),
 		}
 	}
 }

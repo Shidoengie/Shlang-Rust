@@ -3,6 +3,7 @@ use std::{collections::HashMap, fmt::Debug};
 use crate::{
 	collections::spans::{Span, Spanned},
 	frontend::opkind::*,
+	idents::{Ident, IdentId},
 };
 
 type NodeRefSpan = Spanned<Box<ResolvedNode>>;
@@ -56,7 +57,7 @@ pub enum ResolvedNode {
 	},
 	Constructor {
 		target: NodeRefSpan,
-		params: HashMap<String, Spanned<ResolvedNode>>,
+		params: HashMap<IdentId, Spanned<ResolvedNode>>,
 	},
 	ForLoop {
 		loop_var: usize,
@@ -65,8 +66,8 @@ pub enum ResolvedNode {
 	},
 
 	DoBlock(Block),
-	StructDef(HashMap<String, NodeRefSpan>),
-	RecordLit(HashMap<String, NodeRefSpan>),
+	StructDef(HashMap<IdentId, NodeRefSpan>),
+	RecordLit(HashMap<IdentId, NodeRefSpan>),
 	FieldAccess(NodeRefSpan, Spanned<AccessType>),
 }
 impl Debug for ResolvedNode {
@@ -74,9 +75,9 @@ impl Debug for ResolvedNode {
 		match self {
 			Self::Bool(val) => {
 				if *val {
-					write!(f, "true")
+					f.write_str("true")
 				} else {
-					write!(f, "false")
+					f.write_str("false")
 				}
 			}
 			Self::RecordLit(map) => f.debug_map().entries(map).finish(),
@@ -223,9 +224,9 @@ pub struct FunctionLit {
 }
 #[derive(Clone, Debug)]
 pub enum AccessType {
-	Property(String),
+	Property(IdentId),
 	Method {
-		callee: String,
+		callee: IdentId,
 		callee_span: Span,
 		args: Vec<RNodeSpan>,
 		arg_span: Span,

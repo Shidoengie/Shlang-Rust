@@ -1,0 +1,5 @@
+---
+source: src/collections/indexset.rs
+expression: set.get(999)
+---
+None

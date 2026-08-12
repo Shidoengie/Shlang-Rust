@@ -4,7 +4,7 @@ description: test_parsing
 expression: "parse_expr (_test_func! (\"func a (b){1}\"))"
 ---
 Ok(
-    Decl(readonly)::a = Function(b){
+    Decl(readonly)::IdentId(3) = Function(IdentId(4)){
         Result(
             Int(1),
         )[11,12],

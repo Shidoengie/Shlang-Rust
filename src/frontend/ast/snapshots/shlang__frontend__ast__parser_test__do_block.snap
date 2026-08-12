@@ -5,12 +5,12 @@ expression: "parse_expr (_test_func! (\"do{var a = 1;1+a}\"))"
 ---
 Ok(
     Do{
-        Decl::a = Int(1)[11,12][3,12],
+        Decl::IdentId(3) = Int(1)[11,12][3,12],
         Result(
             BinaryNode {
                 kind: Add,
                 left: Int(1)[13,14],
-                right: Var(a)[15,16],
+                right: Var(IdentId(3))[15,16],
             },
         )[13,16],
     }[2,17],

@@ -1,7 +1,7 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"(1+2+b);\")"
+expression: "parse_expr (_test_func! (\"(1+2+b);\"))"
 ---
 Ok(
     BinaryNode {
@@ -11,6 +11,6 @@ Ok(
             left: Int(1)[1,2],
             right: Int(2)[3,4],
         }[1,4],
-        right: Var(b)[5,6],
+        right: Var(IdentId(3))[5,6],
     }[1,6],
 )

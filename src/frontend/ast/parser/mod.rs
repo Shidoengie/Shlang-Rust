@@ -1,5 +1,6 @@
 mod error;
 
+use crate::idents::{Ident, IdentId, IdentSet};
 use crate::*;
 pub use error::ParseError;
 use frontend::opkind::*;
@@ -74,7 +75,13 @@ pub struct Parser<'input> {
 	input: &'input str,
 	tokens: Lexer<'input>,
 	in_toplevel: bool,
+	idents: IdentSet<'input>,
 }
+/// This is temporary;
+/// Currently theres no module system and no function signature declaration,
+/// as such each names index cooresponds directly to a identid
+
+pub const GLOBAL_NAME_MAP: [&'static str; 3] = ["println", "input", "str_len"];
 
 ///base parser
 impl<'input> Parser<'input> {
@@ -84,6 +91,7 @@ impl<'input> Parser<'input> {
 			input,
 			tokens: Lexer::new(input, file_id),
 			in_toplevel: false,
+			idents: IdentSet::from_vars(&GLOBAL_NAME_MAP),
 		};
 		parser.parse_node(false)
 	}
@@ -93,6 +101,7 @@ impl<'input> Parser<'input> {
 			input,
 			tokens: Lexer::new(input, file_id),
 			in_toplevel: true,
+			idents: IdentSet::from_vars(&GLOBAL_NAME_MAP),
 		};
 		parser.parse_toplevel()
 	}
@@ -112,12 +121,19 @@ impl<'input> Parser<'input> {
 	}
 }
 ///utils and block parsing
-impl Parser<'_> {
+impl<'i> Parser<'i> {
 	/// converts token spans into text
-	fn text(&mut self, token: &Token) -> String {
+	fn get_text(&self, token: &Token) -> String {
 		self.input[token.span.start..token.span.end].to_string()
 	}
-
+	fn borrow_text(&self, token: &Token) -> &'i str {
+		&self.input[token.span.start..token.span.end]
+	}
+	fn add_ident(&mut self, token: &Token) -> Ident {
+		let text = self.borrow_text(&token);
+		let id = self.idents.push(text);
+		return id.as_spanned(token.span);
+	}
 	fn parse_int(&mut self, token: &Token) -> Node {
 		let mut text = self.input[token.span.start..token.span.end].to_string();
 		let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
@@ -189,10 +205,10 @@ impl Parser<'_> {
 		self.next()?;
 		Ok(token)
 	}
-	fn consume_ident(&mut self) -> Result<String> {
+	fn consume_ident(&mut self) -> Result<Ident> {
 		let token = self.expect(TokenType::Identifier)?;
 		self.next()?;
-		Ok(self.text(&token))
+		Ok(self.add_ident(&token))
 	}
 	/// Filter DontResult nodes in order to determine if the last expression should or shouldnt result
 	fn filter_block(body: Vec<Spanned<Node>>) -> Vec<Spanned<Node>> {
@@ -241,14 +257,14 @@ impl Parser<'_> {
 ///variable and assignment parsing
 impl Parser<'_> {
 	fn empty_let_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
-		let name = self.text(&var_ident);
+		let name = self.add_ident(&var_ident);
 		let span = first.span + var_ident.span;
-		Decl::new(name, Node::Null.to_spanned(span).box_item())
+		Decl::new(name.item, Node::Null.to_spanned(span).box_item())
 			.as_readonly()
 			.with_modifier_span(first.span)
 			.to_nodespan(span)
 	}
-	fn let_decl(&mut self, name: String, name_ident: &Token) -> Result {
+	fn let_decl(&mut self, name: IdentId, name_ident: &Token) -> Result {
 		self.next()?; // Consume '='
 		let val = self.parse_only_expr(false)?;
 		let span = name_ident.span + val.span;
@@ -259,26 +275,26 @@ impl Parser<'_> {
 	}
 	fn parse_readonly_def(&mut self, first: &Token) -> Result {
 		let ident = self.expect(TokenType::Identifier)?;
-		let var_name = self.text(&ident);
+		let var_name = self.add_ident(&ident);
 		self.next()?;
 		let Some(last) = self.peek_opt()? else {
 			return Ok(self.empty_let_decl(first, ident));
 		};
 		match last.kind {
-			TokenType::Equal => self.let_decl(var_name, first),
+			TokenType::Equal => self.let_decl(var_name.item, first),
 			_ => Ok(self.empty_let_decl(first, ident)),
 		}
 	}
 	/// These Parse variable definitions/declarations
 	fn empty_var_decl(&mut self, first: &Token, var_ident: Token) -> NodeSpan {
-		let name = self.text(&var_ident);
+		let name = self.add_ident(&var_ident);
 		let span = first.span + var_ident.span;
-		Decl::new(name, Node::Null.to_spanned(span).box_item())
+		Decl::new(name.item, Node::Null.to_spanned(span).box_item())
 			.with_modifier_span(first.span)
 			.to_nodespan(span)
 	}
 
-	fn var_decl(&mut self, name: String, name_ident: &Token) -> Result {
+	fn var_decl(&mut self, name: IdentId, name_ident: &Token) -> Result {
 		self.next()?; // Consume '='
 		let val = self.parse_only_expr(false)?;
 		let span = name_ident.span + val.span;
@@ -288,13 +304,13 @@ impl Parser<'_> {
 	}
 	fn parse_vardef(&mut self, first: &Token) -> Result {
 		let ident = self.expect(TokenType::Identifier)?;
-		let var_name = self.text(&ident);
+		let var_name = self.add_ident(&ident);
 		self.next()?;
 		let Some(last) = self.peek_opt()? else {
 			return Ok(self.empty_var_decl(first, ident));
 		};
 		match last.kind {
-			TokenType::Equal => self.var_decl(var_name, first),
+			TokenType::Equal => self.var_decl(var_name.item, first),
 			_ => Ok(self.empty_var_decl(first, ident)),
 		}
 	}
@@ -373,19 +389,18 @@ impl Parser<'_> {
 		.to_nodespan(first_span + last_span))
 	}
 	/// This function parses the parameters of function definitions aka: func >(one,two)<
-	fn parse_func_params(&mut self) -> Result<Vec<Spanned<String>>> {
+	fn parse_func_params(&mut self) -> Result<Vec<Ident>> {
 		self.next()?;
 		let mut token = self.peek_some()?;
-		let mut params: Vec<Spanned<String>> = vec![];
+		let mut params: Vec<Ident> = vec![];
 		while token.isnt(&TokenType::RParen) {
 			if self.peek()?.is(&TokenType::RParen) {
 				break;
 			}
-			let ident: Token = self.expect(TokenType::Identifier)?;
-			let var_name = self.text(&ident);
-			self.next()?;
+
+			let var_name = self.consume_ident()?;
 			token = self.peek_some()?;
-			params.push(var_name.to_spanned(ident.span));
+			params.push(var_name);
 			match token.kind {
 				TokenType::RParen => break,
 				TokenType::Comma => {
@@ -403,7 +418,7 @@ impl Parser<'_> {
 	/// This creates a function object and creates a Declaration Node
 	/// this is so it can then be cast into a variable
 	fn parse_named_func(&mut self, name_ident: &Token, func_keyword: Span) -> Result {
-		let name = self.text(name_ident);
+		let name = self.add_ident(name_ident);
 		self.next()?;
 		let params = self.parse_func_params()?;
 		let last = self.peek_some()?;
@@ -411,7 +426,7 @@ impl Parser<'_> {
 
 		let func_span = name_ident.span + last.span;
 		let mut decl = Decl::new(
-			name,
+			name.item,
 			FunctionLit {
 				block,
 				args: params,
@@ -531,7 +546,7 @@ impl Parser<'_> {
 		self.next()?;
 		let span = ident_span + last.span;
 		Ok(ForLoop {
-			ident,
+			ident: *ident,
 			list,
 			proc,
 			ident_span,
@@ -676,7 +691,9 @@ impl Parser<'_> {
 				Ok(Node::ListLit(literal).to_spanned(span))
 			}
 			TokenType::LBrace => self.map_literal(),
-			TokenType::Identifier => Ok(Node::Variable(self.text(token)).to_spanned(token.span)),
+			TokenType::Identifier => {
+				Ok(Node::Variable(*self.add_ident(token)).to_spanned(token.span))
+			}
 			TokenType::While => self.parse_while_loop(),
 			TokenType::If => self.parse_branch(),
 			TokenType::Do => self.parse_do(),
@@ -764,7 +781,7 @@ impl Parser<'_> {
 
 ///struct parsing
 impl Parser<'_> {
-	fn node_to_field(&mut self, node: NodeSpan) -> Result<(String, NodeSpan)> {
+	fn node_to_field(&mut self, node: NodeSpan) -> Result<(IdentId, NodeSpan)> {
 		match node.item {
 			Node::Decl(decl) => Ok((decl.name, decl.expr.deref_item())),
 			_ => err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span)),
@@ -772,7 +789,7 @@ impl Parser<'_> {
 	}
 	fn map_literal(&mut self) -> Result {
 		let token = self.peek_some()?;
-		let mut entries: HashMap<String, NodeSpan> = hashmap!();
+		let mut entries: HashMap<IdentId, NodeSpan> = hashmap!();
 		if token.is(&TokenType::RBrace) {
 			self.next()?;
 			return Ok(Node::RecordLit(hashmap!()).to_spanned(token.span + 1));
@@ -781,8 +798,8 @@ impl Parser<'_> {
 			let target = self.consume(TokenType::Identifier)?;
 			self.consume(TokenType::Colon)?;
 			let expr = self.parse_only_expr(false)?;
-			let field_name = self.text(&target);
-			entries.insert(field_name, expr);
+			let field_name = self.add_ident(&target);
+			entries.insert(*field_name, expr);
 			if self.peek()?.is(&TokenType::Comma) {
 				self.next()?;
 			}
@@ -800,7 +817,7 @@ impl Parser<'_> {
 			return self.named_struct(&name_ident, struct_keyword);
 		}
 		let block = self.parse_block()?;
-		let mut fields: HashMap<String, NodeSpan> = hashmap!();
+		let mut fields: HashMap<IdentId, NodeSpan> = hashmap!();
 		for node in block {
 			let field = self.node_to_field(node)?;
 			fields.insert(field.0, field.1);
@@ -814,15 +831,15 @@ impl Parser<'_> {
 		self.next()?;
 		let block = self.parse_block()?;
 		let last = self.next()?;
-		let name = self.text(name_ident);
+		let name = self.add_ident(name_ident);
 		let span = name_ident.span + last.span;
-		let mut fields: HashMap<String, NodeSpan> = hashmap!();
+		let mut fields: HashMap<IdentId, NodeSpan> = hashmap!();
 		for node in block {
 			let field = self.node_to_field(node)?;
 			fields.insert(field.0, field.1);
 		}
 		let expr = Node::StructLit(fields).to_spanned(span).box_item();
-		let mut def = Decl::new(name, expr)
+		let mut def = Decl::new(*name, expr)
 			.as_readonly()
 			.with_modifier_span(struct_keyword)
 			.as_item();
@@ -830,10 +847,11 @@ impl Parser<'_> {
 		Ok(def.to_nodespan(span))
 	}
 
-	fn struct_params(&mut self) -> Result<HashMap<String, NodeSpan>> {
+	fn struct_params(&mut self) -> Result<HashMap<IdentId, NodeSpan>> {
 		self.consume(TokenType::LBrace)?;
 		let token = self.peek_some()?;
-		let mut body: HashMap<String, NodeSpan> = HashMap::from([]);
+		let mut body = hashmap!(<IdentId, NodeSpan>);
+
 		if token.is(&TokenType::RBrace) {
 			return Ok(body);
 		}
@@ -841,7 +859,7 @@ impl Parser<'_> {
 			let target = self.consume(TokenType::Identifier)?;
 			self.consume(TokenType::Colon)?;
 			let expr = self.parse_only_expr(false)?;
-			body.insert(self.text(&target), expr);
+			body.insert(*self.add_ident(&target), expr);
 			if self.peek()?.is(&TokenType::Comma) {
 				self.next()?;
 			}
@@ -867,7 +885,7 @@ impl Parser<'_> {
 
 ///struct field access parsing
 impl Parser<'_> {
-	fn parse_method(&mut self, target: NodeSpan, requested: String, ident: Token) -> Result {
+	fn parse_method(&mut self, target: NodeSpan, requested: Ident, ident: Token) -> Result {
 		self.expect_next()?; // Consume '('
 		let token = self.peek_some()?;
 		let method_params = self.parse_expr_list(&token, TokenType::RParen)?;
@@ -882,7 +900,7 @@ impl Parser<'_> {
 		Ok(FieldAccess {
 			target: target.box_item(),
 			requested: AccessType::Method {
-				callee: requested,
+				callee: requested.item,
 				callee_span: ident.span,
 				args: method_params,
 				arg_span,
@@ -894,7 +912,7 @@ impl Parser<'_> {
 	fn parse_field_access(&mut self, target: NodeSpan, _span: Span) -> Result {
 		let ident = self.expect(TokenType::Identifier)?;
 		self.next()?;
-		let requested = self.text(&ident);
+		let requested = self.add_ident(&ident);
 		if self.is_expected(TokenType::LParen)?.is_none() {
 			Ok(FieldAccess {
 				target: target.clone().box_item(),

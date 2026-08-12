@@ -5,6 +5,8 @@ expression: "test_nameres (_test_func! ({ do { var a = 10; }; var b = a; }))"
 ---
 Err(
     UndefinedVar(
-        "a",
+        IdentId(
+            3,
+        ),
     )[33,34],
 )

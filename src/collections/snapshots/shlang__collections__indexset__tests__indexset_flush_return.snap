@@ -1,0 +1,8 @@
+---
+source: src/collections/indexset.rs
+expression: set.flush()
+---
+[
+    1,
+    2,
+]

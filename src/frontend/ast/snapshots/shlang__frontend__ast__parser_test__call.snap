@@ -1,11 +1,11 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"a((1+2),true,'1');\")"
+expression: "parse_expr (_test_func! (\"a((1+2),true,'1');\"))"
 ---
 Ok(
     Call {
-        callee: Var(a)[0,1],
+        callee: Var(IdentId(3))[0,1],
         args: [
             BinaryNode {
                 kind: Add,

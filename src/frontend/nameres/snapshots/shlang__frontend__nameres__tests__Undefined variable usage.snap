@@ -1,10 +1,12 @@
 ---
 source: src/frontend/nameres/tests.rs
 description: test_locals
-expression: "test_nameres (\"var a = c;\")"
+expression: "test_nameres (_test_func! ({var a = c;}))"
 ---
 Err(
     UndefinedVar(
-        "c",
+        IdentId(
+            4,
+        ),
     )[13,14],
 )

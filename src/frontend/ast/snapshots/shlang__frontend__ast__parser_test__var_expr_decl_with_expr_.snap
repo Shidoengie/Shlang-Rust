@@ -4,13 +4,13 @@ description: test_parsing
 expression: "parse_expr (_test_func! (\"var a = 1+2+b;\"))"
 ---
 Ok(
-    Decl::a = BinaryNode {
+    Decl::IdentId(3) = BinaryNode {
         kind: Add,
         left: BinaryNode {
             kind: Add,
             left: Int(1)[8,9],
             right: Int(2)[10,11],
         }[8,11],
-        right: Var(b)[12,13],
+        right: Var(IdentId(4))[12,13],
     }[8,13][0,13],
 )

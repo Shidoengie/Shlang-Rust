@@ -5,6 +5,8 @@ expression: "test_nameres (_test_func! ({ for i in [1,2,3] { var b = i }; var d 
 ---
 Err(
     UndefinedVar(
-        "i",
+        IdentId(
+            3,
+        ),
     )[45,46],
 )

@@ -1,5 +1,6 @@
 use crate::collections::spans::*;
 use crate::frontend::opkind::{BinaryOp, UnaryOp};
+use crate::idents::{Ident, IdentId};
 
 use std::collections::*;
 use std::fmt::Debug;
@@ -36,7 +37,7 @@ pub enum Node {
 	ContinueNode,
 	Decl(Decl),
 	Assignment { target: NodeRef, value: NodeRef },
-	Variable(String),
+	Variable(IdentId),
 	Index { target: NodeRef, index: NodeRef },
 	FunctionLit(FunctionLit),
 	ListLit(Vec<NodeSpan>),
@@ -48,11 +49,12 @@ pub enum Node {
 	ForLoop(ForLoop),
 	DoBlock(Block),
 	Constructor(Constructor),
-	StructLit(HashMap<String, NodeSpan>),
-	RecordLit(HashMap<String, NodeSpan>),
+	StructLit(HashMap<IdentId, NodeSpan>),
+	RecordLit(HashMap<IdentId, NodeSpan>),
 	FieldAccess(FieldAccess),
 	DontResult,
 }
+
 impl Node {
 	pub fn variant_name(&self) -> &'static str {
 		match self {
@@ -113,7 +115,7 @@ impl Debug for Node {
 			Node::Int(num) => write!(f, "Int({num})"),
 			Node::Float(num) => write!(f, "Float({num})"),
 			Node::Str(txt) => write!(f, r#""{txt}""#),
-			Node::Variable(val) => write!(f, "Var({val})"),
+			Node::Variable(val) => write!(f, "Var({val:?})"),
 			Node::Null => f.write_str("Null"),
 			Node::BreakNode => f.write_str("Break"),
 			Node::ContinueNode => f.write_str("Continue"),
@@ -126,7 +128,12 @@ impl Debug for Node {
 				} else if decl.hoisted {
 					f.write_str("(global)")?;
 				}
-				write!(f, "::{name} = {expr:?}", name = decl.name, expr = decl.expr,)
+				write!(
+					f,
+					"::{name:?} = {expr:?}",
+					name = decl.name,
+					expr = decl.expr,
+				)
 			}
 			Node::Index { target, index } => f
 				.debug_struct("Index")
@@ -169,7 +176,7 @@ impl Debug for Node {
 				}
 
 				for (index, name) in func.args.iter().enumerate() {
-					f.write_str(name)?;
+					write!(f, "{:?}", name.item)?;
 					if index + 1 != func.args.len() {
 						write!(f, ", ")?;
 					}
@@ -247,9 +254,9 @@ pub struct FieldAccess {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub enum AccessType {
-	Property(String),
+	Property(Ident),
 	Method {
-		callee: String,
+		callee: IdentId,
 		callee_span: Span,
 		args: Vec<NodeSpan>,
 		arg_span: Span,
@@ -260,7 +267,7 @@ pub enum AccessType {
 
 pub struct Constructor {
 	pub target: NodeRef,
-	pub params: HashMap<String, NodeSpan>,
+	pub params: HashMap<IdentId, NodeSpan>,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Branch {
@@ -292,7 +299,7 @@ pub struct While {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct ForLoop {
-	pub ident: String,
+	pub ident: IdentId,
 	pub ident_span: Span,
 	pub list: NodeRef,
 	pub proc: Spanned<Vec<Spanned<Node>>>,
@@ -300,7 +307,7 @@ pub struct ForLoop {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Decl {
-	pub name: String,
+	pub name: IdentId,
 	pub expr: NodeRef,
 	pub readonly: bool,
 	pub hoisted: bool,
@@ -309,7 +316,7 @@ pub struct Decl {
 }
 
 impl Decl {
-	pub fn new(name: String, expr: NodeRef) -> Self {
+	pub fn new(name: IdentId, expr: NodeRef) -> Self {
 		Self {
 			name,
 			expr,
@@ -348,11 +355,22 @@ impl Decl {
 #[derive(Clone, Debug, PartialEq)]
 pub struct FunctionLit {
 	pub block: Block,
-	pub args: Vec<Spanned<String>>,
+	pub args: Vec<Spanned<IdentId>>,
 	pub captures: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Item {
-	Decl(Decl),
+pub struct ClassLit {
+	pub fields: HashMap<(IdentId, bool), Field>,
+	pub methods: HashMap<(IdentId, bool), FunctionLit>,
+}
+pub struct RecordLit {
+	pub fields: HashMap<IdentId, Field>,
+	pub methods: HashMap<IdentId, FunctionLit>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct Field {
+	pub expr: Spanned<Node>,
+	pub readonly: bool,
 }

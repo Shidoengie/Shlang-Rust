@@ -21,7 +21,23 @@ macro_rules! hashmap {
     [] => {
         HashMap::new()
     };
-
+    [<$ty1:ty,$ty2:ty>] => {
+        HashMap::<$ty1,$ty2>::new()
+    };
+    [<$ty2:ty>$($key:ident => $val:expr),*] => {
+        HashMap::<String,$ty2>::from([
+        $(
+            (stringify!($key).to_string(),$val),
+        )*
+        ])
+    };
+    [<$ty1:ty,$ty2:ty>$($key:expr => $val:expr),*] => {
+        HashMap::<$ty1,$ty2>::from([
+        $(
+            ($key,$val),
+        )*
+        ])
+    };
     [$($key:ident => $val:expr),*] => {
         HashMap::from([
         $(

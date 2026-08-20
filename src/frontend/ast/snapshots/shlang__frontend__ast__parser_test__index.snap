@@ -4,8 +4,16 @@ description: test_parsing
 expression: "parse_expr (_test_func! (\"a[1]\"))"
 ---
 Ok(
-    Index {
-        target: Var(IdentId(3))[0,1],
-        index: Int(1)[2,3],
-    }[1,4],
+    Ast {
+        node: Index {
+            target: Var(IdentId(3))[0,1],
+            index: Int(1)[2,3],
+        }[1,4],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "a",
+        },
+    },
 )

@@ -4,14 +4,22 @@ description: test_parsing
 expression: "parse_expr (_test_func! (\"func(b){do{1}1}\"))"
 ---
 Ok(
-    Function(IdentId(3)){
-        Do{
+    Ast {
+        node: Function(IdentId(3)){
+            Do{
+                Result(
+                    Int(1),
+                )[11,12],
+            }[10,13],
             Result(
                 Int(1),
-            )[11,12],
-        }[10,13],
-        Result(
-            Int(1),
-        )[13,14],
-    }[0,15],
+            )[13,14],
+        }[0,15],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "b",
+        },
+    },
 )

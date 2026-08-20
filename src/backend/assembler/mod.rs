@@ -3,6 +3,7 @@ use crate::backend::vm::values::*;
 use crate::collections::indexset::IndexSet;
 use crate::frontend::ir::instructions::IrNode;
 use crate::frontend::ir::{codegen::Ir, instructions::IrLiteral};
+use crate::idents::IdentId;
 use std::collections::HashMap;
 
 pub struct Assembler {
@@ -10,7 +11,6 @@ pub struct Assembler {
 	ops: Vec<OpCode>,
 	op_arguments: Vec<usize>,
 	const_pool: Vec<Value>,
-	ident_pool: IndexSet<String>,
 
 	index_map: Vec<Option<usize>>,
 }
@@ -21,17 +21,15 @@ impl Assembler {
 			label_map: HashMap::new(),
 			ops: vec![],
 			const_pool: vec![],
-			ident_pool: IndexSet::new(),
 			op_arguments: vec![],
 			index_map: vec![],
 		}
 	}
-	pub fn assemble(ir: Ir) -> ByteCode {
+	pub fn assemble<'a>(ir: Ir<'a>) -> ByteCode<'a> {
 		let mut assembler = Self {
 			label_map: HashMap::new(),
 			ops: Vec::with_capacity(ir.ops.len()),
 			const_pool: vec![],
-			ident_pool: IndexSet::new(),
 			op_arguments: vec![],
 			index_map: vec![],
 		};
@@ -39,7 +37,7 @@ impl Assembler {
 		assembler.assemble_proc(ir)
 	}
 
-	pub fn assemble_proc(&mut self, ir: Ir) -> ByteCode {
+	pub fn assemble_proc<'a>(&mut self, ir: Ir<'a>) -> ByteCode<'a> {
 		self.build_label_map(&ir.ops);
 
 		let globals = ir
@@ -63,7 +61,7 @@ impl Assembler {
 			global_count: ir.global_count,
 			local_count: ir.local_count,
 			globals,
-			ident_pool: self.ident_pool.flush().into_boxed_slice(),
+			ident_pool: ir.ident_pool,
 		}
 	}
 
@@ -200,9 +198,8 @@ impl Assembler {
 		};
 		self.ops.push(code);
 	}
-	fn push_ident(&mut self, ident: String) {
-		let id = self.ident_pool.push(ident);
-		self.op_arguments.push(id);
+	fn push_ident(&mut self, ident: IdentId) {
+		self.op_arguments.push(ident.0.get());
 	}
 	fn literal_to_value(&self, literal: IrLiteral) -> Value {
 		match literal {

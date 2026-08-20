@@ -4,16 +4,25 @@ description: test_parsing
 expression: "parse_expr (_test_func! (\"b.a*2\"))"
 ---
 Ok(
-    BinaryNode {
-        kind: Multiply,
-        left: FieldAccess {
-            target: Var(IdentId(3))[0,1],
-            requested: Property(
-                IdentId(
-                    4,
+    Ast {
+        node: BinaryNode {
+            kind: Multiply,
+            left: FieldAccess {
+                target: Var(IdentId(3))[0,1],
+                requested: Property(
+                    IdentId(
+                        4,
+                    )[2,3],
                 )[2,3],
-            )[2,3],
-        }[0,3],
-        right: Int(2)[4,5],
-    }[0,5],
+            }[0,3],
+            right: Int(2)[4,5],
+        }[0,5],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "b",
+            4: "a",
+        },
+    },
 )

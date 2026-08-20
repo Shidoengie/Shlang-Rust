@@ -5,55 +5,18 @@ expression: "test_nameres\n(_test_func!\n({\n    var a = 10; do { var b = 20; va
 ---
 Ok(
     ResolvedAstNode {
-        node: Do {
-            Decl {
-                id: 0,
-                expr: Int(10)[13,15],
-                is_global: false,
-            }[5,15],
-            Do {
-                Decl {
-                    id: 1,
-                    expr: Int(20)[30,32],
-                    is_global: false,
-                }[22,32],
-                Decl {
-                    id: 2,
-                    expr: Int(30)[42,44],
-                    is_global: false,
-                }[34,44],
-                Decl {
-                    id: 3,
-                    expr: Int(123)[54,57],
-                    is_global: false,
-                }[46,57],
-            }[20,60],
-            Decl {
-                id: 1,
-                expr: Int(10)[69,71],
-                is_global: false,
-            }[61,71],
-            Result(
-                Do {
-                    Decl {
-                        id: 2,
-                        expr: Int(20)[86,88],
-                        is_global: false,
-                    }[78,88],
-                    Decl {
-                        id: 3,
-                        expr: Int(30)[98,100],
-                        is_global: false,
-                    }[90,100],
-                    Decl {
-                        id: 4,
-                        expr: Int(123)[110,113],
-                        is_global: false,
-                    }[102,113],
-                },
-            )[76,116],
-        }[3,118],
+        node: Decl {
+            id: 0,
+            expr: Int(10)[8,10],
+            is_global: false,
+        }[0,10],
         global_count: 3,
-        local_count: 5,
+        local_count: 1,
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "a",
+        },
     },
 )

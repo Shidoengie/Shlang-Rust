@@ -11,12 +11,8 @@ use crate::{
 	test_func,
 };
 
-fn test_nameres(body: &str) -> resolver::Result<ResolvedAstNode> {
-	let input = format!("do {{ {body} }}");
-	let mut file_store = FileStore::new();
-	let file_id = file_store.add(input.clone());
-	let ast = Parser::parse_expr(&input, file_id).unwrap();
-	NameRes::new(file_store).resolve_expr(ast)
+fn test_nameres(body: &str) -> LangResult<ResolvedAstNode> {
+	Compiler::new().resolve_expr(body)
 }
 fn test_global_nameres(body: &str) -> LangResult<ResolvedAst> {
 	Compiler::new().resolve(body)

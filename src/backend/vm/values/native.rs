@@ -148,28 +148,48 @@ impl NativeTrait for ListObject {
 		return Ok(val.clone());
 	}
 }
+
 #[derive(Debug, Clone)]
-pub struct NativeFunction {
-	pub func: FuncPtr,
-	pub param_count: u8,
-}
+pub struct NativeFunction(usize);
+
 impl NativeFunction {
 	pub const VARIADIC_VALUE: u8 = u8::MAX;
-	pub const fn new(func: FuncPtr, param_count: u8) -> Self {
-		Self { func, param_count }
-	}
-	pub const fn new_variadic(func: FuncPtr) -> Self {
-		Self {
-			func,
-			param_count: Self::VARIADIC_VALUE,
+	pub const MAX_PTR_SIZE: usize = usize::MAX << 8;
+	#[inline(always)]
+	pub fn new(func: FuncPtr, param_count: u8) -> Result<Self, ()> {
+		let ptr_value: usize = func as usize;
+
+		if ptr_value > Self::MAX_PTR_SIZE {
+			return Err(());
 		}
+		let packed_value = param_count as usize | ptr_value << 8;
+		Ok(Self(packed_value))
 	}
+	#[inline(always)]
+	unsafe fn get_func_ptr(&self) -> FuncPtr {
+		let ptr = (self.0 >> 8) as *const ();
+		return unsafe { std::mem::transmute(ptr) };
+	}
+	pub const fn get_param_count(&self) -> u8 {
+		return (self.0 & !Self::MAX_PTR_SIZE) as u8;
+	}
+	#[inline(always)]
+	pub fn call(&self, ctx: &mut StackVM, args: &[Value]) -> FuncResult {
+		let fn_ptr = unsafe { self.get_func_ptr() };
+		(fn_ptr)(ctx, args)
+	}
+	#[inline(always)]
+	pub fn new_variadic(func: FuncPtr) -> Result<Self, ()> {
+		Self::new(func, Self::VARIADIC_VALUE)
+	}
+
 	///Determines if a given parameter length is the accepted parameter count
 	pub const fn is_arglen_valid(&self, arg_len: u8) -> bool {
-		self.is_variadic() || arg_len == self.param_count
+		self.is_variadic() || arg_len == self.get_param_count()
 	}
+
 	pub const fn is_variadic(&self) -> bool {
-		self.param_count == Self::VARIADIC_VALUE
+		self.get_param_count() == Self::VARIADIC_VALUE
 	}
 }
 impl From<NativeFunction> for Value {

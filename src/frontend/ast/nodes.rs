@@ -1,6 +1,6 @@
 use crate::collections::spans::*;
 use crate::frontend::opkind::{BinaryOp, UnaryOp};
-use crate::idents::{Ident, IdentId};
+use crate::idents::{Ident, IdentArray, IdentId};
 
 use std::collections::*;
 use std::fmt::Debug;
@@ -21,7 +21,16 @@ pub enum Precedence {
 	Constructor, // my_obj{x:10}
 	Member,      // my_obj.field
 }
-
+#[derive(Debug, Clone)]
+pub struct Ast<'a> {
+	pub node: Spanned<Node>,
+	pub ident_pool: IdentArray<'a>,
+}
+#[derive(Debug, Clone)]
+pub struct Program<'a> {
+	pub proc: Vec<NodeSpan>,
+	pub ident_pool: IdentArray<'a>,
+}
 #[derive(Clone, PartialEq)]
 pub enum Node {
 	Null,
@@ -360,17 +369,19 @@ pub struct FunctionLit {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ClassLit {
+pub struct StructLit {
+	pub name: Option<IdentId>,
+	pub static_fields: HashMap<(IdentId, bool), Field>,
+	pub static_methods: HashMap<(IdentId, bool), FunctionLit>,
 	pub fields: HashMap<(IdentId, bool), Field>,
 	pub methods: HashMap<(IdentId, bool), FunctionLit>,
 }
 pub struct RecordLit {
 	pub fields: HashMap<IdentId, Field>,
-	pub methods: HashMap<IdentId, FunctionLit>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-struct Field {
+pub struct Field {
 	pub expr: Spanned<Node>,
 	pub readonly: bool,
 }

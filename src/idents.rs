@@ -1,17 +1,33 @@
-use std::ops::Index;
+use std::{fmt, ops::Index};
+
+use nonmax::NonMaxUsize;
 
 use crate::collections::{Spanned, indexset::IndexSet};
 pub type Ident = Spanned<IdentId>;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct IdentId(pub(crate) usize);
-#[derive(Debug, Default, Clone)]
+pub struct IdentId(pub(crate) NonMaxUsize);
+impl IdentId {
+	#[allow(unsafe_op_in_unsafe_fn)]
+	pub unsafe fn new_unchecked(inp: usize) -> Self {
+		IdentId(NonMaxUsize::new_unchecked(inp))
+	}
+}
+#[derive(Default, Clone)]
 pub struct IdentArray<'a> {
 	inner: Box<[&'a str]>,
+}
+impl fmt::Debug for IdentArray<'_> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str("IdentArray ")?;
+		f.debug_map()
+			.entries(self.inner.iter().enumerate())
+			.finish()
+	}
 }
 impl<'a> Index<IdentId> for IdentArray<'a> {
 	type Output = str;
 	fn index(&self, index: IdentId) -> &Self::Output {
-		self.inner[index.0]
+		self.inner[index.0.get()]
 	}
 }
 #[derive(Debug, Default, Clone)]
@@ -37,6 +53,7 @@ impl<'a> IdentSet<'a> {
 	}
 	pub fn push(&mut self, data: &'a str) -> IdentId {
 		let id = self.inner.push(data);
+		let id = NonMaxUsize::new(id).expect("Id surpassed the (32/64)-bit unsigned integer limit");
 		return IdentId(id);
 	}
 	pub fn into_packed(mut self) -> IdentArray<'a> {

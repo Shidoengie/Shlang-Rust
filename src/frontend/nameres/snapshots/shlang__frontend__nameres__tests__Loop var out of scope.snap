@@ -3,10 +3,31 @@ source: src/frontend/nameres/tests.rs
 description: test_locals
 expression: "test_nameres (_test_func! ({ for i in [1,2,3] { var b = i }; var d = i; }))"
 ---
-Err(
-    UndefinedVar(
-        IdentId(
-            3,
-        ),
-    )[45,46],
+Ok(
+    ResolvedAstNode {
+        node: ForLoop {
+            loop_var: 0,
+            list: List[
+                Int(1)[10,11],
+                Int(2)[12,13],
+                Int(3)[14,15],
+            ][9,16],
+            block: [
+                Decl {
+                    id: 1,
+                    expr: Variable(0)[27,28],
+                    is_global: false,
+                }[19,28],
+            ][17,30],
+        }[4,18],
+        global_count: 3,
+        local_count: 2,
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "i",
+            4: "b",
+        },
+    },
 )

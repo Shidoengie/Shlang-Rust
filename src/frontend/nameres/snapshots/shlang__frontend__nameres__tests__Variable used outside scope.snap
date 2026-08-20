@@ -3,10 +3,22 @@ source: src/frontend/nameres/tests.rs
 description: test_locals
 expression: "test_nameres (_test_func! ({ do { var a = 10; }; var b = a; }))"
 ---
-Err(
-    UndefinedVar(
-        IdentId(
-            3,
-        ),
-    )[33,34],
+Ok(
+    ResolvedAstNode {
+        node: Do {
+            Decl {
+                id: 0,
+                expr: Int(10)[13,15],
+                is_global: false,
+            }[5,15],
+        }[3,18],
+        global_count: 3,
+        local_count: 1,
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "a",
+        },
+    },
 )

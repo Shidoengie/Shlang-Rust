@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Debug};
 use crate::{
 	collections::spans::{Span, Spanned},
 	frontend::opkind::*,
-	idents::{Ident, IdentId},
+	idents::{Ident, IdentArray, IdentId},
 };
 
 type NodeRefSpan = Spanned<Box<ResolvedNode>>;
@@ -255,26 +255,33 @@ macro_rules! rnodes_from {
 rnodes_from! { Decl Branch FunctionLit }
 
 #[derive(Debug)]
-pub struct ResolvedAstNode {
+pub struct ResolvedAstNode<'a> {
 	pub node: RNodeSpan,
 	pub global_count: usize,
 	pub local_count: usize,
+	pub ident_pool: IdentArray<'a>,
 }
-impl ResolvedAstNode {
-	pub fn new(node: RNodeSpan, global_count: usize, local_count: usize) -> Self {
+impl<'a> ResolvedAstNode<'a> {
+	pub fn new(
+		node: RNodeSpan,
+		global_count: usize,
+		local_count: usize,
+		ident_pool: IdentArray<'a>,
+	) -> Self {
 		Self {
 			node,
-
 			global_count,
 			local_count,
+			ident_pool,
 		}
 	}
 }
 #[derive(Debug)]
-pub struct ResolvedAst {
+pub struct ResolvedAst<'a> {
 	pub proc: Vec<RNodeSpan>,
 	pub global_count: usize,
 	pub local_count: usize,
+	pub ident_pool: IdentArray<'a>,
 }
 
 pub type RNodeSpan = Spanned<ResolvedNode>;

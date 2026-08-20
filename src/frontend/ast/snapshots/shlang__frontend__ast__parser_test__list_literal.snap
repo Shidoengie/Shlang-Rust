@@ -1,12 +1,19 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"[1,2,3]\")"
+expression: "parse_expr (_test_func! (\"[1,2,3]\"))"
 ---
 Ok(
-    List{
-        Int(1)[1,2],
-        Int(2)[3,4],
-        Int(3)[5,6],
-    }[0,7],
+    Ast {
+        node: List{
+            Int(1)[1,2],
+            Int(2)[3,4],
+            Int(3)[5,6],
+        }[0,7],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+        },
+    },
 )

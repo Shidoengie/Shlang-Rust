@@ -4,13 +4,21 @@ description: test_parsing
 expression: "parse_expr (_test_func! (\"(1+2+b);\"))"
 ---
 Ok(
-    BinaryNode {
-        kind: Add,
-        left: BinaryNode {
+    Ast {
+        node: BinaryNode {
             kind: Add,
-            left: Int(1)[1,2],
-            right: Int(2)[3,4],
-        }[1,4],
-        right: Var(IdentId(3))[5,6],
-    }[1,6],
+            left: BinaryNode {
+                kind: Add,
+                left: Int(1)[1,2],
+                right: Int(2)[3,4],
+            }[1,4],
+            right: Var(IdentId(3))[5,6],
+        }[1,6],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "b",
+        },
+    },
 )

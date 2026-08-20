@@ -1,6 +1,8 @@
 use core::fmt;
 use std::fmt::{Debug, Display};
 
+use crate::idents::IdentId;
+
 #[derive(Clone, Debug, Default)]
 #[repr(u8)]
 pub enum IrNode {
@@ -45,10 +47,11 @@ pub enum IrNode {
 	Index,
 	IndexMut,
 	MakeList(usize),
-	GetProperty(String),
-	SetProperty(String),
-	MakeClass(Option<String>),
+	GetProperty(IdentId),
+	SetProperty(IdentId),
+	MakeClass(Option<IdentId>),
 }
+
 impl Display for IrNode {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {

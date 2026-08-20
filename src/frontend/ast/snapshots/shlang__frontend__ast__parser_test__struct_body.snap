@@ -4,5 +4,13 @@ description: test_parsing
 expression: "parse_expr (_test_func! (\"struct abc{};\"))"
 ---
 Ok(
-    Decl(readonly)::IdentId(3) = {}[7,12][7,12],
+    Ast {
+        node: Decl(readonly)::IdentId(3) = {}[7,12][7,12],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "abc",
+        },
+    },
 )

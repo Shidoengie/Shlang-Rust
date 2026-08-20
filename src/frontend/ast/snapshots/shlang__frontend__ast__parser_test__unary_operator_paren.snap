@@ -1,11 +1,18 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"!(0);\")"
+expression: "parse_expr (_test_func! (\"!(0);\"))"
 ---
 Ok(
-    UnaryNode {
-        kind: Not,
-        target: Int(0)[2,3],
-    }[1,3],
+    Ast {
+        node: UnaryNode {
+            kind: Not,
+            target: Int(0)[2,3],
+        }[1,3],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+        },
+    },
 )

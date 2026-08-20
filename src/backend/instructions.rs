@@ -1,22 +1,24 @@
-use crate::{backend::vm::values::*, collections::SpanMap, utils::compact_iter_debug};
+use crate::{
+	backend::vm::values::*, collections::SpanMap, idents::IdentArray, utils::compact_iter_debug,
+};
 
 use std::{
 	collections::HashMap,
 	fmt::{Debug, Display},
 };
 
-pub struct ByteCode {
+pub struct ByteCode<'a> {
 	pub ops: Box<[OpCode]>,
 	pub op_args: Box<[usize]>,
 	pub span_map: SpanMap,
 	pub global_count: usize,
 	pub local_count: usize,
-	pub globals: Vec<Value>,
+	pub globals: Box<[Value]>,
 	pub const_pool: Box<[Value]>,
-	pub ident_pool: Box<[String]>,
+	pub ident_pool: IdentArray<'a>,
 }
 
-impl Debug for ByteCode {
+impl Debug for ByteCode<'_> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("ByteCode")
 			.field("span_map", &self.span_map)
@@ -26,7 +28,7 @@ impl Debug for ByteCode {
 		compact_iter_debug(f, self.ops.iter())
 	}
 }
-impl Display for ByteCode {
+impl Display for ByteCode<'_> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		if self.ops.is_empty() {
 			write!(f, "0 | ")?;

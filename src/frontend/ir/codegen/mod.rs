@@ -10,6 +10,7 @@ use crate::{
 		nameres::resolved_nodes::{ResolvedNode as RNode, *},
 		opkind::*,
 	},
+	idents::IdentArray,
 	utils::compact_iter_debug,
 };
 
@@ -36,14 +37,15 @@ impl From<BinaryOp> for Op {
 		}
 	}
 }
-pub struct Ir {
+pub struct Ir<'a> {
 	pub ops: Vec<Op>,
 	pub globals: Vec<IrLiteral>,
 	pub span_map: SpanMap,
 	pub global_count: usize,
 	pub local_count: usize,
+	pub ident_pool: IdentArray<'a>,
 }
-impl Debug for Ir {
+impl Debug for Ir<'_> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("Ir")
 			.field("span_map", &self.span_map)
@@ -53,7 +55,7 @@ impl Debug for Ir {
 		compact_iter_debug(f, self.ops.iter())
 	}
 }
-impl Display for Ir {
+impl Display for Ir<'_> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		if self.ops.is_empty() {
 			write!(f, "0 | ")?;
@@ -101,6 +103,7 @@ impl IRgen {
 			span_map: codegen.span_map,
 			global_count: expr.global_count,
 			globals: codegen.globals,
+			ident_pool: expr.ident_pool,
 			local_count: expr.local_count,
 		})
 	}
@@ -125,6 +128,7 @@ impl IRgen {
 			span_map: codegen.span_map,
 			global_count: prog.global_count,
 			local_count: prog.local_count,
+			ident_pool: prog.ident_pool,
 		})
 	}
 

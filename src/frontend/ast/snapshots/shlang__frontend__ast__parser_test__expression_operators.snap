@@ -1,60 +1,67 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (\"1*2+2-2/2%5 and 10 or 10!=1==2<4<=3>0>=3;\")"
+expression: "parse_expr (_test_func! (\"1*2+2-2/2%5 and 10 or 10!=1==2<4<=3>0>=3;\"))"
 ---
 Ok(
-    BinaryNode {
-        kind: Or,
-        left: BinaryNode {
-            kind: And,
+    Ast {
+        node: BinaryNode {
+            kind: Or,
             left: BinaryNode {
-                kind: Subtract,
+                kind: And,
                 left: BinaryNode {
-                    kind: Add,
+                    kind: Subtract,
                     left: BinaryNode {
-                        kind: Multiply,
-                        left: Int(1)[0,1],
-                        right: Int(2)[2,3],
-                    }[0,3],
-                    right: Int(2)[4,5],
-                }[0,5],
-                right: BinaryNode {
-                    kind: Modulo,
-                    left: BinaryNode {
-                        kind: Divide,
-                        left: Int(2)[6,7],
-                        right: Int(2)[8,9],
-                    }[6,9],
-                    right: Int(5)[10,11],
-                }[6,11],
-            }[0,11],
-            right: Int(10)[16,18],
-        }[0,18],
-        right: BinaryNode {
-            kind: IsEqual,
-            left: BinaryNode {
-                kind: IsDifferent,
-                left: Int(10)[22,24],
-                right: Int(1)[26,27],
-            }[22,27],
-            right: BinaryNode {
-                kind: GreaterOrEqual,
-                left: BinaryNode {
-                    kind: Greater,
-                    left: BinaryNode {
-                        kind: LesserOrEqual,
+                        kind: Add,
                         left: BinaryNode {
-                            kind: Lesser,
-                            left: Int(2)[29,30],
-                            right: Int(4)[31,32],
-                        }[29,32],
-                        right: Int(3)[34,35],
-                    }[29,35],
-                    right: Int(0)[36,37],
-                }[29,37],
-                right: Int(3)[39,40],
-            }[29,40],
-        }[22,40],
-    }[0,40],
+                            kind: Multiply,
+                            left: Int(1)[0,1],
+                            right: Int(2)[2,3],
+                        }[0,3],
+                        right: Int(2)[4,5],
+                    }[0,5],
+                    right: BinaryNode {
+                        kind: Modulo,
+                        left: BinaryNode {
+                            kind: Divide,
+                            left: Int(2)[6,7],
+                            right: Int(2)[8,9],
+                        }[6,9],
+                        right: Int(5)[10,11],
+                    }[6,11],
+                }[0,11],
+                right: Int(10)[16,18],
+            }[0,18],
+            right: BinaryNode {
+                kind: IsEqual,
+                left: BinaryNode {
+                    kind: IsDifferent,
+                    left: Int(10)[22,24],
+                    right: Int(1)[26,27],
+                }[22,27],
+                right: BinaryNode {
+                    kind: GreaterOrEqual,
+                    left: BinaryNode {
+                        kind: Greater,
+                        left: BinaryNode {
+                            kind: LesserOrEqual,
+                            left: BinaryNode {
+                                kind: Lesser,
+                                left: Int(2)[29,30],
+                                right: Int(4)[31,32],
+                            }[29,32],
+                            right: Int(3)[34,35],
+                        }[29,35],
+                        right: Int(0)[36,37],
+                    }[29,37],
+                    right: Int(3)[39,40],
+                }[29,40],
+            }[22,40],
+        }[0,40],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+        },
+    },
 )

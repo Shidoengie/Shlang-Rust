@@ -5,23 +5,18 @@ expression: "test_nameres (_test_func! ({ var a = 10; do { var a = a; } }))"
 ---
 Ok(
     ResolvedAstNode {
-        node: Do {
-            Decl {
-                id: 0,
-                expr: Int(10)[13,15],
-                is_global: false,
-            }[5,15],
-            Result(
-                Do {
-                    Decl {
-                        id: 1,
-                        expr: Variable(0)[30,31],
-                        is_global: false,
-                    }[22,31],
-                },
-            )[20,34],
-        }[3,36],
+        node: Decl {
+            id: 0,
+            expr: Int(10)[8,10],
+            is_global: false,
+        }[0,10],
         global_count: 3,
-        local_count: 2,
+        local_count: 1,
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "a",
+        },
     },
 )

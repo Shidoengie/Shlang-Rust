@@ -60,29 +60,34 @@ impl NameRes {
 			globals: HashMap::from_iter(
 				(0..GLOBAL_NAME_MAP.len())
 					.into_iter()
-					.map(|idx| (IdentId(idx), idx.into())),
+					.map(|idx| (unsafe { IdentId::new_unchecked(idx) }, idx.into())),
 			),
 			..Default::default()
 		}
 	}
-	pub fn resolve(&mut self, ast: Vec<Spanned<ast::Node>>) -> Result<ResolvedAst> {
+	pub fn resolve<'a>(&mut self, ast: ast::Program<'a>) -> Result<ResolvedAst<'a>> {
 		self.push_scope();
-		let decls = self.resolve_toplevel(ast)?;
+		let decls = self.resolve_toplevel(ast.proc)?;
 		let local_count = self.pop_scope();
 		Ok(ResolvedAst {
 			proc: decls,
-
+			ident_pool: ast.ident_pool,
 			global_count: self.globals.len(),
 			local_count,
 		})
 	}
-	pub fn resolve_expr(&mut self, expr: ast::NodeSpan) -> Result<ResolvedAstNode> {
+	pub fn resolve_expr<'a>(&mut self, expr: ast::Ast<'a>) -> Result<ResolvedAstNode<'a>> {
 		let start_ident = self.ident_counter;
 		self.push_scope();
-		let node = self.resolve_node(expr, &mut Scope::default())?;
+		let node = self.resolve_node(expr.node, &mut Scope::default())?;
 		let local_count = self.pop_scope();
 		self.ident_counter = start_ident;
-		Ok(ResolvedAstNode::new(node, self.globals.len(), local_count))
+		Ok(ResolvedAstNode::new(
+			node,
+			self.globals.len(),
+			local_count,
+			expr.ident_pool,
+		))
 	}
 	fn add_global(&mut self, name: IdentId) {
 		if self.globals.contains_key(&name) {

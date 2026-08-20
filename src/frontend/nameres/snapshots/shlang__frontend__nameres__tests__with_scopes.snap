@@ -29,5 +29,12 @@ Ok(
         ],
         global_count: 4,
         local_count: 0,
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "main",
+            4: "a",
+        },
     },
 )

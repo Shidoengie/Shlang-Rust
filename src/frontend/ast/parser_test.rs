@@ -3,7 +3,7 @@ use super::parser::{self, *};
 use crate::test_func;
 use std::{usize, *};
 
-fn parse_expr(source: &str) -> parser::Result<NodeSpan> {
+fn parse_expr(source: &str) -> parser::Result<Ast> {
 	Parser::parse_expr(source, usize::MAX)
 }
 

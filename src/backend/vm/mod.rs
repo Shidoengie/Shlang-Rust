@@ -9,13 +9,16 @@ use slab::Slab;
 use std::{fmt::format, mem, ops::Index};
 use values::*;
 
-use crate::backend::{
-	instructions::*,
-	vm::{
-		builtins::BUILTINS,
-		error::{ErrCode, Type, VmErr},
-		frame::{CallStack, Frame},
+use crate::{
+	backend::{
+		instructions::*,
+		vm::{
+			builtins::get_builtins,
+			error::{ErrCode, Type, VmErr},
+			frame::{CallStack, Frame},
+		},
 	},
+	idents::IdentArray,
 };
 
 macro_rules! impl_binary_op {
@@ -142,7 +145,7 @@ impl Index<usize> for ObjectHeap {
 }
 
 #[derive(Debug)]
-pub struct StackVM {
+pub struct StackVM<'a> {
 	/// Instruction pointer
 	ip: usize,
 	proc: Box<[OpCode]>,
@@ -152,18 +155,18 @@ pub struct StackVM {
 	is_finished: bool,
 	objects: ObjectHeap,
 	const_pool: Box<[Value]>,
-	ident_pool: Box<[String]>,
+	ident_pool: IdentArray<'a>,
 	pub value_map: Vec<usize>,
 	pub values: Vec<Value>,
 	pub globals: Box<[Value]>,
 }
 
 pub type Result<T = ()> = std::result::Result<T, VmErr>;
-impl StackVM {
-	pub fn new(mut bytecode: ByteCode) -> Self {
+impl<'a> StackVM<'a> {
+	pub fn new(mut bytecode: ByteCode<'a>) -> Self {
 		// this is done so the builtins dont colide with the user defined globals
-		let mut new_globals = BUILTINS.to_vec();
-		new_globals.append(&mut bytecode.globals);
+		let mut new_globals = get_builtins();
+		new_globals.extend_from_slice(&mut bytecode.globals);
 		new_globals.resize(bytecode.global_count, Value::Undefined);
 		let mut vm = Self {
 			ip: 0,
@@ -498,7 +501,7 @@ impl StackVM {
 	}
 }
 //Arithmetic ops impl
-impl StackVM {
+impl<'a> StackVM<'a> {
 	fn typecheck_pair(&mut self, left: &Value, right: &Value) -> Result {
 		if mem::discriminant(left) != mem::discriminant(right) {
 			return Err(ErrCode::MixedTypes {
@@ -634,18 +637,18 @@ impl StackVM {
 	}
 }
 // Functions impl
-impl StackVM {
+impl<'a> StackVM<'a> {
 	fn exec_native_call(&mut self, func: NativeFunction, arg_len: u8) -> Result {
 		if !func.is_arglen_valid(arg_len) {
 			return Err(ErrCode::InvalidArgs {
 				expected: arg_len,
-				got: func.param_count,
+				got: func.get_param_count(),
 			}
 			.into_vmerr(self.ip));
 		}
 		let args = self.pop_chunk(arg_len.into());
 
-		match (func.func)(self, &args) {
+		match func.call(self, &args) {
 			Ok(res) => {
 				self.push(res);
 				self.inc_ip();
@@ -712,7 +715,7 @@ impl StackVM {
 		Ok(())
 	}
 }
-impl StackVM {
+impl<'a> StackVM<'a> {
 	fn exec_index(&mut self) -> Result {
 		let refid = self.pop_raw()?;
 		let index = self.pop_raw()?;
@@ -783,13 +786,13 @@ impl StackVM {
 		}
 	}
 }
-impl ByteCode {
-	pub fn new_vm(self) -> StackVM {
+impl<'a> ByteCode<'a> {
+	pub fn new_vm(self) -> StackVM<'a> {
 		StackVM::new(self)
 	}
 }
-impl From<ByteCode> for StackVM {
-	fn from(value: ByteCode) -> Self {
+impl<'a> From<ByteCode<'a>> for StackVM<'a> {
+	fn from(value: ByteCode<'a>) -> Self {
 		value.new_vm()
 	}
 }

@@ -2,11 +2,15 @@ use std::{
 	any::Any,
 	collections::HashMap,
 	fmt::{self, Write},
+	num::NonZeroU8,
 };
 mod native;
-use crate::backend::vm::{
-	StackVM,
-	error::{ErrCode, Type},
+use crate::{
+	backend::vm::{
+		StackVM,
+		error::{ErrCode, Type},
+	},
+	idents::IdentId,
 };
 pub use native::*;
 
@@ -56,14 +60,14 @@ impl fmt::Display for Value {
 }
 #[derive(Debug, Clone)]
 pub struct Class {
-	pub name: Option<usize>,
-	pub static_fields: HashMap<usize, Value>,
-	pub instance_fields: HashMap<usize, Value>,
+	pub name: Option<IdentId>,
+	pub static_fields: HashMap<(IdentId, bool), Value>,
+	pub instance_fields: HashMap<(IdentId, bool), Value>,
 }
 #[derive(Debug, Clone)]
 pub struct Instance {
-	pub name: Option<usize>,
-	pub fields: HashMap<usize, Value>,
+	pub name: Option<IdentId>,
+	pub fields: HashMap<(IdentId, bool), Value>,
 }
 #[derive(Debug, Clone, Copy)]
 pub struct Function {

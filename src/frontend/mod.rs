@@ -1,8 +1,10 @@
 use crate::{
-	collections::filestore::FileStore,
-	collections::spans::Spanned,
+	collections::{filestore::FileStore, spans::Spanned},
 	frontend::{
-		ast::{nodes::Node, parser::Parser},
+		ast::{
+			nodes::{Ast, Node, Program},
+			parser::Parser,
+		},
 		ir::codegen::{IRgen, Ir},
 		lexemes::{
 			lexer::Lexer,
@@ -57,7 +59,7 @@ impl Compiler {
 		}
 		Ok(buf)
 	}
-	pub fn parse(&mut self, input: &str) -> Result<Vec<Spanned<Node>>, Box<dyn LangError>> {
+	pub fn parse<'a, 'b>(&'a mut self, input: &'b str) -> Result<Program<'b>, Box<dyn LangError>> {
 		let file_id = self.file_store.add(input.to_owned());
 		Parser::parse(input, file_id).inspect_err(|err| {
 			if !self.silent {
@@ -70,7 +72,7 @@ impl Compiler {
 	pub fn print_langerr(&self, err: &dyn LangError) -> std::io::Result<()> {
 		err.msg().eprint(self.file_store.clone())
 	}
-	pub fn parse_expr(&mut self, input: &str) -> Result<Spanned<Node>, Box<dyn LangError>> {
+	pub fn parse_expr<'a, 'b>(&'a mut self, input: &'b str) -> Result<Ast<'b>, Box<dyn LangError>> {
 		let file_id = self.file_store.add(input.to_owned());
 		Parser::parse_expr(input, file_id).inspect_err(|err| {
 			if !self.silent {
@@ -80,7 +82,10 @@ impl Compiler {
 			}
 		})
 	}
-	pub fn resolve(&mut self, input: &str) -> Result<ResolvedAst, Box<dyn LangError>> {
+	pub fn resolve<'a, 'b>(
+		&'a mut self,
+		input: &'b str,
+	) -> Result<ResolvedAst<'b>, Box<dyn LangError>> {
 		let parsed = self.parse(input)?;
 		let mut nameres = NameRes::new(self.file_store.clone());
 		let resolved = nameres
@@ -94,7 +99,10 @@ impl Compiler {
 		self.file_store = nameres.file_store;
 		Ok(resolved)
 	}
-	pub fn resolve_expr(&mut self, input: &str) -> Result<ResolvedAstNode, Box<dyn LangError>> {
+	pub fn resolve_expr<'a, 'b>(
+		&'a mut self,
+		input: &'b str,
+	) -> Result<ResolvedAstNode<'b>, Box<dyn LangError>> {
 		let parsed = self.parse_expr(input)?;
 		let mut nameres = NameRes::new(self.file_store.clone());
 		let resolved = nameres
@@ -108,7 +116,7 @@ impl Compiler {
 		self.file_store = nameres.file_store;
 		Ok(resolved)
 	}
-	pub fn compile(&mut self, input: &str) -> Result<Ir, Box<dyn LangError>> {
+	pub fn compile<'a, 'b>(&'a mut self, input: &'b str) -> Result<Ir<'b>, Box<dyn LangError>> {
 		let resolved = self.resolve(input)?;
 		IRgen::generate(resolved)
 			.inspect_err(|err| {
@@ -118,7 +126,10 @@ impl Compiler {
 			})
 			.map_err(|err| Box::new(err) as Box<dyn LangError>)
 	}
-	pub fn compile_expr(&mut self, input: &str) -> Result<Ir, Box<dyn LangError>> {
+	pub fn compile_expr<'a, 'b>(
+		&'a mut self,
+		input: &'b str,
+	) -> Result<Ir<'b>, Box<dyn LangError>> {
 		let resolved = self.resolve_expr(input)?;
 		IRgen::generate_expr(resolved)
 			.inspect_err(|err| {

@@ -4,9 +4,18 @@ description: test_parsing
 expression: "parse_expr (_test_func! (\"func a (b){1}\"))"
 ---
 Ok(
-    Decl(readonly)::IdentId(3) = Function(IdentId(4)){
-        Result(
-            Int(1),
-        )[11,12],
-    }[5,11][5,11],
+    Ast {
+        node: Decl(readonly)::IdentId(3) = Function(IdentId(4)){
+            Result(
+                Int(1),
+            )[11,12],
+        }[5,11][5,11],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "a",
+            4: "b",
+        },
+    },
 )

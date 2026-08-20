@@ -1,7 +1,8 @@
 use crate::{frontend::*, test_func};
 
-fn test_ir(input: &str) -> Result<Ir, Box<dyn LangError>> {
-	Compiler::new().compile_expr(input)
+fn test_ir<'a>(input: &'a str) -> Result<Ir<'a>, Box<dyn LangError>> {
+	let mut compiler = Compiler::new();
+	compiler.compile_expr(input)
 }
 
 test_func!(

@@ -4,5 +4,13 @@ description: test_parsing
 expression: "parse_expr (_test_func! (\"b = 1;\"))"
 ---
 Ok(
-    Assign(Var(IdentId(3))[0,1] = Int(1)[4,5])[0,5],
+    Ast {
+        node: Assign(Var(IdentId(3))[0,1] = Int(1)[4,5])[0,5],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "b",
+        },
+    },
 )

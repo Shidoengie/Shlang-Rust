@@ -85,7 +85,7 @@ pub const GLOBAL_NAME_MAP: [&'static str; 3] = ["println", "input", "str_len"];
 
 ///base parser
 impl<'input> Parser<'input> {
-	pub fn parse_expr(input: &'input str, file_id: FileID) -> Result {
+	pub fn parse_expr(input: &'input str, file_id: FileID) -> Result<Ast> {
 		let mut parser = Parser {
 			file_id,
 			input,
@@ -93,9 +93,12 @@ impl<'input> Parser<'input> {
 			in_toplevel: false,
 			idents: IdentSet::from_vars(&GLOBAL_NAME_MAP),
 		};
-		parser.parse_node(false)
+		Ok(Ast {
+			node: parser.parse_node(false)?,
+			ident_pool: parser.idents.into_packed(),
+		})
 	}
-	pub fn parse(input: &'input str, file_id: FileID) -> Result<Vec<NodeSpan>> {
+	pub fn parse(input: &'input str, file_id: FileID) -> Result<Program<'input>> {
 		let mut parser = Parser {
 			file_id,
 			input,
@@ -103,7 +106,10 @@ impl<'input> Parser<'input> {
 			in_toplevel: true,
 			idents: IdentSet::from_vars(&GLOBAL_NAME_MAP),
 		};
-		parser.parse_toplevel()
+		Ok(Program {
+			proc: parser.parse_toplevel()?,
+			ident_pool: parser.idents.into_packed(),
+		})
 	}
 	/// Parses input as expressions and collects it into a block
 	fn parse_toplevel(&mut self) -> Result<Vec<NodeSpan>> {

@@ -8,10 +8,10 @@ Ok(
         node: Do {
             Decl {
                 id: 0,
-                expr: Int(10)[13,15],
+                expr: Int(10)[13:15],
                 is_global: false,
-            }[5,15],
-        }[3,18],
+            }[5:15],
+        }[3:18],
         global_count: 3,
         local_count: 1,
         ident_pool: IdentArray {

@@ -11,21 +11,21 @@ Ok(
                 expr: Function(){
                     Decl {
                         id: 0,
-                        expr: Int(10)[42,44],
+                        expr: Int(10)[42:44],
                         is_global: false,
-                    }[34,44],
+                    }[34:44],
                     Result(
                         Do {
                             Decl {
                                 id: 1,
-                                expr: Variable(0)[87,88],
+                                expr: Variable(0)[87:88],
                                 is_global: false,
-                            }[79,88],
+                            }[79:88],
                         },
-                    )[61,103],
-                }[14,21],
+                    )[61:103],
+                }[14:21],
                 is_global: true,
-            }[14,21],
+            }[14:21],
         ],
         global_count: 4,
         local_count: 0,

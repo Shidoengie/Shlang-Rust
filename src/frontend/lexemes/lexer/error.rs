@@ -2,7 +2,7 @@ use crate::{
 	collections::spans::*,
 	lang_errors::{LangError, MsgBuilder},
 };
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LexError {
 	UnexpectedChar(char),
 	InvalidIdent,

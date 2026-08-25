@@ -5,8 +5,6 @@ expression: "test_nameres (_test_func! ({var a = c;}))"
 ---
 Err(
     UndefinedVar(
-        IdentId(
-            4,
-        ),
-    )[8,9],
+        IdentId(4),
+    )[8:9],
 )

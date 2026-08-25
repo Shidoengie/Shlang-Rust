@@ -276,7 +276,9 @@ impl NameRes {
 				let decl = self.resolve_var_decl(decl, parent, span)?;
 				Ok(RNode::Decl(decl).to_spanned(span))
 			}
-
+			AstNode::ClassLit(class) => {
+				todo!()
+			}
 			AstNode::Assignment { target, value } => {
 				self.resolve_assignment(target, value, parent, span)
 			}

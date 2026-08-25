@@ -1,0 +1,22 @@
+---
+source: src/frontend/ast/parser_test.rs
+description: test_parsing
+expression: "parse_expr (_test_func! (\"class foo {}\"))"
+---
+Ok(
+    Ast {
+        node: ClassLit {
+            name: Some(
+                IdentId(3)[6:9],
+            ),
+            fields: {},
+            methods: {},
+        }[10:12],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "foo",
+        },
+    },
+)

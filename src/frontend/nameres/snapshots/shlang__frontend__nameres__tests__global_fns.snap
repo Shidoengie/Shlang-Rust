@@ -11,18 +11,18 @@ Ok(
                 expr: Function(){
                     Return(
                         Int(10),
-                    )[24,30],
-                }[18,23],
+                    )[24:30],
+                }[18:23],
                 is_global: true,
-            }[18,23],
+            }[18:23],
             Decl {
                 id: 0,
                 expr: Call {
-                    callee: Variable(global 3)[8,9],
+                    callee: Variable(global 3)[8:9],
                     args: [],
-                }[10,11],
+                }[10:11],
                 is_global: false,
-            }[0,11],
+            }[0:11],
         ],
         global_count: 4,
         local_count: 1,

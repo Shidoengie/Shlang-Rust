@@ -9,43 +9,35 @@ Ok(
             target: FieldAccess {
                 target: FieldAccess {
                     target: FieldAccess {
-                        target: Var(IdentId(3))[0,1],
+                        target: Var(IdentId(3))[0:1],
                         requested: Method {
-                            callee: IdentId(
-                                4,
-                            ),
+                            callee: IdentId(4),
                             callee_span: 2:3,
                             args: [],
                             arg_span: 4:5,
-                        }[2,5],
-                    }[0,5],
+                        }[2:5],
+                    }[0:5],
                     requested: Method {
-                        callee: IdentId(
-                            5,
-                        ),
+                        callee: IdentId(5),
                         callee_span: 6:7,
                         args: [],
                         arg_span: 8:9,
-                    }[6,9],
-                }[0,9],
+                    }[6:9],
+                }[0:9],
                 requested: Method {
-                    callee: IdentId(
-                        6,
-                    ),
+                    callee: IdentId(6),
                     callee_span: 10:11,
                     args: [],
                     arg_span: 12:13,
-                }[10,13],
-            }[0,13],
+                }[10:13],
+            }[0:13],
             requested: Method {
-                callee: IdentId(
-                    7,
-                ),
+                callee: IdentId(7),
                 callee_span: 14:15,
                 args: [],
                 arg_span: 16:17,
-            }[14,17],
-        }[0,17],
+            }[14:17],
+        }[0:17],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

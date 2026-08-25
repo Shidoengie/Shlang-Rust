@@ -1,0 +1,47 @@
+---
+source: src/frontend/ast/parser_test.rs
+description: test_parsing
+expression: "parse_expr (_test_func! (\"class foo {var x; var b = 10;}\"))"
+---
+Ok(
+    Ast {
+        node: ClassLit {
+            name: Some(
+                IdentId(3)[6:9],
+            ),
+            fields: {
+                (
+                    IdentId(5),
+                    false,
+                ): Field {
+                    default: Some(
+                        Int(10)[26:28],
+                    ),
+                    readonly: false,
+                    name_span: 22:23,
+                    modifier_span: 18:21,
+                    private: false,
+                }[18:29],
+                (
+                    IdentId(4),
+                    false,
+                ): Field {
+                    default: None,
+                    readonly: false,
+                    name_span: 15:16,
+                    modifier_span: 11:14,
+                    private: false,
+                }[11:17],
+            },
+            methods: {},
+        }[10:30],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "foo",
+            4: "x",
+            5: "b",
+        },
+    },
+)

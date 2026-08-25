@@ -8,8 +8,8 @@ Ok(
         node: Decl(readonly)::IdentId(3) = Function(IdentId(4)){
             Result(
                 Int(1),
-            )[11,12],
-        }[5,11][5,11],
+            )[11:12],
+        }[5:11][5:11],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

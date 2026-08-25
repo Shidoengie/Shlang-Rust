@@ -1,3 +1,5 @@
+use variant_name::VariantName;
+
 use crate::collections::spans::*;
 use crate::frontend::opkind::{BinaryOp, UnaryOp};
 use crate::idents::{Ident, IdentArray, IdentId};
@@ -31,7 +33,7 @@ pub struct Program<'a> {
 	pub proc: Vec<NodeSpan>,
 	pub ident_pool: IdentArray<'a>,
 }
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, VariantName)]
 pub enum Node {
 	Null,
 	Bool(bool),
@@ -51,7 +53,6 @@ pub enum Node {
 	FunctionLit(FunctionLit),
 	ListLit(Vec<NodeSpan>),
 	Call(Call),
-
 	Branch(Branch),
 	Loop(Block),
 	While(While),
@@ -60,43 +61,12 @@ pub enum Node {
 	Constructor(Constructor),
 	StructLit(HashMap<IdentId, NodeSpan>),
 	RecordLit(HashMap<IdentId, NodeSpan>),
+	ClassLit(ClassLit),
 	FieldAccess(FieldAccess),
 	DontResult,
 }
 
 impl Node {
-	pub fn variant_name(&self) -> &'static str {
-		match self {
-			Node::Null => "Null",
-			Node::Bool(_) => "Bool",
-			Node::Str(_) => "Str",
-			Node::Float(_) => "Float",
-			Node::Int(_) => "Int",
-			Node::BinaryNode(_) => "BinaryNode",
-			Node::UnaryNode(_) => "UnaryNode",
-			Node::Result(_) => "ResultNode",
-			Node::Return(_) => "ReturnNode",
-			Node::BreakNode => "BreakNode",
-			Node::ContinueNode => "ContinueNode",
-			Node::Decl(_) => "VarDecl",
-			Node::Assignment { .. } => "Assignment",
-			Node::Variable(_) => "Variable",
-			Node::Index { .. } => "Index",
-			Node::FunctionLit(_) => "FuncDef",
-			Node::ListLit(_) => "ListLit",
-			Node::Call(_) => "Call",
-			Node::Branch(_) => "Branch",
-			Node::Loop(_) => "Loop",
-			Node::While(_) => "While",
-			Node::ForLoop(_) => "ForLoop",
-			Node::DoBlock(_) => "DoBlock",
-			Node::Constructor(_) => "Constructor",
-			Node::StructLit(_) => "StructDef",
-			Node::RecordLit(_) => "RecordLit",
-			Node::FieldAccess(_) => "FieldAccess",
-			Node::DontResult => "DontResult",
-		}
-	}
 	pub fn can_result(&self) -> bool {
 		!matches!(
 			self.clone(),
@@ -120,6 +90,7 @@ impl Debug for Node {
 					write!(f, "false")
 				}
 			}
+			Node::ClassLit(class) => write!(f, "{class:#?}"),
 			Node::RecordLit(map) => f.debug_map().entries(map).finish(),
 			Node::Int(num) => write!(f, "Int({num})"),
 			Node::Float(num) => write!(f, "Float({num})"),
@@ -368,20 +339,26 @@ pub struct FunctionLit {
 	pub captures: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct StructLit {
-	pub name: Option<IdentId>,
-	pub static_fields: HashMap<(IdentId, bool), Field>,
-	pub static_methods: HashMap<(IdentId, bool), FunctionLit>,
-	pub fields: HashMap<(IdentId, bool), Field>,
-	pub methods: HashMap<(IdentId, bool), FunctionLit>,
-}
-pub struct RecordLit {
-	pub fields: HashMap<IdentId, Field>,
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct ClassLit {
+	pub name: Option<Ident>,
+	pub fields: HashMap<(IdentId, bool), Spanned<Field>>,
+	pub methods: HashMap<(IdentId, bool), Spanned<Method>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Field {
-	pub expr: Spanned<Node>,
+	pub default: Option<NodeSpan>,
 	pub readonly: bool,
+	pub name_span: Span,
+	pub modifier_span: Span,
+	pub private: bool,
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct Method {
+	pub block: Block,
+	pub args: Vec<Ident>,
+	pub name_span: Span,
+	pub modifier_span: Span,
+	pub private: bool,
 }

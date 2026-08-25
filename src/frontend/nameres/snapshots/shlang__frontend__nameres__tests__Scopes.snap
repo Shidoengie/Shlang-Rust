@@ -7,9 +7,9 @@ Ok(
     ResolvedAstNode {
         node: Decl {
             id: 0,
-            expr: Int(10)[8,10],
+            expr: Int(10)[8:10],
             is_global: false,
-        }[0,10],
+        }[0:10],
         global_count: 3,
         local_count: 1,
         ident_pool: IdentArray {

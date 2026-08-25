@@ -7,22 +7,18 @@ Ok(
     Ast {
         node: FieldAccess {
             target: FieldAccess {
-                target: Var(IdentId(3))[0,1],
+                target: Var(IdentId(3))[0:1],
                 requested: Method {
-                    callee: IdentId(
-                        4,
-                    ),
+                    callee: IdentId(4),
                     callee_span: 2:3,
                     args: [],
                     arg_span: 4:5,
-                }[2,5],
-            }[0,5],
+                }[2:5],
+            }[0:5],
             requested: Property(
-                IdentId(
-                    5,
-                )[6,7],
-            )[6,7],
-        }[0,7],
+                IdentId(5)[6:7],
+            )[6:7],
+        }[0:7],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

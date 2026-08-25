@@ -9,11 +9,11 @@ Ok(
             kind: Add,
             left: BinaryNode {
                 kind: Add,
-                left: Int(1)[1,2],
-                right: Int(2)[3,4],
-            }[1,4],
-            right: Var(IdentId(3))[5,6],
-        }[1,6],
+                left: Int(1)[1:2],
+                right: Int(2)[3:4],
+            }[1:4],
+            right: Var(IdentId(3))[5:6],
+        }[1:6],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

@@ -6,9 +6,9 @@ expression: "parse_expr (_test_func! (\"a();\"))"
 Ok(
     Ast {
         node: Call {
-            callee: Var(IdentId(3))[0,1],
+            callee: Var(IdentId(3))[0:1],
             args: [],
-        }[2,3],
+        }[2:3],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

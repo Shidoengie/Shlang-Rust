@@ -8,15 +8,15 @@ Ok(
         node: BinaryNode {
             kind: Add,
             left: Call {
-                callee: Var(IdentId(3))[0,1],
+                callee: Var(IdentId(3))[0:1],
                 args: [
-                    Int(1)[2,3],
-                    Int(1)[4,5],
-                    Int(1)[6,7],
+                    Int(1)[2:3],
+                    Int(1)[4:5],
+                    Int(1)[6:7],
                 ],
-            }[2,8],
-            right: Int(1)[9,10],
-        }[2,10],
+            }[2:8],
+            right: Int(1)[9:10],
+        }[2:10],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

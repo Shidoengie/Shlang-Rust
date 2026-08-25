@@ -9,9 +9,9 @@ Ok(
             Do{
                 Result(
                     Int(1),
-                )[11,12],
-            }[10,13],
-        }[0,15],
+                )[11:12],
+            }[10:13],
+        }[0:15],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

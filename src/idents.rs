@@ -4,12 +4,21 @@ use nonmax::NonMaxUsize;
 
 use crate::collections::{Spanned, indexset::IndexSet};
 pub type Ident = Spanned<IdentId>;
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IdentId(pub(crate) NonMaxUsize);
 impl IdentId {
 	#[allow(unsafe_op_in_unsafe_fn)]
 	pub unsafe fn new_unchecked(inp: usize) -> Self {
 		IdentId(NonMaxUsize::new_unchecked(inp))
+	}
+}
+impl fmt::Debug for IdentId {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		if self.0 > unsafe { NonMaxUsize::new_unchecked(9999999999999) } && f.alternate() {
+			f.debug_tuple("IdentId").field(&self.0).finish()
+		} else {
+			write!(f, "IdentId({})", self.0)
+		}
 	}
 }
 #[derive(Default, Clone)]

@@ -70,7 +70,6 @@ fn run_stage(compiler: &mut Compiler, stage: &Stage, content: &str, is_expr: boo
 	}
 }
 
-/// Starts an interactive Read-Eval-Print-Loop (REPL).
 fn run_repl(compiler: &mut Compiler, args: &Args) {
 	let mut runtime = Runtime::new().with_expr_output(true);
 	println!("Shlang REPL. Enter an empty line or press Ctrl+C to exit.");

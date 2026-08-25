@@ -1,0 +1,76 @@
+---
+source: src/frontend/ast/parser_test.rs
+description: test_parsing
+expression: "parse_expr\n(_test_func!\n({\n    class foo\n    {\n        func abc(a,b,c) { return 10; } static func hello(foo) { return foo; }\n        let x = 20;\n    }\n}))"
+---
+Ok(
+    Ast {
+        node: ClassLit {
+            name: Some(
+                IdentId(3)[6:9],
+            ),
+            fields: {
+                (
+                    IdentId(9),
+                    false,
+                ): Field {
+                    default: Some(
+                        Int(20)[98:100],
+                    ),
+                    readonly: true,
+                    name_span: 94:95,
+                    modifier_span: 86:89,
+                    private: false,
+                }[86:101],
+            },
+            methods: {
+                (
+                    IdentId(4),
+                    false,
+                ): Method {
+                    block: [
+                        Return(
+                            Int(10),
+                        )[34:40],
+                    ][32:46],
+                    args: [
+                        IdentId(5)[25:26],
+                        IdentId(6)[27:28],
+                        IdentId(7)[29:30],
+                    ],
+                    name_span: 21:24,
+                    modifier_span: 16:20,
+                    private: false,
+                }[16:53],
+                (
+                    IdentId(8),
+                    true,
+                ): Method {
+                    block: [
+                        Return(
+                            Var(IdentId(3)),
+                        )[72:78],
+                    ][70:85],
+                    args: [
+                        IdentId(3)[65:68],
+                    ],
+                    name_span: 59:64,
+                    modifier_span: 47:53,
+                    private: false,
+                }[47:89],
+            },
+        }[10:103],
+        ident_pool: IdentArray {
+            0: "println",
+            1: "input",
+            2: "str_len",
+            3: "foo",
+            4: "abc",
+            5: "a",
+            6: "b",
+            7: "c",
+            8: "hello",
+            9: "x",
+        },
+    },
+)

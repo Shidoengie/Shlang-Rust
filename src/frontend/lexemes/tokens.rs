@@ -81,6 +81,8 @@ pub enum TokenType {
 	Import,
 	From,
 	Eof,
+	SelfTok,
+	SelfType,
 }
 impl TokenType {
 	pub fn to_token(self, span: Span) -> Token {
@@ -106,6 +108,12 @@ impl std::fmt::Debug for Token {
 pub trait TokenEq {
 	fn is(&self, kind: &TokenType) -> bool;
 	fn isnt(&self, kind: &TokenType) -> bool;
+	fn exists(&self) -> bool {
+		self.isnt(&TokenType::Eof)
+	}
+	fn is_eof(&self) -> bool {
+		self.is(&TokenType::Eof)
+	}
 }
 impl Token {
 	pub fn new(kind: TokenType, span: Span) -> Self {
@@ -175,6 +183,8 @@ pub fn map_keyword(text: &str) -> Option<TokenType> {
 		"as" => TokenType::As,
 		"import" => TokenType::Import,
 		"from" => TokenType::From,
+		"self" => TokenType::SelfTok,
+		"Self" => TokenType::SelfType,
 		_ => return None,
 	};
 	Some(res)

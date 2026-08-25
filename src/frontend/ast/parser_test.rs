@@ -3,7 +3,7 @@ use super::parser::{self, *};
 use crate::test_func;
 use std::{usize, *};
 
-fn parse_expr(source: &str) -> parser::Result<Ast> {
+fn parse_expr(source: &str) -> parser::Result<Ast<'_>> {
 	Parser::parse_expr(source, usize::MAX)
 }
 
@@ -37,5 +37,21 @@ test_func!(test_parsing,parse_expr, {
 "index"=>"a[1]",
 "index_with_call"=>"a[1]()[2]",
 "list_literal"=>"[1,2,3]",
-"index_assign" => "a[1] = 10"
+"index_assign" => "a[1] = 10",
+"empty_class_literal" => "class foo {}",
+"empty_anon_class_literal" => "class {}",
+"class_literal" => "class foo {var x; var b = 10;}",
+"class_method" => {
+	class foo {
+		func abc(a,b,c) {
+			return 10;
+		}
+		static func hello(foo) {
+			return foo;
+		}
+		let x = 20;
+	}
+},
+"class_literal_with_static_properties" => "class foo { static a = 10; static var b = 20; }",
+
 });

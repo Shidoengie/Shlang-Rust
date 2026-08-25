@@ -11,10 +11,8 @@ clap = { version = "4.5.40", features = ["derive"] }
 derive_more = { version = "2.0.1", features = ["display", "from"] }
 dyn-clone = "1.0.20"
 nonmax = "0.5.5"
-
-
-rand = "0.8.5"
 rayon = "1.10.0"
+variant_name = { version = "0.1.0", path = "variant_name" }
 slab = "0.4.11"
 
 

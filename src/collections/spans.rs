@@ -43,7 +43,7 @@ impl<T> Deref for Spanned<T> {
 }
 impl<T: Debug> Debug for Spanned<T> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{:#?}[{},{}]", self.item, self.span.start, self.span.end)
+		write!(f, "{:#?}[{}:{}]", self.item, self.span.start, self.span.end)
 	}
 }
 impl<T> Spanned<Box<T>> {

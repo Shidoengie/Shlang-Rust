@@ -7,8 +7,8 @@ Ok(
     Ast {
         node: UnaryNode {
             kind: Not,
-            target: true[1,5],
-        }[1,5],
+            target: true[1:5],
+        }[1:5],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

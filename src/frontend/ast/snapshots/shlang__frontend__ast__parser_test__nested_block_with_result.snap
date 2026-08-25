@@ -9,12 +9,12 @@ Ok(
             Do{
                 Result(
                     Int(1),
-                )[11,12],
-            }[10,13],
+                )[11:12],
+            }[10:13],
             Result(
                 Int(1),
-            )[13,14],
-        }[0,15],
+            )[13:14],
+        }[0:15],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

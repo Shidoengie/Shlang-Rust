@@ -10,7 +10,7 @@ pub use error::*;
 pub struct Lexer<'a> {
 	file_id: FileID,
 	chars: Chars<'a>,
-	source: String,
+	source: &'a str,
 	index: usize,
 }
 pub type Result<T = Token> = std::result::Result<T, Spanned<LexError>>;
@@ -216,7 +216,7 @@ impl<'a> Lexer<'a> {
 		Self {
 			file_id,
 			chars: src.chars(),
-			source: String::from(src),
+			source: src,
 			index: 0,
 		}
 	}
@@ -284,7 +284,7 @@ impl<'a> Lexer<'a> {
 			last => self.ident_or_num(last),
 		}
 	}
-	pub fn peek(&mut self) -> Result {
+	pub fn peek(&self) -> Result {
 		self.clone().next()
 	}
 	pub fn next(&mut self) -> Result {

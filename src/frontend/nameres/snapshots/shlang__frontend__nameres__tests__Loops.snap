@@ -8,18 +8,18 @@ Ok(
         node: ForLoop {
             loop_var: 0,
             list: List[
-                Int(1)[10,11],
-                Int(2)[12,13],
-                Int(3)[14,15],
-            ][9,16],
+                Int(1)[10:11],
+                Int(2)[12:13],
+                Int(3)[14:15],
+            ][9:16],
             block: [
                 Decl {
                     id: 1,
-                    expr: Variable(0)[27,28],
+                    expr: Variable(0)[27:28],
                     is_global: false,
-                }[19,28],
-            ][17,30],
-        }[4,18],
+                }[19:28],
+            ][17:30],
+        }[4:18],
         global_count: 3,
         local_count: 2,
         ident_pool: IdentArray {

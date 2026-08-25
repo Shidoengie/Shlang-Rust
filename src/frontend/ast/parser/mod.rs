@@ -75,6 +75,7 @@ pub struct Parser<'input> {
 	input: &'input str,
 	tokens: Lexer<'input>,
 	in_toplevel: bool,
+	in_method: bool,
 	idents: IdentSet<'input>,
 }
 /// This is temporary;
@@ -91,6 +92,7 @@ impl<'input> Parser<'input> {
 			input,
 			tokens: Lexer::new(input, file_id),
 			in_toplevel: false,
+			in_method: false,
 			idents: IdentSet::from_vars(&GLOBAL_NAME_MAP),
 		};
 		Ok(Ast {
@@ -104,6 +106,7 @@ impl<'input> Parser<'input> {
 			input,
 			tokens: Lexer::new(input, file_id),
 			in_toplevel: true,
+			in_method: false,
 			idents: IdentSet::from_vars(&GLOBAL_NAME_MAP),
 		};
 		Ok(Program {
@@ -154,12 +157,12 @@ impl<'i> Parser<'i> {
 		Node::Float(text.parse().unwrap())
 	}
 	/// peeks the current token
-	fn peek(&mut self) -> Result<Token> {
+	fn peek(&self) -> Result<Token> {
 		self.tokens.peek().map_err(|err| Box::new(err) as Box<_>)
 	}
 	/// peeks the current token, and, if theres any token that is not [`TokenType::Eof`] it will return [`Some`] else [`None`]
-	fn peek_opt(&mut self) -> Result<Option<Token>> {
-		let ok = self.tokens.peek().map_err(|err| Box::new(err) as Box<_>)?;
+	fn peek_opt(&self) -> Result<Option<Token>> {
+		let ok = self.peek()?;
 		if ok.is(&TokenType::Eof) {
 			return Ok(None);
 		}
@@ -186,20 +189,20 @@ impl<'i> Parser<'i> {
 
 	/// checks if a token is the expected token and if it isnt returns an error
 	/// this is used for checking if certain expressions are valid
-	fn check_valid(&mut self, expected: TokenType, token: Token) -> Result<()> {
+	fn check_valid(&mut self, expected: TokenType, token: &Token) -> Result<()> {
 		if token.is(&expected) {
 			return Ok(());
 		}
-		err(ParseError::InvalidToken(expected, token.kind).to_spanned(token.span))
+		err(ParseError::InvalidToken(expected, token.kind.clone()).to_spanned(token.span))
 	}
 	/// peeks the current token and checks if it is the same as the expected token returning an error if it isnt
 	/// this is also used for validating expressions
 	fn expect(&mut self, expected: TokenType) -> Result<Token> {
 		let token = self.peek_some()?;
-		self.check_valid(expected, token.clone())?;
+		self.check_valid(expected, &token)?;
 		Ok(token)
 	}
-	fn is_expected(&mut self, expected: TokenType) -> Result<Option<Token>> {
+	fn is_expected(&self, expected: TokenType) -> Result<Option<Token>> {
 		let token = self.peek()?;
 		if token.is(&expected) {
 			return Ok(Some(token));
@@ -211,10 +214,28 @@ impl<'i> Parser<'i> {
 		self.next()?;
 		Ok(token)
 	}
+	fn try_consume(&mut self, expected: TokenType) -> Result<Option<Token>> {
+		let token = self.peek()?;
+		if token.is(&expected) {
+			self.next()?;
+			return Ok(Some(token));
+		}
+		Ok(None)
+	}
 	fn consume_ident(&mut self) -> Result<Ident> {
 		let token = self.expect(TokenType::Identifier)?;
 		self.next()?;
 		Ok(self.add_ident(&token))
+	}
+	/// Checks if theres an identifier present, if so it'll add it to identifier pool and return it
+	fn try_consume_ident(&mut self) -> Result<Option<Ident>> {
+		let ident = self.is_expected(TokenType::Identifier)?;
+		let Some(ident) = ident else {
+			return Ok(None);
+		};
+		let ident = self.add_ident(&ident);
+		self.next()?;
+		return Ok(Some(ident));
 	}
 	/// Filter DontResult nodes in order to determine if the last expression should or shouldnt result
 	fn filter_block(body: Vec<Spanned<Node>>) -> Vec<Spanned<Node>> {
@@ -677,6 +698,7 @@ impl Parser<'_> {
 		match &token.kind {
 			TokenType::Str(lit) => Ok(Node::Str(lit.to_string()).to_spanned(token.span)),
 			TokenType::Struct => self.parse_struct(token.span),
+			TokenType::Class => self.parse_class(),
 			TokenType::Var => self.parse_vardef(token),
 			TokenType::Let => self.parse_readonly_def(token),
 			TokenType::Float => Ok(self.parse_float(token).to_spanned(token.span)),
@@ -816,6 +838,145 @@ impl Parser<'_> {
 		let span = token.span + self.next()?.span;
 		Ok(Node::RecordLit(entries).to_spanned(span))
 	}
+	fn parse_method(
+		&mut self,
+		class: &mut ClassLit,
+		is_static: bool,
+		is_private: bool,
+		start: Span,
+	) -> Result<()> {
+		self.in_method = true;
+		self.next()?;
+		let name = self.consume_ident()?;
+		let args = self.parse_func_params()?;
+		let block = self.parse_block()?;
+		self.next()?;
+		let method = Method {
+			args,
+			block,
+			private: is_private,
+			name_span: name.span,
+			modifier_span: start,
+		}
+		.to_spanned(start + self.peek()?.span);
+		class.methods.insert((name.item, is_static), method);
+		self.in_method = false;
+		Ok(())
+	}
+	fn parse_prop_pair(&mut self) -> Result<(Ident, Option<NodeSpan>)> {
+		let ident = self.consume_ident()?;
+		if let Some(_) = self.try_consume(TokenType::Equal)? {
+			let expr = self.parse_only_expr(false)?;
+			return Ok((ident, Some(expr)));
+		}
+		Ok((ident, None))
+	}
+	fn parse_static_prop(&mut self, class: &mut ClassLit, vis_token: Option<Token>) -> Result<()> {
+		let keyword = self.next()?;
+		let is_priv = vis_token.is_some();
+		let mut modifier_span = if let Some(Token { span, .. }) = vis_token {
+			span + keyword.span
+		} else {
+			keyword.span
+		};
+		let start = vis_token.unwrap_or(keyword);
+		let modif_token = self.peek_some()?;
+		let mut readonly = true;
+		match modif_token.kind {
+			TokenType::Var => {
+				let var_keyword = self.next()?;
+				modifier_span = modifier_span + var_keyword.span;
+				readonly = false;
+			}
+			TokenType::Func => {
+				return self.parse_method(class, true, is_priv, start.span);
+			}
+			_ => {}
+		}
+
+		let (name, default) = self.parse_prop_pair()?;
+		let end = self.peek()?.span;
+		let span = start.span + end;
+		let field = Field {
+			default,
+			readonly,
+			name_span: name.span,
+			modifier_span,
+			private: is_priv,
+		}
+		.to_spanned(span);
+		class.fields.insert((name.item, true), field);
+		Ok(())
+	}
+	fn parse_property(
+		&mut self,
+		class: &mut ClassLit,
+		vis_token: Option<Token>,
+		readonly: bool,
+	) -> Result<()> {
+		let keyword = self.next()?;
+		let is_priv = vis_token.is_some();
+		let modifier_span = if let Some(Token { span, .. }) = vis_token {
+			span + keyword.span
+		} else {
+			keyword.span
+		};
+		let start = vis_token.unwrap_or(keyword);
+		let (name, default) = self.parse_prop_pair()?;
+		let end = self.peek()?.span;
+		let span = start.span + end;
+		let field = Field {
+			default,
+			readonly,
+			name_span: name.span,
+			modifier_span,
+			private: is_priv,
+		}
+		.to_spanned(span);
+		class.fields.insert((name.item, false), field);
+		Ok(())
+	}
+	fn parse_field(&mut self, class: &mut ClassLit) -> Result<()> {
+		let vis_token = self.try_consume(TokenType::Priv)?;
+		let modif_token = self.peek_some()?;
+		match modif_token.kind {
+			TokenType::Var => self.parse_property(class, vis_token, false),
+			TokenType::Let => self.parse_property(class, vis_token, true),
+			TokenType::Static => self.parse_static_prop(class, vis_token),
+			TokenType::Func => self.parse_method(
+				class,
+				false,
+				vis_token.is_some(),
+				vis_token.unwrap_or(modif_token).span,
+			),
+			_ => unexpected_token(modif_token),
+		}
+	}
+	fn parse_class(&mut self) -> Result {
+		let prev_toplevel = self.in_toplevel;
+		self.in_toplevel = false;
+		let name = self.try_consume_ident()?;
+		let start_span = self.next()?.span;
+		let mut class = ClassLit {
+			name,
+			..Default::default()
+		};
+		if self.peek()?.is(&TokenType::RBrace) {
+			let end_span = self.next()?.span;
+			return Ok(Node::ClassLit(class).to_spanned(start_span + end_span));
+		}
+		loop {
+			self.parse_field(&mut class)?;
+			self.try_consume(TokenType::Semicolon)?;
+			if self.peek()?.is(&TokenType::RBrace) {
+				break;
+			}
+		}
+		let end_span = self.peek()?.span;
+		self.next()?;
+		self.in_toplevel = prev_toplevel;
+		Ok(Node::ClassLit(class).to_spanned(start_span + end_span))
+	}
 	fn parse_struct(&mut self, struct_keyword: Span) -> Result {
 		self.peek_some()?;
 		let maybe_named = self.is_expected(TokenType::Identifier)?;
@@ -891,7 +1052,7 @@ impl Parser<'_> {
 
 ///struct field access parsing
 impl Parser<'_> {
-	fn parse_method(&mut self, target: NodeSpan, requested: Ident, ident: Token) -> Result {
+	fn parse_method_access(&mut self, target: NodeSpan, requested: Ident, ident: Token) -> Result {
 		self.expect_next()?; // Consume '('
 		let token = self.peek_some()?;
 		let method_params = self.parse_expr_list(&token, TokenType::RParen)?;
@@ -926,7 +1087,7 @@ impl Parser<'_> {
 			}
 			.to_nodespan(target.span + ident.span))
 		} else {
-			self.parse_method(target, requested, ident)
+			self.parse_method_access(target, requested, ident)
 		}
 	}
 }

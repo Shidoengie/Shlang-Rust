@@ -6,9 +6,9 @@ expression: "parse_expr (_test_func! (\"a[1] = 10\"))"
 Ok(
     Ast {
         node: Assign(Index {
-            target: Var(IdentId(3))[0,1],
-            index: Int(1)[2,3],
-        }[1,4] = Int(10)[7,9])[1,9],
+            target: Var(IdentId(3))[0:1],
+            index: Int(1)[2:3],
+        }[1:4] = Int(10)[7:9])[1:9],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

@@ -1,16 +1,19 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: test_parsing
-expression: "parse_expr (_test_func! (\"b = 1;\"))"
+expression: "parse_expr (_test_func! (\"class {}\"))"
 ---
 Ok(
     Ast {
-        node: Assign(Var(IdentId(3))[0:1] = Int(1)[4:5])[0:5],
+        node: ClassLit {
+            name: None,
+            fields: {},
+            methods: {},
+        }[6:8],
         ident_pool: IdentArray {
             0: "println",
             1: "input",
             2: "str_len",
-            3: "b",
         },
     },
 )

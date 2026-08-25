@@ -8,25 +8,19 @@ Ok(
         node: FieldAccess {
             target: FieldAccess {
                 target: FieldAccess {
-                    target: Var(IdentId(3))[0,1],
+                    target: Var(IdentId(3))[0:1],
                     requested: Property(
-                        IdentId(
-                            4,
-                        )[2,3],
-                    )[2,3],
-                }[0,3],
+                        IdentId(4)[2:3],
+                    )[2:3],
+                }[0:3],
                 requested: Property(
-                    IdentId(
-                        5,
-                    )[4,5],
-                )[4,5],
-            }[0,5],
+                    IdentId(5)[4:5],
+                )[4:5],
+            }[0:5],
             requested: Property(
-                IdentId(
-                    6,
-                )[6,7],
-            )[6,7],
-        }[0,7],
+                IdentId(6)[6:7],
+            )[6:7],
+        }[0:7],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

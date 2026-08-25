@@ -9,13 +9,13 @@ Ok(
             kind: Add,
             left: UnaryNode {
                 kind: Not,
-                target: Int(0)[1,2],
-            }[1,2],
+                target: Int(0)[1:2],
+            }[1:2],
             right: UnaryNode {
                 kind: Negative,
-                target: Int(0)[5,6],
-            }[5,6],
-        }[1,6],
+                target: Int(0)[5:6],
+            }[5:6],
+        }[1:6],
         ident_pool: IdentArray {
             0: "println",
             1: "input",

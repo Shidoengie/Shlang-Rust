@@ -1,9 +1,8 @@
-use ariadne::Report;
+use ariadne::{ReportBuilder, ReportKind};
 
-use crate::collections::spans::{Span, Spanned};
 use crate::frontend::ast::nodes::Node;
 use crate::frontend::lexemes::tokens::TokenType;
-use crate::lang_errors::{LangError, MsgBuilder};
+use crate::lang_errors::{ErrorBox, LangError, LangSpan, MsgBuilder};
 #[derive(Clone, Debug)]
 pub enum ParseError {
 	Unspecified(String),
@@ -15,10 +14,10 @@ pub enum ParseError {
 	UnexpectedVoidExpression,
 }
 
-impl LangError for Spanned<ParseError> {
-	fn msg(&'_ self) -> Report<'_, Span> {
+impl LangError for ErrorBox<ParseError> {
+	fn msg(&self) -> ReportBuilder<LangSpan, ReportKind> {
 		use ParseError as Pe;
-		match &self.item {
+		match &self.kind {
 			Pe::UnexpectedFieldNode(node) => {
 				MsgBuilder::build_err("Unexpected field expression", self.span)
 					.with_err_label(format!(
@@ -26,38 +25,38 @@ impl LangError for Spanned<ParseError> {
 						node.variant_name()
 					))
 					.with_note("Only declarations are allowed.")
-					.finish()
+					.get_inner()
 			}
 
 			Pe::UnexpectedVoidExpression => {
 				MsgBuilder::build_err("Unexpected void expression", self.span)
 					.with_err_label("This expression is not allowed here.")
 					.with_note("Declarations and assignments are types of void expressions.")
-					.finish()
+					.get_inner()
 			}
 
 			Pe::UnexpectedStreamEnd => {
 				MsgBuilder::build_err("Unexpected end of token stream", self.span)
 					.with_err_label("Expected more tokens here.")
-					.finish()
+					.get_inner()
 			}
 
 			Pe::InvalidToken(expected, got) => {
 				MsgBuilder::build_err(format!("Invalid Token {got:?}"), self.span)
 					.with_err_label(format!("Expected this token to be {expected:?}."))
-					.finish()
+					.get_inner()
 			}
 
 			Pe::UnexpectedToken(got) => {
 				MsgBuilder::build_err(format!("Unexpected token {got:?}"), self.span)
 					.with_err_label("This should not be here.")
-					.finish()
+					.get_inner()
 			}
 			Pe::UnexpectedToplevel => {
 				MsgBuilder::build_err("Invalid top level expression", self.span)
 					.with_err_label("Only declarations are allowed.")
 					.with_help("Try putting this expression inside the main function.")
-					.finish()
+					.get_inner()
 			}
 			Pe::Unspecified(err) => MsgBuilder::build_unspecified_err(err.to_string(), self.span),
 		}

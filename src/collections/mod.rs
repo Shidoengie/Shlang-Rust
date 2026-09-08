@@ -6,5 +6,5 @@ pub mod spans;
 pub use charvec::*;
 pub use filestore::*;
 pub use spanmap::*;
-pub use spans::{FileID, Span, Spanned};
+pub use spans::{Span, Spanned};
 pub mod indexset;

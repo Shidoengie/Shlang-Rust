@@ -5,12 +5,14 @@ expression: "parse_expr (_test_func! (\"var a;\"))"
 ---
 Ok(
     Ast {
-        node: Decl::IdentId(3) = Null[0:5][0:5],
+        node: Decl::IdentId(4) = Null[0:5][0:5],
         ident_pool: IdentArray {
-            0: "println",
-            1: "input",
+            0: "input",
+            1: "println",
             2: "str_len",
-            3: "a",
+            3: "parse_str",
+            4: "a",
         },
+        file_id: FileId(Anon),
     },
 )

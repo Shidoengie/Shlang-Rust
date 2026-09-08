@@ -5,15 +5,17 @@ expression: "parse_expr (_test_func! (\"struct abc{struct dfg{};};\"))"
 ---
 Ok(
     Ast {
-        node: Decl(readonly)::IdentId(4) = {
-            IdentId(3): {}[18:23],
+        node: Decl(readonly)::IdentId(5) = {
+            IdentId(4): {}[18:23],
         }[7:25][7:25],
         ident_pool: IdentArray {
-            0: "println",
-            1: "input",
+            0: "input",
+            1: "println",
             2: "str_len",
-            3: "dfg",
-            4: "abc",
+            3: "parse_str",
+            4: "dfg",
+            5: "abc",
         },
+        file_id: FileId(Anon),
     },
 )

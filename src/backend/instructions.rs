@@ -1,5 +1,6 @@
 use crate::{
-	backend::vm::values::*, collections::SpanMap, idents::IdentArray, utils::compact_iter_debug,
+	backend::vm::values::*, collections::{FileId, SpanMap}, idents::IdentArray,
+	utils::compact_iter_debug,
 };
 
 use std::{
@@ -8,6 +9,7 @@ use std::{
 };
 
 pub struct ByteCode<'a> {
+	pub file_id: FileId,
 	pub ops: Box<[OpCode]>,
 	pub op_args: Box<[usize]>,
 	pub span_map: SpanMap,

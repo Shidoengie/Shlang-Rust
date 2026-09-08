@@ -9,7 +9,7 @@ Ok(
             1..4 = Span[5,25],
             0..6 = Span[5,25],
         },
-        global_count: 3,
+        global_count: 4,
     } = [
         Label("loop_start@0"),
         Goto("loop_start@0"),

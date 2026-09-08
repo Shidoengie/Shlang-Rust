@@ -1,6 +1,6 @@
 use variant_name::VariantName;
 
-use crate::collections::spans::*;
+use crate::collections::{FileId, spans::*};
 use crate::frontend::opkind::{BinaryOp, UnaryOp};
 use crate::idents::{Ident, IdentArray, IdentId};
 
@@ -27,11 +27,13 @@ pub enum Precedence {
 pub struct Ast<'a> {
 	pub node: Spanned<Node>,
 	pub ident_pool: IdentArray<'a>,
+	pub file_id: FileId,
 }
 #[derive(Debug, Clone)]
 pub struct Program<'a> {
 	pub proc: Vec<NodeSpan>,
 	pub ident_pool: IdentArray<'a>,
+	pub file_id: FileId,
 }
 #[derive(Clone, PartialEq, VariantName)]
 pub enum Node {
@@ -63,7 +65,9 @@ pub enum Node {
 	RecordLit(HashMap<IdentId, NodeSpan>),
 	ClassLit(ClassLit),
 	FieldAccess(FieldAccess),
+	SelfTy,
 	DontResult,
+	SelfValue,
 }
 
 impl Node {
@@ -165,6 +169,8 @@ impl Debug for Node {
 
 				f.debug_set().entries(&func.block.item).finish()
 			}
+			Node::SelfTy => f.write_str("SelfTy"),
+			Node::SelfValue => f.write_str("SelfValue"),
 		}
 	}
 }

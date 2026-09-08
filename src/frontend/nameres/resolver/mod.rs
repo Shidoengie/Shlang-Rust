@@ -14,11 +14,12 @@ use crate::{
 	},
 	hashmap,
 	idents::IdentId,
+	lang_errors::{ErrorBox, ToErrorBox},
 };
 pub use error::NameErr;
 
 use std::collections::HashMap;
-pub type Result<T = RNodeSpan> = std::result::Result<T, Spanned<NameErr>>;
+pub type Result<T = RNodeSpan> = std::result::Result<T, ErrorBox<NameErr>>;
 use ResolvedNode as RNode;
 #[derive(Debug)]
 struct GlobalEntry {
@@ -51,12 +52,14 @@ pub struct NameRes {
 	ident_counter: usize,
 	globals: HashMap<IdentId, GlobalEntry>,
 	pub(crate) file_store: FileStore,
+	file_id: crate::collections::FileId,
 	scope_locals_stack: Vec<usize>,
 }
 impl NameRes {
 	pub fn new(file_store: FileStore) -> Self {
 		Self {
 			file_store,
+			file_id: crate::collections::FileId::ANON,
 			globals: HashMap::from_iter(
 				(0..GLOBAL_NAME_MAP.len())
 					.into_iter()
@@ -66,6 +69,7 @@ impl NameRes {
 		}
 	}
 	pub fn resolve<'a>(&mut self, ast: ast::Program<'a>) -> Result<ResolvedAst<'a>> {
+		self.file_id = ast.file_id;
 		self.push_scope();
 		let decls = self.resolve_toplevel(ast.proc)?;
 		let local_count = self.pop_scope();
@@ -74,9 +78,11 @@ impl NameRes {
 			ident_pool: ast.ident_pool,
 			global_count: self.globals.len(),
 			local_count,
+			file_id: ast.file_id,
 		})
 	}
 	pub fn resolve_expr<'a>(&mut self, expr: ast::Ast<'a>) -> Result<ResolvedAstNode<'a>> {
+		self.file_id = expr.file_id;
 		let start_ident = self.ident_counter;
 		self.push_scope();
 		let node = self.resolve_node(expr.node, &mut Scope::default())?;
@@ -87,6 +93,7 @@ impl NameRes {
 			self.globals.len(),
 			local_count,
 			expr.ident_pool,
+			expr.file_id,
 		))
 	}
 	fn add_global(&mut self, name: IdentId) {
@@ -189,7 +196,7 @@ impl NameRes {
 				is_item: true,
 			})
 		}) else {
-			return Err(NameErr::UndefinedVar(name).to_spanned(span));
+			return Err(NameErr::UndefinedVar(name).to_errorbox(span, self.file_id));
 		};
 		Ok(info)
 	}
@@ -255,7 +262,7 @@ impl NameRes {
 				decl_span: info.span,
 				modifier_span: info.modifier_span,
 			}
-			.to_spanned(span));
+			.to_errorbox(span, self.file_id));
 		}
 		Ok(RNode::Assignment {
 			target: RNode::Variable {
@@ -279,6 +286,9 @@ impl NameRes {
 			AstNode::ClassLit(class) => {
 				todo!()
 			}
+
+			AstNode::SelfValue => todo!(),
+			AstNode::SelfTy => todo!(),
 			AstNode::Assignment { target, value } => {
 				self.resolve_assignment(target, value, parent, span)
 			}
@@ -292,6 +302,8 @@ impl NameRes {
 			}
 
 			AstNode::FunctionLit(func) => {
+				let old_ident_counter = self.ident_counter;
+				self.ident_counter = 0;
 				let mut func_scope = Scope::default();
 				let mut args = vec![];
 				for arg in func.args {
@@ -301,8 +313,6 @@ impl NameRes {
 						.define_in(&mut func_scope);
 					args.push(new_id);
 				}
-				let old_ident_counter = self.ident_counter;
-				self.ident_counter = 0;
 				self.push_scope();
 				let block = self.resolve_block_with(func.block, parent, func_scope)?;
 				let local_count = self.pop_scope();
@@ -472,7 +482,7 @@ impl NameRes {
 			AstNode::Null => Ok(RNode::Null.to_spanned(span)),
 			AstNode::Str(v) => Ok(RNode::String(v).to_spanned(span)),
 			AstNode::Int(v) => Ok(RNode::Int(v).to_spanned(span)),
-			AstNode::DontResult => Err(NameErr::UnexpectedSemi.to_spanned(span)),
+			AstNode::DontResult => Err(NameErr::UnexpectedSemi.to_errorbox(span, self.file_id)),
 		}
 	}
 	fn resolve_block_with(

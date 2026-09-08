@@ -4,7 +4,11 @@ description: test_locals
 expression: "test_nameres (_test_func! ({var a = c;}))"
 ---
 Err(
-    UndefinedVar(
-        IdentId(4),
-    )[8:9],
+    ErrorBox {
+        kind: UndefinedVar(
+            IdentId(5),
+        ),
+        span: 8:9,
+        id: FileId(1),
+    },
 )

@@ -10,7 +10,7 @@ Ok(
             3..5 = Span[11,20],
             0..7 = Span[6,12],
         },
-        global_count: 3,
+        global_count: 4,
     } = [
         Label("loop_start@0"),
         Push(Bool(true)),

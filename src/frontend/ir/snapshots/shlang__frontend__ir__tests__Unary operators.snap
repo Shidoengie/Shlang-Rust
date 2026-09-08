@@ -12,7 +12,7 @@ Ok(
             2..4 = Span[7,11],
             0..5 = Span[1,11],
         },
-        global_count: 3,
+        global_count: 4,
     } = [
         Push(Int(1)),
         Neg,

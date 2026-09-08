@@ -8,7 +8,7 @@ Ok(
         node: BinaryNode {
             kind: Add,
             left: Call {
-                callee: Var(IdentId(3))[0:1],
+                callee: Var(IdentId(4))[0:1],
                 args: [
                     Int(1)[2:3],
                     Int(1)[4:5],
@@ -18,10 +18,12 @@ Ok(
             right: Int(1)[9:10],
         }[2:10],
         ident_pool: IdentArray {
-            0: "println",
-            1: "input",
+            0: "input",
+            1: "println",
             2: "str_len",
-            3: "a",
+            3: "parse_str",
+            4: "a",
         },
+        file_id: FileId(Anon),
     },
 )

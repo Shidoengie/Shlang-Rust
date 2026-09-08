@@ -61,11 +61,12 @@ impl Runtime {
 
 		let bytecode = Assembler::assemble(ir);
 		let span_map = bytecode.span_map.clone();
+		let file_id = bytecode.file_id;
 		let mut vm = bytecode.new_vm();
 
 		let res = vm.exec();
 		res.map_err(|err| {
-			let code = err.into_spanned_code(&span_map);
+			let code = err.into_errorbox(&span_map, file_id);
 
 			Box::new(code) as Box<dyn LangError>
 		})
@@ -86,10 +87,11 @@ impl Runtime {
 		let ir = self.compiler.compile_expr(input)?;
 		let bytecode = Assembler::assemble(ir);
 		let span_map = bytecode.span_map.clone();
+		let file_id = bytecode.file_id;
 		let mut vm = bytecode.new_vm();
 		let res = vm.exec();
 		res.map_err(|err| {
-			let code = err.into_spanned_code(&span_map);
+			let code = err.into_errorbox(&span_map, file_id);
 
 			Box::new(code) as Box<dyn LangError>
 		})

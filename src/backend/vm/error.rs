@@ -1,7 +1,7 @@
 use super::values::Value;
 use crate::{
 	collections::{SpanMap, spans::*},
-	lang_errors::{LangError, MsgBuilder},
+	lang_errors::{ErrorBox, LangError, LangSpan, MsgBuilder, ToErrorBox},
 };
 use std::fmt::Display;
 
@@ -20,36 +20,36 @@ pub enum ErrCode {
 	StackOverflow,
 	IndexOutOfBounds,
 }
-impl LangError for Spanned<ErrCode> {
-	fn msg(&'_ self) -> ariadne::Report<'_, Span> {
-		match &self.item {
+impl LangError for ErrorBox<ErrCode> {
+	fn msg(&self) -> ariadne::ReportBuilder<LangSpan, ariadne::ReportKind> {
+		match &self.kind {
 			ErrCode::EmptyStack => {
 				MsgBuilder::build_err("Expected another item in the stack", self.span)
 					.with_err_label("This shouldve pushed another item.")
-					.finish()
+					.get_inner()
 			}
 			ErrCode::MixedTypes { first, last } => MsgBuilder::build_err("Mixed types", self.span)
 				.with_err_label(format!("The type {first:?} is not the same as {last:?}"))
-				.finish(),
+				.get_inner(),
 			ErrCode::InvalidOffset => MsgBuilder::build_err("Invalid offset", self.span)
 				.with_err_label("This points to a non existent op.")
-				.finish(),
+				.get_inner(),
 			ErrCode::ExpectedStackFrame => {
 				MsgBuilder::build_err("Expected a stack frame", self.span)
 					.with_err_label("A stack frame should have been present.")
-					.finish()
+					.get_inner()
 			}
 			ErrCode::InvalidType { expected, got } => {
 				MsgBuilder::build_err("Invalid type", self.span)
 					.with_err_label(format!("Expected type {expected:?} but got {got:?}."))
-					.finish()
+					.get_inner()
 			}
 			ErrCode::UnsupportedOperation { op, target } => {
 				MsgBuilder::build_err("Invalid operand", self.span)
 					.with_err_label(format!(
 						"The operation \"{op}\" on type {target}, isnt valid."
 					))
-					.finish()
+					.get_inner()
 			}
 			ErrCode::Unspecified(unspec) => {
 				MsgBuilder::build_unspecified_err(unspec.to_string(), self.span)
@@ -65,26 +65,26 @@ impl LangError for Spanned<ErrCode> {
 						},
 						arg_msg2 = if *got == 1 { "argument" } else { "arguments" },
 					))
-					.finish()
+					.get_inner()
 			}
 			ErrCode::InvalidStackIndex(idx) => {
 				MsgBuilder::build_err(format!("Invalid stack index {idx}"), self.span)
 					.with_err_label("This points to an invalid address.".to_string())
-					.finish()
+					.get_inner()
 			}
 			ErrCode::UsedBeforeInit => {
 				MsgBuilder::build_err(format!("This value hasnt been defined yet"), self.span)
 					.with_err_label("This points to an invalid address.".to_string())
-					.finish()
+					.get_inner()
 			}
 			ErrCode::StackOverflow => MsgBuilder::build_err("Stack overflow", self.span)
 				.with_err_label(
 					"A call to this function was made and it overflowed the stack.".to_string(),
 				)
-				.finish(),
+				.get_inner(),
 			ErrCode::IndexOutOfBounds => MsgBuilder::build_err("Index out of bounds", self.span)
 				.with_err_label("On this expression.")
-				.finish(),
+				.get_inner(),
 		}
 	}
 }
@@ -155,8 +155,8 @@ impl VmErr {
 
 		self.code.clone().to_spanned(span)
 	}
-	pub fn into_spanned_code(self, map: &SpanMap) -> Spanned<ErrCode> {
+	pub fn into_errorbox(self, map: &SpanMap, id: crate::collections::FileId) -> ErrorBox<ErrCode> {
 		let span = map[self.index];
-		self.code.to_spanned(span)
+		self.code.to_errorbox(span, id)
 	}
 }

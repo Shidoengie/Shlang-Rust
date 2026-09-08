@@ -63,20 +63,20 @@ impl Compiler {
 		let file_id = self.file_store.add(input.to_owned());
 		Parser::parse(input, file_id).inspect_err(|err| {
 			if !self.silent {
-				err.msg()
+				err.make()
 					.eprint(self.file_store.clone())
 					.expect("Could not print error.");
 			}
 		})
 	}
 	pub fn print_langerr(&self, err: &dyn LangError) -> std::io::Result<()> {
-		err.msg().eprint(self.file_store.clone())
+		err.make().eprint(self.file_store.clone())
 	}
 	pub fn parse_expr<'a, 'b>(&'a mut self, input: &'b str) -> Result<Ast<'b>, Box<dyn LangError>> {
 		let file_id = self.file_store.add(input.to_owned());
 		Parser::parse_expr(input, file_id).inspect_err(|err| {
 			if !self.silent {
-				err.msg()
+				err.make()
 					.eprint(self.file_store.clone())
 					.expect("Could not print error.");
 			}

@@ -1,10 +1,11 @@
 use super::nodes::*;
 use super::parser::{self, *};
 use crate::test_func;
+use crate::collections::FileId;
 use std::{usize, *};
 
 fn parse_expr(source: &str) -> parser::Result<Ast<'_>> {
-	Parser::parse_expr(source, usize::MAX)
+	Parser::parse_expr(source, FileId::ANON)
 }
 
 test_func!(test_parsing,parse_expr, {

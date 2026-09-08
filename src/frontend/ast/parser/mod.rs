@@ -1,5 +1,6 @@
 mod error;
 
+use crate::collections::FileId;
 use crate::idents::{Ident, IdentId, IdentSet};
 use crate::*;
 pub use error::ParseError;
@@ -11,11 +12,11 @@ use collections::spans::*;
 use frontend::ast::nodes::*;
 use frontend::lexemes::lexer::Lexer;
 use frontend::lexemes::tokens::*;
-use lang_errors::*;
+use lang_errors::{ErrorBox, LangError, ToErrorBox};
 use std::collections::HashMap;
 
 pub type Result<T = NodeSpan> = std::result::Result<T, Box<dyn LangError>>;
-fn err<T>(val: impl LangError + 'static) -> Result<T> {
+fn err<T>(val: ErrorBox<ParseError>) -> Result<T> {
 	Err(Box::new(val))
 }
 impl From<&TokenType> for Precedence {
@@ -71,7 +72,7 @@ impl From<TokenType> for BinaryOp {
 }
 #[derive(Clone)]
 pub struct Parser<'input> {
-	file_id: FileID,
+	file_id: FileId,
 	input: &'input str,
 	tokens: Lexer<'input>,
 	in_toplevel: bool,
@@ -82,11 +83,11 @@ pub struct Parser<'input> {
 /// Currently theres no module system and no function signature declaration,
 /// as such each names index cooresponds directly to a identid
 
-pub const GLOBAL_NAME_MAP: [&'static str; 3] = ["println", "input", "str_len"];
+pub const GLOBAL_NAME_MAP: [&'static str; 4] = ["input", "println", "str_len", "parse_str"];
 
 ///base parser
 impl<'input> Parser<'input> {
-	pub fn parse_expr(input: &'input str, file_id: FileID) -> Result<Ast> {
+	pub fn parse_expr(input: &'input str, file_id: FileId) -> Result<Ast<'input>> {
 		let mut parser = Parser {
 			file_id,
 			input,
@@ -98,9 +99,10 @@ impl<'input> Parser<'input> {
 		Ok(Ast {
 			node: parser.parse_node(false)?,
 			ident_pool: parser.idents.into_packed(),
+			file_id,
 		})
 	}
-	pub fn parse(input: &'input str, file_id: FileID) -> Result<Program<'input>> {
+	pub fn parse(input: &'input str, file_id: FileId) -> Result<Program<'input>> {
 		let mut parser = Parser {
 			file_id,
 			input,
@@ -112,6 +114,7 @@ impl<'input> Parser<'input> {
 		Ok(Program {
 			proc: parser.parse_toplevel()?,
 			ident_pool: parser.idents.into_packed(),
+			file_id,
 		})
 	}
 	/// Parses input as expressions and collects it into a block
@@ -133,10 +136,10 @@ impl<'input> Parser<'input> {
 impl<'i> Parser<'i> {
 	/// converts token spans into text
 	fn get_text(&self, token: &Token) -> String {
-		self.input[token.span.start..token.span.end].to_string()
+		self.input[token.span].to_string()
 	}
 	fn borrow_text(&self, token: &Token) -> &'i str {
-		&self.input[token.span.start..token.span.end]
+		&self.input[token.span]
 	}
 	fn add_ident(&mut self, token: &Token) -> Ident {
 		let text = self.borrow_text(&token);
@@ -144,14 +147,14 @@ impl<'i> Parser<'i> {
 		return id.as_spanned(token.span);
 	}
 	fn parse_int(&mut self, token: &Token) -> Node {
-		let mut text = self.input[token.span.start..token.span.end].to_string();
+		let mut text = self.input[token.span].to_string();
 		let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
 		text = String::from_iter(idk);
 		Node::Int(text.parse().unwrap())
 	}
 
 	fn parse_float(&mut self, token: &Token) -> Node {
-		let mut text = self.input[token.span.start..token.span.end].to_string();
+		let mut text = self.input[token.span].to_string();
 		let idk: Vec<_> = text.chars().filter(|c| c != &'_').collect();
 		text = String::from_iter(idk);
 		Node::Float(text.parse().unwrap())
@@ -173,7 +176,7 @@ impl<'i> Parser<'i> {
 	fn peek_some(&mut self) -> Result<Token> {
 		let peeked = self.peek()?;
 		if peeked.is(&TokenType::Eof) {
-			return err(ParseError::UnexpectedStreamEnd.to_spanned(peeked.span));
+			return err(ParseError::UnexpectedStreamEnd.to_errorbox(peeked.span, self.file_id));
 		}
 		Ok(peeked)
 	}
@@ -193,7 +196,8 @@ impl<'i> Parser<'i> {
 		if token.is(&expected) {
 			return Ok(());
 		}
-		err(ParseError::InvalidToken(expected, token.kind.clone()).to_spanned(token.span))
+		err(ParseError::InvalidToken(expected, token.kind.clone())
+			.to_errorbox(token.span, self.file_id))
 	}
 	/// peeks the current token and checks if it is the same as the expected token returning an error if it isnt
 	/// this is also used for validating expressions
@@ -260,7 +264,7 @@ impl<'i> Parser<'i> {
 		let prev = self.in_toplevel;
 		self.in_toplevel = false;
 		let mut body = vec![];
-		let start_span = self.next()?.span;
+		let start_span = self.consume(TokenType::LBrace)?.span;
 		let token = self.peek_some()?;
 
 		if token.is(&TokenType::RBrace) {
@@ -417,7 +421,7 @@ impl Parser<'_> {
 	}
 	/// This function parses the parameters of function definitions aka: func >(one,two)<
 	fn parse_func_params(&mut self) -> Result<Vec<Ident>> {
-		self.next()?;
+		self.consume(TokenType::LParen)?;
 		let mut token = self.peek_some()?;
 		let mut params: Vec<Ident> = vec![];
 		while token.isnt(&TokenType::RParen) {
@@ -436,7 +440,7 @@ impl Parser<'_> {
 				}
 				_ => {}
 			}
-			return unexpected_token(token);
+			return unexpected_token(token, self.file_id);
 		}
 		self.next()?;
 		Ok(params)
@@ -449,6 +453,7 @@ impl Parser<'_> {
 		self.next()?;
 		let params = self.parse_func_params()?;
 		let last = self.peek_some()?;
+
 		let block = self.parse_block()?;
 
 		let func_span = name_ident.span + last.span;
@@ -496,7 +501,7 @@ impl Parser<'_> {
 			TokenType::LParen => return self.parse_anon_func(func_keyword),
 			_ => {}
 		};
-		unexpected_token(first)
+		unexpected_token(first, self.file_id)
 	}
 	fn parse_return(&mut self, value: &Token) -> Result {
 		let expr = self.parse_only_expr(false)?;
@@ -532,7 +537,7 @@ impl Parser<'_> {
 				continue;
 			}
 
-			return unexpected_token(token);
+			return unexpected_token(token, self.file_id);
 		}
 		Ok(params)
 	}
@@ -640,7 +645,7 @@ impl Parser<'_> {
 		let index = self.parse_only_expr(false)?;
 		let last = self.peek_some()?;
 		if last.isnt(&TokenType::RBracket) {
-			return unexpected_token(last);
+			return unexpected_token(last, self.file_id);
 		}
 		self.next()?;
 		let span = first + last.span;
@@ -670,7 +675,7 @@ impl Parser<'_> {
 	/// An entry point for parsing expressions that must return a value (not void).
 	fn parse_only_expr(&mut self, in_conditional: bool) -> Result {
 		let node = self.parse_node(in_conditional)?;
-		expect_expr(&node)?;
+		expect_expr(&node, self.file_id)?;
 		Ok(node)
 	}
 
@@ -706,6 +711,12 @@ impl Parser<'_> {
 			TokenType::False => Ok(Node::Bool(false).to_spanned(token.span)),
 			TokenType::True => Ok(Node::Bool(true).to_spanned(token.span)),
 			TokenType::Null => Ok(Node::Null.to_spanned(token.span)),
+			TokenType::SelfTok if self.in_method => Ok(Node::SelfValue.to_spanned(token.span)),
+			TokenType::SelfTok => err(ParseError::Unspecified(format!(
+				"`self` used outside of a method."
+			))
+			.to_errorbox(token.span, self.file_id)),
+			TokenType::SelfType => Ok(Node::SelfTy.to_spanned(token.span)),
 			TokenType::Func => {
 				let func = self.parse_funcdef(token.span)?;
 				self.next()?;
@@ -735,14 +746,14 @@ impl Parser<'_> {
 			TokenType::LParen => self.parse_paren(),
 			//TokenType::New => self.parse_constructor(),
 			TokenType::Semicolon => Ok(Node::DontResult.to_spanned(token.span)),
-			_ => unexpected_token(token.clone()),
+			_ => unexpected_token(token.clone(), self.file_id),
 		}
 	}
 
 	/// Handles parsing for tokens that appear *between* two expressions (infix)
 	/// or after an expression (postfix-like calls/indexing).
 	fn parse_infix(&mut self, left: NodeSpan, op_token: Token, in_conditional: bool) -> Result {
-		expect_expr(&left)?;
+		expect_expr(&left, self.file_id)?;
 		match op_token.kind {
 			TokenType::LParen => {
 				self.next()?; // Consume '('
@@ -777,8 +788,8 @@ impl Parser<'_> {
 	}
 
 	fn binary_node(&self, kind: BinaryOp, left: NodeSpan, right: NodeSpan, span: Span) -> Result {
-		expect_expr(&left)?;
-		expect_expr(&right)?;
+		expect_expr(&left, self.file_id)?;
+		expect_expr(&right, self.file_id)?;
 		Ok(BinaryNode {
 			kind,
 			left: left.box_item(),
@@ -812,7 +823,9 @@ impl Parser<'_> {
 	fn node_to_field(&mut self, node: NodeSpan) -> Result<(IdentId, NodeSpan)> {
 		match node.item {
 			Node::Decl(decl) => Ok((decl.name, decl.expr.deref_item())),
-			_ => err(ParseError::UnexpectedFieldNode(node.item).to_spanned(node.span)),
+			_ => {
+				err(ParseError::UnexpectedFieldNode(node.item).to_errorbox(node.span, self.file_id))
+			}
 		}
 	}
 	fn map_literal(&mut self) -> Result {
@@ -949,7 +962,7 @@ impl Parser<'_> {
 				vis_token.is_some(),
 				vis_token.unwrap_or(modif_token).span,
 			),
-			_ => unexpected_token(modif_token),
+			_ => unexpected_token(modif_token, self.file_id),
 		}
 	}
 	fn parse_class(&mut self) -> Result {
@@ -1059,11 +1072,12 @@ impl Parser<'_> {
 		self.next()?;
 
 		let arg_span = if method_params.is_empty() {
-			Span::new(self.file_id, ident.span.end + 1, ident.span.end + 2)
+			Span::new(ident.span.end + 1, ident.span.end + 2)
 		} else {
 			method_params.first().unwrap().span + method_params.last().unwrap().span
 		};
 		let target_span = target.span;
+
 		Ok(FieldAccess {
 			target: target.box_item(),
 			requested: AccessType::Method {
@@ -1080,25 +1094,26 @@ impl Parser<'_> {
 		let ident = self.expect(TokenType::Identifier)?;
 		self.next()?;
 		let requested = self.add_ident(&ident);
+		let target_span = target.span;
 		if self.is_expected(TokenType::LParen)?.is_none() {
 			Ok(FieldAccess {
-				target: target.clone().box_item(),
+				target: target.box_item(),
 				requested: AccessType::Property(requested).to_spanned(ident.span),
 			}
-			.to_nodespan(target.span + ident.span))
+			.to_nodespan(target_span + ident.span))
 		} else {
 			self.parse_method_access(target, requested, ident)
 		}
 	}
 }
 
-fn unexpected_token<T>(token: Token) -> Result<T> {
-	err(ParseError::UnexpectedToken(token.kind).to_spanned(token.span))
+fn unexpected_token<T>(token: Token, file_id: FileId) -> Result<T> {
+	err(ParseError::UnexpectedToken(token.kind).to_errorbox(token.span, file_id))
 }
 
-fn expect_expr(expr: &NodeSpan) -> Result<&NodeSpan> {
+fn expect_expr(expr: &NodeSpan, file_id: FileId) -> Result<&NodeSpan> {
 	if !expr.item.can_result() {
-		return err(ParseError::UnexpectedVoidExpression.to_spanned(expr.span));
+		return err(ParseError::UnexpectedVoidExpression.to_errorbox(expr.span, file_id));
 	}
 	Ok(expr)
 }

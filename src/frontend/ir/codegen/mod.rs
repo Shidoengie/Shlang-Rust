@@ -11,10 +11,11 @@ use crate::{
 		opkind::*,
 	},
 	idents::IdentArray,
+	lang_errors::{ErrorBox, ToErrorBox},
 	utils::compact_iter_debug,
 };
 
-pub type Result<T = ()> = std::result::Result<T, Spanned<GenErr>>;
+pub type Result<T = ()> = std::result::Result<T, ErrorBox<GenErr>>;
 
 impl From<BinaryOp> for Op {
 	fn from(value: BinaryOp) -> Self {
@@ -38,6 +39,7 @@ impl From<BinaryOp> for Op {
 	}
 }
 pub struct Ir<'a> {
+	pub file_id: crate::collections::FileId,
 	pub ops: Vec<Op>,
 	pub globals: Vec<IrLiteral>,
 	pub span_map: SpanMap,
@@ -70,14 +72,28 @@ impl Display for Ir<'_> {
 
 /// `IRgen` is responsible for traversing the Resolved AST (`RNode`) and
 /// generating a linear stream of virtual machine instructions (`OpCode`).
-#[derive(Default)]
 pub struct IRgen {
+	file_id: crate::collections::FileId,
 	span_map: SpanMap,
 	label_counter: usize,
 	loop_stack: Vec<usize>,
 	globals: Vec<IrLiteral>,
 	functions: Vec<Op>,
 	fn_end_indexes: Vec<Spanned<usize>>,
+}
+
+impl Default for IRgen {
+	fn default() -> Self {
+		Self {
+			file_id: crate::collections::FileId::ANON,
+			span_map: Default::default(),
+			label_counter: 0,
+			loop_stack: Default::default(),
+			globals: Default::default(),
+			functions: Default::default(),
+			fn_end_indexes: Default::default(),
+		}
+	}
 }
 
 impl IRgen {
@@ -90,6 +106,7 @@ impl IRgen {
 	/// Generates bytecode and a source map for a single expression.
 	pub fn generate_expr(expr: ResolvedAstNode) -> Result<Ir> {
 		let mut codegen = Self {
+			file_id: expr.file_id,
 			globals: Vec::with_capacity(expr.global_count),
 			loop_stack: Vec::with_capacity(4),
 			..Default::default()
@@ -99,6 +116,7 @@ impl IRgen {
 		bytecode.push(Op::Stop);
 		bytecode.append(&mut codegen.functions);
 		Ok(Ir {
+			file_id: expr.file_id,
 			ops: bytecode,
 			span_map: codegen.span_map,
 			global_count: expr.global_count,
@@ -111,6 +129,7 @@ impl IRgen {
 	/// Generates bytecode and a source map for a full program.
 	pub fn generate(prog: ResolvedAst) -> Result<Ir> {
 		let mut codegen = Self {
+			file_id: prog.file_id,
 			globals: Vec::with_capacity(prog.global_count),
 			loop_stack: Vec::with_capacity(4),
 			..Default::default()
@@ -123,6 +142,7 @@ impl IRgen {
 		codegen.fn_indexes_to_spans(prev_len);
 
 		Ok(Ir {
+			file_id: prog.file_id,
 			ops: bytecode,
 			globals: codegen.globals,
 			span_map: codegen.span_map,
@@ -252,7 +272,7 @@ impl IRgen {
 				self.span_map.push(start, bytecode.len(), span);
 			}
 			_ => {
-				return Err(GenErr::InvalidAssignTarget.to_spanned(target.span));
+				return Err(GenErr::InvalidAssignTarget.to_errorbox(target.span, self.file_id));
 			}
 		};
 		let stop = bytecode.len();
@@ -403,7 +423,7 @@ impl IRgen {
 			self.gen_block(func.block, &mut func_code)?;
 		}
 		if func.idents.len() > u8::MAX.into() {
-			return Err(GenErr::TooManyArguments(func.idents.len()).to_spanned(span));
+			return Err(GenErr::TooManyArguments(func.idents.len()).to_errorbox(span, self.file_id));
 		}
 		let param_count = func.idents.len() as u8;
 		let local_count = param_count as usize + func.local_count;
@@ -436,7 +456,7 @@ impl IRgen {
 		let start = bytecode.len();
 		let arg_len = args.len();
 		if arg_len > u8::MAX.into() {
-			return Err(GenErr::TooManyArguments(arg_len).to_spanned(span));
+			return Err(GenErr::TooManyArguments(arg_len).to_errorbox(span, self.file_id));
 		}
 
 		let args_start = bytecode.len();
@@ -518,14 +538,14 @@ impl IRgen {
 			RNode::Continue => {
 				let Some(loopid) = self.loop_stack.last() else {
 					return Err(GenErr::Unspecified("Invalid loop controlflow".to_owned())
-						.to_spanned(node.span));
+						.to_errorbox(node.span, self.file_id));
 				};
 				bytecode.push(Op::Goto(format!("loop_start@{loopid}")))
 			}
 			RNode::Break => {
 				let Some(loopid) = self.loop_stack.last() else {
 					return Err(GenErr::Unspecified("Invalid loop controlflow".to_owned())
-						.to_spanned(node.span));
+						.to_errorbox(node.span, self.file_id));
 				};
 				bytecode.push(Op::Goto(format!("loop_end@{loopid}")))
 			}

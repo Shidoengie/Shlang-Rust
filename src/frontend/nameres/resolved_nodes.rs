@@ -1,7 +1,10 @@
 use std::{collections::HashMap, fmt::Debug};
 
 use crate::{
-	collections::spans::{Span, Spanned},
+	collections::{
+		FileId,
+		spans::{Span, Spanned},
+	},
 	frontend::opkind::*,
 	idents::{Ident, IdentArray, IdentId},
 };
@@ -260,6 +263,7 @@ pub struct ResolvedAstNode<'a> {
 	pub global_count: usize,
 	pub local_count: usize,
 	pub ident_pool: IdentArray<'a>,
+	pub file_id: FileId,
 }
 impl<'a> ResolvedAstNode<'a> {
 	pub fn new(
@@ -267,12 +271,14 @@ impl<'a> ResolvedAstNode<'a> {
 		global_count: usize,
 		local_count: usize,
 		ident_pool: IdentArray<'a>,
+		file_id: FileId,
 	) -> Self {
 		Self {
 			node,
 			global_count,
 			local_count,
 			ident_pool,
+			file_id,
 		}
 	}
 }
@@ -282,6 +288,7 @@ pub struct ResolvedAst<'a> {
 	pub global_count: usize,
 	pub local_count: usize,
 	pub ident_pool: IdentArray<'a>,
+	pub file_id: FileId,
 }
 
 pub type RNodeSpan = Spanned<ResolvedNode>;

@@ -1,9 +1,6 @@
-use ariadne::Report;
+use ariadne::{ReportBuilder, ReportKind};
 
-use crate::{
-	collections::spans::{Span, Spanned},
-	lang_errors::{LangError, MsgBuilder},
-};
+use crate::lang_errors::{ErrorBox, LangError, LangSpan, MsgBuilder};
 
 #[derive(Debug)]
 pub enum GenErr {
@@ -12,9 +9,9 @@ pub enum GenErr {
 	TooManyArguments(usize),
 	Unspecified(String),
 }
-impl LangError for Spanned<GenErr> {
-	fn msg(&self) -> Report<Span> {
-		match &self.item {
+impl LangError for ErrorBox<GenErr> {
+	fn msg(&self) -> ReportBuilder<LangSpan, ReportKind> {
+		match &self.kind {
 			GenErr::Unspecified(err) => {
 				MsgBuilder::build_unspecified_err(err.to_string(), self.span)
 			}
@@ -23,7 +20,7 @@ impl LangError for Spanned<GenErr> {
 				MsgBuilder::build_err("Too many arguments", self.span)
 					.with_err_label(format!(
 						"This expression goes beyond the limit of valid arguments, as it has {arg_len} {arg_msg}.",
-						arg_msg = if *arg_len == 1usize {
+						arg_msg = if arg_len == &1usize {
 							"argument"
 						} else {
 							"arguments"
@@ -31,16 +28,15 @@ impl LangError for Spanned<GenErr> {
 					))
 					.with_note("Any given argument list can only have atmost 255 arguments.")
 					.get_inner()
-					.finish()
 			}
 			GenErr::InvalidAssignTarget => {
 				MsgBuilder::build_err("Invalid assignment target", self.span)
 					.with_err_label("You cannot assign a value to this expression.")
-					.finish()
+					.get_inner()
 			}
 			GenErr::InvalidSyntax => MsgBuilder::build_err("Invalid syntax", self.span)
 				.with_err_label("This syntax is invalid.")
-				.finish(),
+				.get_inner(),
 		}
 	}
 }

@@ -182,7 +182,6 @@ impl NativeFunction {
 	pub fn new_variadic(func: FuncPtr) -> Result<Self, ()> {
 		Self::new(func, Self::VARIADIC_VALUE)
 	}
-
 	///Determines if a given parameter length is the accepted parameter count
 	pub const fn is_arglen_valid(&self, arg_len: u8) -> bool {
 		self.is_variadic() || arg_len == self.get_param_count()

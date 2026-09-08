@@ -8,19 +8,21 @@ Ok(
         node: BinaryNode {
             kind: Multiply,
             left: FieldAccess {
-                target: Var(IdentId(3))[0:1],
+                target: Var(IdentId(4))[0:1],
                 requested: Property(
-                    IdentId(4)[2:3],
+                    IdentId(5)[2:3],
                 )[2:3],
             }[0:3],
             right: Int(2)[4:5],
         }[0:5],
         ident_pool: IdentArray {
-            0: "println",
-            1: "input",
+            0: "input",
+            1: "println",
             2: "str_len",
-            3: "b",
-            4: "a",
+            3: "parse_str",
+            4: "b",
+            5: "a",
         },
+        file_id: FileId(Anon),
     },
 )

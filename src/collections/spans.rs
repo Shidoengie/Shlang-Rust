@@ -1,7 +1,9 @@
 use std::{
 	fmt::Debug,
-	ops::{Add, Deref},
+	ops::{Add, Deref, Index, IndexMut},
 };
+
+use crate::collections::FileId;
 
 pub trait SpanUtil {
 	fn get_span(&self) -> Span;
@@ -79,49 +81,57 @@ pub trait IntoSpanned {
 }
 impl<T> IntoSpanned for T {}
 
-pub type FileID = usize;
 #[derive(Clone, PartialEq, Eq, Hash, Copy)]
 pub struct Span {
-	pub file_id: FileID,
-	pub start: usize,
-	pub end: usize,
+	pub start: u32,
+	pub end: u32,
 }
 impl Span {
-	pub fn new(file_id: FileID, start: usize, end: usize) -> Self {
-		Self {
-			file_id,
-			start,
-			end,
-		}
+	pub fn new(start: u32, end: u32) -> Self {
+		Self { start, end }
 	}
 	pub fn line_bounds(&self, source: &str) -> Self {
 		let bytes = source.as_bytes();
 
 		// Find line start
 		let mut line_start = self.start;
-		while line_start > 0 && bytes[line_start - 1] != b'\n' {
+		while line_start > 0 && bytes[line_start as usize - 1] != b'\n' {
 			line_start -= 1;
 		}
 
 		// Find line end
 		let mut line_end = self.end;
-		while line_end < bytes.len() && bytes[line_end] != b'\n' {
+		while line_end
+			< bytes
+				.len()
+				.try_into()
+				.expect("Excepted source to be smaller than 4GB")
+			&& bytes[line_end as usize] != b'\n'
+		{
 			line_end += 1;
 		}
 
-		Self::new(self.file_id, line_start, line_end)
+		Self::new(line_start, line_end)
 	}
-	pub fn from_last_line(source: &str, file_id: FileID) -> Span {
+	pub fn from_last_line(source: &str) -> Span {
 		let bytes = source.as_bytes();
-		let end = bytes.len();
+		let end: u32 = bytes
+			.len()
+			.try_into()
+			.expect("Excepted source to be smaller than 4GB");
 
 		// Find where the last line starts
 		let mut start = end;
-		while start > 0 && bytes[start - 1] != b'\n' {
+		while start > 0 && bytes[start as usize - 1] != b'\n' {
 			start -= 1;
 		}
 
-		Span::new(file_id, start, end)
+		Span::new(start, end)
+	}
+}
+impl From<(u32, u32)> for Span {
+	fn from(value: (u32, u32)) -> Self {
+		Self::new(value.0, value.1)
 	}
 }
 impl Debug for Span {
@@ -135,17 +145,15 @@ impl Add<Self> for Span {
 	fn add(self, rhs: Span) -> Self::Output {
 		Self {
 			start: self.start,
-			file_id: self.file_id,
 			end: rhs.end,
 		}
 	}
 }
-impl Add<usize> for Span {
+impl Add<u32> for Span {
 	type Output = Span;
-	fn add(self, rhs: usize) -> Self::Output {
+	fn add(self, rhs: u32) -> Self::Output {
 		Self {
 			start: self.start,
-			file_id: self.file_id,
 			end: self.end + rhs,
 		}
 	}
@@ -159,24 +167,48 @@ impl SpanUtil for Span {
 		self
 	}
 }
+
+impl Index<Span> for String {
+	type Output = str;
+	fn index(&self, index: Span) -> &Self::Output {
+		&self[index.start as usize..index.end as usize]
+	}
+}
+
+impl IndexMut<Span> for String {
+	fn index_mut(&mut self, index: Span) -> &mut Self::Output {
+		&mut self[index.start as usize..index.end as usize]
+	}
+}
+impl Index<Span> for str {
+	type Output = str;
+	fn index(&self, index: Span) -> &Self::Output {
+		&self[index.start as usize..index.end as usize]
+	}
+}
+impl<'a> IndexMut<Span> for str {
+	fn index_mut(&mut self, index: Span) -> &mut Self::Output {
+		&mut self[index.start as usize..index.end as usize]
+	}
+}
 impl ariadne::Span for Span {
-	type SourceId = FileID;
+	type SourceId = Option<FileId>;
 	fn source(&self) -> &Self::SourceId {
-		&self.file_id
+		&None
 	}
 	fn is_empty(&self) -> bool {
 		self.start == self.end
 	}
 	fn contains(&self, offset: usize) -> bool {
-		offset <= self.end && offset >= self.start
+		offset <= self.end as usize && offset >= self.start as usize
 	}
 	fn end(&self) -> usize {
-		self.end
+		self.end as usize
 	}
 	fn start(&self) -> usize {
-		self.start
+		self.start as usize
 	}
 	fn len(&self) -> usize {
-		self.start - self.end
+		(self.start - self.end) as usize
 	}
 }

@@ -6,14 +6,16 @@ expression: "parse_expr (_test_func! (\"a[1]\"))"
 Ok(
     Ast {
         node: Index {
-            target: Var(IdentId(3))[0:1],
+            target: Var(IdentId(4))[0:1],
             index: Int(1)[2:3],
         }[1:4],
         ident_pool: IdentArray {
-            0: "println",
-            1: "input",
+            0: "input",
+            1: "println",
             2: "str_len",
-            3: "a",
+            3: "parse_str",
+            4: "a",
         },
+        file_id: FileId(Anon),
     },
 )

@@ -7,11 +7,11 @@ Ok(
     Ast {
         node: ClassLit {
             name: Some(
-                IdentId(3)[6:9],
+                IdentId(4)[6:9],
             ),
             fields: {
                 (
-                    IdentId(5),
+                    IdentId(6),
                     false,
                 ): Field {
                     default: Some(
@@ -23,7 +23,7 @@ Ok(
                     private: false,
                 }[18:29],
                 (
-                    IdentId(4),
+                    IdentId(5),
                     false,
                 ): Field {
                     default: None,
@@ -36,12 +36,14 @@ Ok(
             methods: {},
         }[10:30],
         ident_pool: IdentArray {
-            0: "println",
-            1: "input",
+            0: "input",
+            1: "println",
             2: "str_len",
-            3: "foo",
-            4: "x",
-            5: "b",
+            3: "parse_str",
+            4: "foo",
+            5: "x",
+            6: "b",
         },
+        file_id: FileId(Anon),
     },
 )

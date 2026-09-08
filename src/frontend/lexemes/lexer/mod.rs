@@ -1,19 +1,21 @@
 use super::tokens::*;
+use crate::collections::FileId;
 use crate::collections::charvec::CharVec;
-use crate::collections::spans::{FileID, IntoSpanned, Span, Spanned};
+use crate::collections::spans::{IntoSpanned, Span, Spanned};
 use crate::frontend::lexemes::*;
+use crate::lang_errors::{ErrorBox, ToErrorBox};
 use std::str::Chars;
 mod error;
 
 pub use error::*;
 #[derive(Debug, Clone)]
 pub struct Lexer<'a> {
-	file_id: FileID,
+	file_id: FileId,
 	chars: Chars<'a>,
 	source: &'a str,
-	index: usize,
+	index: u32,
 }
-pub type Result<T = Token> = std::result::Result<T, Spanned<LexError>>;
+pub type Result<T = Token> = std::result::Result<T, ErrorBox<LexError>>;
 impl<'a> Lexer<'a> {
 	fn peek_char(&self) -> Option<char> {
 		self.chars.clone().next()
@@ -23,8 +25,8 @@ impl<'a> Lexer<'a> {
 
 		self.peek_char()
 	}
-	fn make_err<T>(&self, err: LexError, start: usize, stop: usize) -> Result<T> {
-		Err(err.to_spanned(self.new_span(start, stop)))
+	fn make_err<T>(&self, err: LexError, start: u32, stop: u32) -> Result<T> {
+		Err(err.to_errorbox((start, stop).into(), self.file_id))
 	}
 	fn peek_next(&mut self) -> Option<char> {
 		let mut cur_chars = self.chars.clone();
@@ -38,9 +40,7 @@ impl<'a> Lexer<'a> {
 	fn current_is(&mut self, expected: char) -> bool {
 		self.peek_char() == Some(expected)
 	}
-	fn new_span(&self, start: usize, end: usize) -> Span {
-		Span::new(self.file_id, start, end)
-	}
+
 	fn num(&mut self) -> Result {
 		let mut dot_count: u16 = 0;
 		let start = self.index;
@@ -68,13 +68,10 @@ impl<'a> Lexer<'a> {
 		if is_float {
 			return Ok(Token::new(
 				TokenType::Float,
-				self.new_span(start - 1, self.index),
+				Span::new(start - 1, self.index),
 			));
 		}
-		Ok(Token::new(
-			TokenType::Int,
-			self.new_span(start - 1, self.index),
-		))
+		Ok(Token::new(TokenType::Int, Span::new(start - 1, self.index)))
 	}
 	fn ident(&mut self) -> Result {
 		let start = self.index - 1;
@@ -88,11 +85,11 @@ impl<'a> Lexer<'a> {
 			break;
 		}
 		let stop = self.index;
-		let Some(span) = self.source.get(start..stop) else {
+		let Some(span) = self.source.get(start as usize..stop as usize) else {
 			return self.make_err(LexError::InvalidIdent, start, stop);
 		};
 		let kind = tokens::map_keyword(span).unwrap_or(TokenType::Identifier);
-		Ok(Token::new(kind, self.new_span(start, stop)))
+		Ok(Token::new(kind, Span::new(start, stop)))
 	}
 	fn str(&mut self, quote: char) -> Result {
 		let start = self.index;
@@ -110,7 +107,7 @@ impl<'a> Lexer<'a> {
 						break;
 					}
 					buffer.push(q);
-					let bytecount = q.len_utf8();
+					let bytecount = q.len_utf8() as u32;
 					self.index += bytecount.saturating_sub(1);
 				}
 				(true, ch) => {
@@ -132,12 +129,12 @@ impl<'a> Lexer<'a> {
 			last = self.advance();
 		}
 
-		Ok(TokenType::Str(CharVec(buffer)).to_token(self.new_span(start - 1, self.index)))
+		Ok(TokenType::Str(CharVec(buffer)).to_token(Span::new(start - 1, self.index)))
 	}
 	fn make_eof_token(&self) -> Result {
 		Ok(Token::new(
 			TokenType::Eof,
-			self.new_span(self.index - 1, self.index),
+			Span::new(self.index - 1, self.index),
 		))
 	}
 	fn push_advance(&mut self, kind: TokenType, range: Span) -> Token {
@@ -149,14 +146,14 @@ impl<'a> Lexer<'a> {
 		expected: char,
 		short_token: TokenType,
 		long_token: TokenType,
-		range_start: usize,
+		range_start: u32,
 	) -> Result {
 		if self.current_is(expected) {
-			return Ok(self.push_advance(long_token, self.new_span(range_start, self.index)));
+			return Ok(self.push_advance(long_token, Span::new(range_start, self.index)));
 		}
 		Ok(Token::new(
 			short_token,
-			self.new_span(range_start, range_start + 1),
+			Span::new(range_start, range_start + 1),
 		))
 	}
 
@@ -212,7 +209,7 @@ impl<'a> Lexer<'a> {
 		}
 		self.next()
 	}
-	pub fn new(src: &'a str, file_id: FileID) -> Self {
+	pub fn new(src: &'a str, file_id: FileId) -> Self {
 		Self {
 			file_id,
 			chars: src.chars(),
@@ -220,8 +217,8 @@ impl<'a> Lexer<'a> {
 			index: 0,
 		}
 	}
-	fn token_from_char(&mut self, ch: char, start: usize) -> Result {
-		let range = self.new_span(start, start + 1);
+	fn token_from_char(&mut self, ch: char, start: u32) -> Result {
+		let range = Span::new(start, start + 1);
 		match ch {
 			'.' => Ok(Token::new(TokenType::Dot, range)),
 			',' => Ok(Token::new(TokenType::Comma, range)),

@@ -5,16 +5,18 @@ expression: "parse_expr (_test_func! (\"func(b){1}\"))"
 ---
 Ok(
     Ast {
-        node: Function(IdentId(3)){
+        node: Function(IdentId(4)){
             Result(
                 Int(1),
             )[8:9],
         }[0:10],
         ident_pool: IdentArray {
-            0: "println",
-            1: "input",
+            0: "input",
+            1: "println",
             2: "str_len",
-            3: "b",
+            3: "parse_str",
+            4: "b",
         },
+        file_id: FileId(Anon),
     },
 )

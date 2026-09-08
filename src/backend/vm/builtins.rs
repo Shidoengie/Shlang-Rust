@@ -11,8 +11,21 @@ pub fn get_builtins() -> Vec<Value> {
 		NativeFunction::new_variadic(NATIVE_INPUT).unwrap().into(),
 		NativeFunction::new_variadic(NATIVE_PRINTLN).unwrap().into(),
 		NativeFunction::new(STR_LEN, 1).unwrap().into(),
+		NativeFunction::new(PARSE_STR, 1).unwrap().into(),
 	]
 }
+pub const PARSE_STR: FuncPtr = |_, args| {
+	let Value::String(string) = &args[0] else {
+		return Ok(Value::Null);
+	};
+	let Ok(result) = string.parse::<f64>() else {
+		return Ok(Value::Null);
+	};
+	if result.fract() == 0.0 {
+		return Ok(Value::Int(result as i64));
+	}
+	return Ok(Value::Float(result));
+};
 pub const STR_LEN: FuncPtr = |_, args| {
 	let Value::String(string) = &args[0] else {
 		return Ok(Value::Null);

@@ -54,6 +54,7 @@ impl Assembler {
 		}
 		let span_map = ir.span_map.remap_op_ranges(&self.index_map, self.ops.len());
 		ByteCode {
+			file_id: ir.file_id,
 			ops: std::mem::take(&mut self.ops).into_boxed_slice(),
 			op_args: std::mem::take(&mut self.op_arguments).into_boxed_slice(),
 			const_pool: std::mem::take(&mut self.const_pool).into_boxed_slice(),

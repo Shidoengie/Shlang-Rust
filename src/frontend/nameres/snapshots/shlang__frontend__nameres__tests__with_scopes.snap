@@ -7,7 +7,7 @@ Ok(
     ResolvedAst {
         proc: [
             Decl {
-                id: 3,
+                id: 4,
                 expr: Function(){
                     Decl {
                         id: 0,
@@ -27,14 +27,16 @@ Ok(
                 is_global: true,
             }[14:21],
         ],
-        global_count: 4,
+        global_count: 5,
         local_count: 0,
         ident_pool: IdentArray {
-            0: "println",
-            1: "input",
+            0: "input",
+            1: "println",
             2: "str_len",
-            3: "main",
-            4: "a",
+            3: "parse_str",
+            4: "main",
+            5: "a",
         },
+        file_id: FileId(1),
     },
 )

@@ -10,9 +10,11 @@ Ok(
             target: true[1:5],
         }[1:5],
         ident_pool: IdentArray {
-            0: "println",
-            1: "input",
+            0: "input",
+            1: "println",
             2: "str_len",
+            3: "parse_str",
         },
+        file_id: FileId(Anon),
     },
 )

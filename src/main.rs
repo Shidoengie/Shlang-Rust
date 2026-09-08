@@ -82,7 +82,7 @@ fn run_repl(compiler: &mut Compiler, args: &Args) {
 		}
 
 		if let Some(ref stage) = args.stage {
-			run_stage(compiler, stage, line.trim(), true);
+			run_stage(compiler, stage, line.trim(), args.is_expr);
 			continue;
 		}
 		if args.is_expr {

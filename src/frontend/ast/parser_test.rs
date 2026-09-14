@@ -1,8 +1,8 @@
 use super::nodes::*;
 use super::parser::{self, *};
-use crate::test_func;
 use crate::collections::FileId;
-use std::{usize, *};
+use crate::test_func;
+use std::*;
 
 fn parse_expr(source: &str) -> parser::Result<Ast<'_>> {
 	Parser::parse_expr(source, FileId::ANON)

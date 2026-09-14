@@ -47,8 +47,7 @@ impl ErrorBox<NameErr> {
 				)
 				.with_note(
 					"You cannot mutate definitions of items which are structs and functions.",
-				)
-				;
+				);
 		}
 		let builder = MsgBuilder::build_err(
 			"Attempted to assign a value to a readonly variable",
@@ -74,10 +73,9 @@ impl ErrorBox<NameErr> {
 					.with_color(ariadne::Color::Blue),
 			)
 			.with_note("If you want to mutate this variable after it has been defined use \"var\"")
-			
 	}
 }
-	impl LangError for ErrorBox<NameErr> {
+impl LangError for ErrorBox<NameErr> {
 	fn msg(&self) -> ReportBuilder<LangSpan, ReportKind> {
 		match &self.kind {
 			NameErr::Unspecified(err) => {

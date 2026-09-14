@@ -1,10 +1,6 @@
 use std::{fmt::Debug, num::NonZeroU32, ops::Index};
 
 use ariadne::{Cache, Source};
-use slab::Slab;
-
-use crate::collections::Span;
-
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FileId(NonZeroU32);
 impl Default for FileId {
@@ -79,40 +75,5 @@ impl Cache<FileId> for FileStore {
 	}
 	fn display<'a>(&self, id: &'a FileId) -> Option<impl std::fmt::Display + 'a> {
 		Some(id.0)
-	}
-}
-pub struct ScopedSpan {
-	/// Invariant: id is always Some
-	id: Option<FileId>,
-	pub span: Span,
-}
-impl Span {
-	fn to_scoped(self, id: FileId) -> ScopedSpan {
-		ScopedSpan {
-			id: Some(id),
-			span: self,
-		}
-	}
-}
-
-impl ariadne::Span for ScopedSpan {
-	type SourceId = Option<FileId>;
-	fn source(&self) -> &Self::SourceId {
-		return &self.id;
-	}
-	fn is_empty(&self) -> bool {
-		self.span.start == self.span.end
-	}
-	fn contains(&self, offset: usize) -> bool {
-		offset <= self.end() && offset >= self.start()
-	}
-	fn end(&self) -> usize {
-		self.span.start as usize
-	}
-	fn start(&self) -> usize {
-		self.span.end as usize
-	}
-	fn len(&self) -> usize {
-		(self.span.end - self.span.start) as usize
 	}
 }

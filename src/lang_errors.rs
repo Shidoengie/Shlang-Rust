@@ -1,38 +1,47 @@
 use std::fmt::{self, Debug, Display};
 
-use crate::collections::{FileId, ScopedSpan, spans::*};
+use crate::collections::{FileId, spans::*};
 use ariadne::{Label, Report, ReportBuilder, Span as SpanTrait};
 
-pub struct LangSpan(Box<dyn SpanTrait<SourceId = Option<FileId>>>);
-impl From<Span> for LangSpan {
-	fn from(value: Span) -> Self {
-		Self(Box::new(value))
+pub struct LangSpan {
+	span: Span,
+	file_id: Option<FileId>,
+}
+impl Span {
+	pub fn to_scoped(self, file_id: FileId) -> LangSpan {
+		LangSpan {
+			span: self,
+			file_id: Some(file_id),
+		}
 	}
 }
-impl From<ScopedSpan> for LangSpan {
-	fn from(value: ScopedSpan) -> Self {
-		Self(Box::new(value))
+impl From<Span> for LangSpan {
+	fn from(value: Span) -> Self {
+		Self {
+			span: value,
+			file_id: None,
+		}
 	}
 }
 impl SpanTrait for LangSpan {
 	type SourceId = Option<FileId>;
 	fn contains(&self, offset: usize) -> bool {
-		self.0.contains(offset)
+		self.span.contains(offset)
 	}
 	fn source(&self) -> &Self::SourceId {
-		self.0.source()
+		&self.file_id
 	}
 	fn end(&self) -> usize {
-		self.0.end()
+		self.span.start()
 	}
 	fn start(&self) -> usize {
-		self.0.start()
+		self.span.start()
 	}
 	fn is_empty(&self) -> bool {
-		self.0.is_empty()
+		self.span.is_empty()
 	}
 	fn len(&self) -> usize {
-		self.0.len()
+		self.span.len()
 	}
 }
 #[derive(Debug)]

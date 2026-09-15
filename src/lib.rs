@@ -5,4 +5,5 @@ pub mod lang_errors;
 
 pub mod collections;
 pub mod idents;
+pub mod testing;
 pub mod utils;

@@ -1,0 +1,94 @@
+---
+source: src/frontend/ast/parser_test.rs
+description: "Test: Class literal with methods using self\n──────────────────────────────────────────────────────────────────────────────────\nclass Foo {\n\tlet x = 20;\n\tfunc double_x(a) {\n\t\tlet buzz = self.x * 2;\n\t\treturn buzz;\n\t}\n\tfunc do_stuff() {\n\t\tprintln(self.double_x());\n\t}\n}"
+expression: parse_expr (& source)
+info: test_parser_classes
+---
+Ok(
+    Program {
+        ident_pool: IdentArray {
+            0: "input",
+            1: "println",
+            2: "str_len",
+            3: "parse_str",
+            4: "Foo",
+            5: "x",
+            6: "double_x",
+            7: "a",
+            8: "buzz",
+            9: "do_stuff",
+        },
+        file_id: FileId(Anon),
+    } = ClassLit {
+        name: Some(
+            IdentId(4)[6:9],
+        ),
+        fields: {
+            (
+                IdentId(5),
+                false,
+            ): Field {
+                default: Some(
+                    Int(20)[21:23],
+                ),
+                readonly: true,
+                name_span: 17:18,
+                modifier_span: 13:16,
+                private: false,
+            }[13:24],
+        },
+        methods: {
+            (
+                IdentId(9),
+                false,
+            ): Method {
+                block: [
+                    Call {
+                        callee: Var(IdentId(1))[109:116],
+                        args: [
+                            FieldAccess {
+                                target: SelfValue[117:121],
+                                requested: Method {
+                                    callee: IdentId(6),
+                                    callee_span: 122:130,
+                                    args: [],
+                                    arg_span: 131:132,
+                                }[122:132],
+                            }[117:132],
+                        ],
+                    }[117:133],
+                ][105:137],
+                args: [],
+                name_span: 94:102,
+                modifier_span: 89:93,
+                private: false,
+            }[89:139],
+            (
+                IdentId(6),
+                false,
+            ): Method {
+                block: [
+                    Decl(readonly)::IdentId(8) = BinaryNode {
+                        kind: Multiply,
+                        left: FieldAccess {
+                            target: SelfValue[58:62],
+                            requested: Property(
+                                IdentId(5)[63:64],
+                            )[63:64],
+                        }[58:64],
+                        right: Int(2)[67:68],
+                    }[58:68][47:68],
+                    Return(
+                        Var(IdentId(8)),
+                    )[72:78],
+                ][43:87],
+                args: [
+                    IdentId(7)[40:41],
+                ],
+                name_span: 31:39,
+                modifier_span: 26:30,
+                private: false,
+            }[26:93],
+        },
+    }[10:139],
+)

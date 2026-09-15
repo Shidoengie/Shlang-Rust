@@ -1,0 +1,6 @@
+//struct_body
+struct abc{};
+//nested_struct
+struct abc{struct dfg{};};
+//list_literal
+[1,2,3]

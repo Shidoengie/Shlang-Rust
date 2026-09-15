@@ -1,13 +1,14 @@
 ---
 source: src/frontend/ir/tests.rs
-description: ir_expr
-expression: "test_ir (_test_func! ({ loop { continue; break; } }))"
+description: "Test: Loops\n──────────────────────────────────────────────────────────────────────────────────\nloop {\n\tcontinue;\n\tbreak;\n}"
+expression: test_ir (& source)
+info: ir_expr
 ---
 Ok(
     Ir {
         span_map: SpanMap {
-            1..4 = Span[5,25],
-            0..6 = Span[5,25],
+            1..4 = Span[5,27],
+            0..6 = Span[5,27],
         },
         global_count: 4,
     } = [

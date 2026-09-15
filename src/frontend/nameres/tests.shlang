@@ -1,0 +1,30 @@
+//global_fns
+var b = a();
+func a() {
+	return 10;
+}
+
+//with_scopes
+func main(){
+	var a = 10;
+	do {
+		var a = a;
+	}
+}
+
+//class_literal
+class foo {var x; var b = 10;}
+
+//class_method
+class foo {
+	func abc(a,b,c) {
+		return 10;
+	}
+	static func hello(foo) {
+		return foo;
+	}
+	let x = 20;
+}
+
+//class_literal_with_static_properties
+class foo { static a = 10; static var b = 20; }

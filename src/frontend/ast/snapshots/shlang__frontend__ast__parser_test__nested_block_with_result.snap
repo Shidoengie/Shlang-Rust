@@ -1,20 +1,11 @@
 ---
 source: src/frontend/ast/parser_test.rs
-description: test_parsing
-expression: "parse_expr (_test_func! (\"func(b){do{1}1}\"))"
+description: "Test: nested_block_with_result\n──────────────────────────────────────────────────────────────────────────────────\nfunc(b){\n\tdo {\n\t\t1\n\t}\n\t1\n}"
+expression: parse_expr (& source)
+info: test_parser_functions
 ---
 Ok(
-    Ast {
-        node: Function(IdentId(4)){
-            Do{
-                Result(
-                    Int(1),
-                )[11:12],
-            }[10:13],
-            Result(
-                Int(1),
-            )[13:14],
-        }[0:15],
+    Program {
         ident_pool: IdentArray {
             0: "input",
             1: "println",
@@ -23,5 +14,14 @@ Ok(
             4: "b",
         },
         file_id: FileId(Anon),
-    },
+    } = Function(IdentId(4)){
+        Do{
+            Result(
+                Int(1),
+            )[17:18],
+        }[13:21],
+        Result(
+            Int(1),
+        )[23:24],
+    }[0:26],
 )

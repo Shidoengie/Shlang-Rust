@@ -1,0 +1,13 @@
+---
+source: src/frontend/ast/parser_test.rs
+description: "Test: Invalid usage of variable assignment\n──────────────────────────────────────────────────────────────────────────────────\nvar a = b = 1;"
+expression: parse_expr (& source)
+info: test_parser_variables
+---
+Err(
+    ErrorBox {
+        kind: UnexpectedVoidExpression,
+        span: 8:13,
+        id: FileId(Anon),
+    },
+)

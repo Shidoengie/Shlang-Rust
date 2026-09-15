@@ -1,0 +1,49 @@
+---
+source: src/frontend/ast/parser_test.rs
+description: "Test: Class literal with private members\n──────────────────────────────────────────────────────────────────────────────────\nclass Foo {\n\tpriv var x; \n\tpriv let b = 10;\n}"
+expression: parse_expr (& source)
+info: test_parser_classes
+---
+Ok(
+    Program {
+        ident_pool: IdentArray {
+            0: "input",
+            1: "println",
+            2: "str_len",
+            3: "parse_str",
+            4: "Foo",
+            5: "x",
+            6: "b",
+        },
+        file_id: FileId(Anon),
+    } = ClassLit {
+        name: Some(
+            IdentId(4)[6:9],
+        ),
+        fields: {
+            (
+                IdentId(6),
+                false,
+            ): Field {
+                default: Some(
+                    Int(10)[40:42],
+                ),
+                readonly: true,
+                name_span: 36:37,
+                modifier_span: 27:35,
+                private: true,
+            }[27:43],
+            (
+                IdentId(5),
+                false,
+            ): Field {
+                default: None,
+                readonly: false,
+                name_span: 22:23,
+                modifier_span: 13:21,
+                private: true,
+            }[13:24],
+        },
+        methods: {},
+    }[10:45],
+)

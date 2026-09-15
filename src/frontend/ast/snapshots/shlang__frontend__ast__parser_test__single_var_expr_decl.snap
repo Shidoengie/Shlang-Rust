@@ -1,11 +1,11 @@
 ---
 source: src/frontend/ast/parser_test.rs
-description: test_parsing
-expression: "parse_expr (_test_func! (\"var a;\"))"
+description: "Test: single_var_expr_decl\n──────────────────────────────────────────────────────────────────────────────────\nvar a;"
+expression: parse_expr (& source)
+info: test_parser_variables
 ---
 Ok(
-    Ast {
-        node: Decl::IdentId(4) = Null[0:5][0:5],
+    Program {
         ident_pool: IdentArray {
             0: "input",
             1: "println",
@@ -14,5 +14,5 @@ Ok(
             4: "a",
         },
         file_id: FileId(Anon),
-    },
+    } = Decl::IdentId(4) = Null[0:5][0:5],
 )

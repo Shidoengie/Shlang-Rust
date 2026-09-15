@@ -1,0 +1,31 @@
+//do block
+do{
+    var a = 1;
+    1+a
+}
+
+//if expression
+if true {
+    "hello"
+}
+
+//if else expression
+if false {
+    "hello"
+} else {
+    "bye"
+}
+
+//elseif expression
+if false {
+    "hello"
+} else if 19 < 9 {
+    "impossible"
+} else {
+    "bye"
+}
+
+//loop
+loop {
+    println("forever");
+}

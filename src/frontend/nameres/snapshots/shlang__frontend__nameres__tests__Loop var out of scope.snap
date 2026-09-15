@@ -1,7 +1,8 @@
 ---
 source: src/frontend/nameres/tests.rs
-description: test_locals
-expression: "test_nameres (_test_func! ({ for i in [1,2,3] { var b = i }; var d = i; }))"
+description: "Test: Loop var out of scope\n──────────────────────────────────────────────────────────────────────────────────\nfor i in [1,2,3] {\n\tvar b = i\n};\nvar d = i;"
+expression: test_nameres (& source)
+info: test_locals
 ---
 Ok(
     ResolvedAstNode {
@@ -15,10 +16,10 @@ Ok(
             block: [
                 Decl {
                     id: 1,
-                    expr: Variable(0)[27:28],
+                    expr: Variable(0)[28:29],
                     is_global: false,
-                }[19:28],
-            ][17:30],
+                }[20:29],
+            ][17:31],
         }[4:18],
         global_count: 4,
         local_count: 2,

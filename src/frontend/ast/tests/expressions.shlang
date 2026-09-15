@@ -1,0 +1,20 @@
+//parse_nested_paren
+((1+2)+(1+2));
+
+//parse_paren
+(1+2+b);
+
+//expression_operators
+1*2+2-2/2%5 and 10 or 10!=1==2<4<=3>0>=3;
+
+//unary_operator
+!true;
+
+//multiple_unary
+!true + !true;
+
+//unary_operator_paren
+!(0);
+
+//unary_operators
+!0+(-0);

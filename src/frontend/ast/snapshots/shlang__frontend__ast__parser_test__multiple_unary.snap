@@ -1,21 +1,11 @@
 ---
 source: src/frontend/ast/parser_test.rs
-description: test_parsing
-expression: "parse_expr (_test_func! (\"!true + !true;\"))"
+description: "Test: multiple_unary\n──────────────────────────────────────────────────────────────────────────────────\n!true + !true;"
+expression: parse_expr (& source)
+info: test_parser_expressions
 ---
 Ok(
-    Ast {
-        node: BinaryNode {
-            kind: Add,
-            left: UnaryNode {
-                kind: Not,
-                target: true[1:5],
-            }[1:5],
-            right: UnaryNode {
-                kind: Not,
-                target: true[9:13],
-            }[9:13],
-        }[1:13],
+    Program {
         ident_pool: IdentArray {
             0: "input",
             1: "println",
@@ -23,5 +13,15 @@ Ok(
             3: "parse_str",
         },
         file_id: FileId(Anon),
-    },
+    } = BinaryNode {
+        kind: Add,
+        left: Unary(
+            Not,
+            true[1:5],
+        )[1:5],
+        right: Unary(
+            Not,
+            true[9:13],
+        )[9:13],
+    }[1:13],
 )

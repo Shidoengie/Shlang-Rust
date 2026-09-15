@@ -1,18 +1,19 @@
 ---
 source: src/frontend/ir/tests.rs
-description: ir_expr
-expression: "test_ir (_test_func! (\"func hello(a) {println(a,2,3);}\"))"
+description: "Test: Functions\n──────────────────────────────────────────────────────────────────────────────────\nfunc hello(a) {\n\tprintln(a,2,3);\n}"
+expression: test_ir (& source)
+info: ir_expr
 ---
 Ok(
     Ir {
         span_map: SpanMap {
-            0..1 = Span[23,24],
-            1..2 = Span[25,26],
-            2..3 = Span[27,28],
-            0..3 = Span[23,29],
-            3..4 = Span[15,22],
-            0..5 = Span[23,29],
-            0..6 = Span[14,31],
+            0..1 = Span[25,26],
+            1..2 = Span[27,28],
+            2..3 = Span[29,30],
+            0..3 = Span[25,31],
+            3..4 = Span[17,24],
+            0..5 = Span[25,31],
+            0..6 = Span[14,34],
             0..1 = Span[5,15],
             0..2 = Span[5,15],
         },

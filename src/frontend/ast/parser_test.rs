@@ -1,58 +1,51 @@
 use super::nodes::*;
 use super::parser::{self, *};
 use crate::collections::FileId;
-use crate::test_func;
+use crate::test_file;
 use std::*;
 
-fn parse_expr(source: &str) -> parser::Result<Ast<'_>> {
-	Parser::parse_expr(source, FileId::ANON)
+fn parse_expr(source: &str) -> parser::Result<Program<'_>> {
+	Parser::parse(source, FileId::ANON)
 }
 
-test_func!(test_parsing,parse_expr, {
-"parse_nested_paren" =>"((1+2)+(1+2));",
-"parse_paren" => "(1+2+b);",
-"expression_operators"=>"1*2+2-2/2%5 and 10 or 10!=1==2<4<=3>0>=3;",
-"unary_operator"=>"!true;",
-"multiple_unary"=>"!true + !true;",
-"unary_operator_paren"=>"!(0);",
-"unary_operators"=>"!0+(-0);",
-"empty_call"=>"a();",
-"call"=>"a((1+2),true,'1');",
-"call_as_val"=>"a(1,1,1)+1;",
-"call_with_paren"=>"a((1),1,1);",
-"assignement"=>"b = 1;",
-"single_var_expr_decl"=>"var a;",
-"var_expr_decl_with_expr_"=>"var a = 1+2+b;",
-"do_block"=>"do{var a = 1;1+a}",
-"func_expr"=>"func(b){1}",
-"func_decl_expr"=>"func a (b){1}",
-"nested_block"=>"func(b){do{1};}",
-"nested_block_with_result"=>"func(b){do{1}1}",
-"struct_access"=>"b.a*2",
-"struct_access_call"=>"a.b().c",
-"chained_access"=>"a.b.c.d",
-"chained_access_call"=>"a.b().c().d().e()",
-"corrected_access_call"=>"(((a.b()).c()).d()).e()",
-"struct_body"=>"struct abc{};",
-"nested_struct"=>"struct abc{struct dfg{};};",
-"index"=>"a[1]",
-"index_with_call"=>"a[1]()[2]",
-"list_literal"=>"[1,2,3]",
-"index_assign" => "a[1] = 10",
-"empty_class_literal" => "class foo {}",
-"empty_anon_class_literal" => "class {}",
-"class_literal" => "class foo {var x; var b = 10;}",
-"class_method" => {
-	class foo {
-		func abc(a,b,c) {
-			return 10;
-		}
-		static func hello(foo) {
-			return foo;
-		}
-		let x = 20;
-	}
-},
-"class_literal_with_static_properties" => "class foo { static a = 10; static var b = 20; }",
+test_file!(
+	test_parser_expressions,
+	parse_expr,
+	"src/frontend/ast/tests/expressions.shlang"
+);
+test_file!(
+	test_parser_calls,
+	parse_expr,
+	"src/frontend/ast/tests/calls.shlang"
+);
+test_file!(
+	test_parser_variables,
+	parse_expr,
+	"src/frontend/ast/tests/variables.shlang"
+);
+test_file!(
+	test_parser_functions,
+	parse_expr,
+	"src/frontend/ast/tests/functions.shlang"
+);
+test_file!(
+	test_parser_access,
+	parse_expr,
+	"src/frontend/ast/tests/access.shlang"
+);
+test_file!(
+	test_parser_structs,
+	parse_expr,
+	"src/frontend/ast/tests/structs.shlang"
+);
+test_file!(
+	test_parser_classes,
+	parse_expr,
+	"src/frontend/ast/tests/classes.shlang"
+);
 
-});
+test_file!(
+	test_parser_block_expressions,
+	parse_expr,
+	"src/frontend/ast/tests/block-expressions.shlang"
+);

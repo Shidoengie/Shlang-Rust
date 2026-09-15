@@ -1,0 +1,49 @@
+---
+source: src/frontend/ast/parser_test.rs
+description: "Test: Class literal\n──────────────────────────────────────────────────────────────────────────────────\nclass Foo {\n\tvar x; \n\tlet b = 10;\n}"
+expression: parse_expr (& source)
+info: test_parser_classes
+---
+Ok(
+    Program {
+        ident_pool: IdentArray {
+            0: "input",
+            1: "println",
+            2: "str_len",
+            3: "parse_str",
+            4: "Foo",
+            5: "x",
+            6: "b",
+        },
+        file_id: FileId(Anon),
+    } = ClassLit {
+        name: Some(
+            IdentId(4)[6:9],
+        ),
+        fields: {
+            (
+                IdentId(5),
+                false,
+            ): Field {
+                default: None,
+                readonly: false,
+                name_span: 17:18,
+                modifier_span: 13:16,
+                private: false,
+            }[13:19],
+            (
+                IdentId(6),
+                false,
+            ): Field {
+                default: Some(
+                    Int(10)[30:32],
+                ),
+                readonly: true,
+                name_span: 26:27,
+                modifier_span: 22:25,
+                private: false,
+            }[22:33],
+        },
+        methods: {},
+    }[10:35],
+)

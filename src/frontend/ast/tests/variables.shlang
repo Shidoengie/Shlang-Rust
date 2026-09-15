@@ -1,0 +1,15 @@
+
+//single_var_expr_decl
+var a;
+
+//var_expr_decl_with_expr_
+var a = 1+2+b;
+
+//Immutable/Let declaration
+let a = 10;
+
+//variable assignment
+b = 1;
+
+//Invalid usage of variable assignment
+var a = b = 1;

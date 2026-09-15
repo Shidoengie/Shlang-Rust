@@ -1,0 +1,51 @@
+---
+source: src/frontend/ast/parser_test.rs
+description: "Test: Class literal with static properties\n──────────────────────────────────────────────────────────────────────────────────\nclass Foo { \n\tstatic a = 10; \n\tstatic var b = 20; \n}"
+expression: parse_expr (& source)
+info: test_parser_classes
+---
+Ok(
+    Program {
+        ident_pool: IdentArray {
+            0: "input",
+            1: "println",
+            2: "str_len",
+            3: "parse_str",
+            4: "Foo",
+            5: "a",
+            6: "b",
+        },
+        file_id: FileId(Anon),
+    } = ClassLit {
+        name: Some(
+            IdentId(4)[6:9],
+        ),
+        fields: {
+            (
+                IdentId(6),
+                true,
+            ): Field {
+                default: Some(
+                    Int(20)[46:48],
+                ),
+                readonly: false,
+                name_span: 42:43,
+                modifier_span: 31:41,
+                private: false,
+            }[31:49],
+            (
+                IdentId(5),
+                true,
+            ): Field {
+                default: Some(
+                    Int(10)[25:27],
+                ),
+                readonly: true,
+                name_span: 21:22,
+                modifier_span: 14:20,
+                private: false,
+            }[14:28],
+        },
+        methods: {},
+    }[10:52],
+)

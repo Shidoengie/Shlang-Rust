@@ -1,0 +1,57 @@
+---
+source: src/frontend/ast/parser_test.rs
+description: "Test: Class literal with static methods\n──────────────────────────────────────────────────────────────────────────────────\nclass Foo {\n\tstatic func hello(bar) {\n\t\treturn bar;\n\t}\n\tlet x = 10;\n}"
+expression: parse_expr (& source)
+info: test_parser_classes
+---
+Ok(
+    Program {
+        ident_pool: IdentArray {
+            0: "input",
+            1: "println",
+            2: "str_len",
+            3: "parse_str",
+            4: "Foo",
+            5: "hello",
+            6: "bar",
+            7: "x",
+        },
+        file_id: FileId(Anon),
+    } = ClassLit {
+        name: Some(
+            IdentId(4)[6:9],
+        ),
+        fields: {
+            (
+                IdentId(7),
+                false,
+            ): Field {
+                default: Some(
+                    Int(10)[64:66],
+                ),
+                readonly: true,
+                name_span: 60:61,
+                modifier_span: 56:59,
+                private: false,
+            }[56:67],
+        },
+        methods: {
+            (
+                IdentId(5),
+                true,
+            ): Method {
+                block: [
+                    Return(
+                        Var(IdentId(6)),
+                    )[40:46],
+                ][36:54],
+                args: [
+                    IdentId(6)[31:34],
+                ],
+                name_span: 25:30,
+                modifier_span: 13:19,
+                private: false,
+            }[13:59],
+        },
+    }[10:69],
+)

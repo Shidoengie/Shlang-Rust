@@ -1,0 +1,24 @@
+//func_expr
+func(b){
+	1
+}
+
+//func_decl_expr
+func a(b){
+	1
+}
+
+//nested_block
+func(b){
+	do{
+		1
+	};
+}
+
+//nested_block_with_result
+func(b){
+	do {
+		1
+	}
+	1
+}

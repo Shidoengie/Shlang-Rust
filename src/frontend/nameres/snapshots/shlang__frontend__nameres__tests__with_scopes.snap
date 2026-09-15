@@ -1,7 +1,8 @@
 ---
 source: src/frontend/nameres/tests.rs
-description: test_globals
-expression: "test_global_nameres\n(_test_func!\n(r#\"\n        func main(){\n            var a = 10;\n            do {\n                var a = a;\n            }\n        }\n    \n    \"#))"
+description: "Test: with_scopes\n──────────────────────────────────────────────────────────────────────────────────\nfunc main(){\n\tvar a = 10;\n\tdo {\n\t\tvar a = a;\n\t}\n}"
+expression: test_global_nameres (& source)
+info: test_globals
 ---
 Ok(
     ResolvedAst {
@@ -11,21 +12,21 @@ Ok(
                 expr: Function(){
                     Decl {
                         id: 0,
-                        expr: Int(10)[42:44],
+                        expr: Int(10)[22:24],
                         is_global: false,
-                    }[34:44],
+                    }[14:24],
                     Result(
                         Do {
                             Decl {
                                 id: 1,
-                                expr: Variable(0)[87:88],
+                                expr: Variable(0)[42:43],
                                 is_global: false,
-                            }[79:88],
+                            }[34:43],
                         },
-                    )[61:103],
-                }[14:21],
+                    )[30:47],
+                }[5:12],
                 is_global: true,
-            }[14:21],
+            }[5:12],
         ],
         global_count: 5,
         local_count: 0,

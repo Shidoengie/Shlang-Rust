@@ -1,7 +1,8 @@
 ---
 source: src/frontend/nameres/tests.rs
-description: test_globals
-expression: "test_global_nameres (_test_func! ({ var b = a(); func a() { return 10; } }))"
+description: "Test: global_fns\n──────────────────────────────────────────────────────────────────────────────────\nvar b = a();\nfunc a() {\n\treturn 10;\n}"
+expression: test_global_nameres (& source)
+info: test_globals
 ---
 Ok(
     ResolvedAst {
@@ -11,7 +12,7 @@ Ok(
                 expr: Function(){
                     Return(
                         Int(10),
-                    )[24:30],
+                    )[25:31],
                 }[18:23],
                 is_global: true,
             }[18:23],

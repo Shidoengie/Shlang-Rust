@@ -1,0 +1,25 @@
+---
+source: src/frontend/ast/parser_test.rs
+description: "Test: if expression\n──────────────────────────────────────────────────────────────────────────────────\nif true {\n    \"hello\"\n}"
+expression: parse_expr (& source)
+info: test_parser_block_expressions
+---
+Ok(
+    Program {
+        ident_pool: IdentArray {
+            0: "input",
+            1: "println",
+            2: "str_len",
+            3: "parse_str",
+        },
+        file_id: FileId(Anon),
+    } = Branch {
+        condition: true[3:7],
+        if_block: [
+            Result(
+                "hello",
+            )[14:21],
+        ][8:23],
+        else_block: None,
+    }[3:9],
+)

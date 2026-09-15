@@ -55,6 +55,7 @@ pub struct NameRes {
 	file_id: crate::collections::FileId,
 	scope_locals_stack: Vec<usize>,
 }
+///resolver entry points
 impl NameRes {
 	pub fn new(file_store: FileStore) -> Self {
 		Self {
@@ -96,6 +97,10 @@ impl NameRes {
 			expr.file_id,
 		))
 	}
+}
+
+///toplevel resolution
+impl NameRes {
 	fn add_global(&mut self, name: IdentId) {
 		if self.globals.contains_key(&name) {
 			return;
@@ -164,6 +169,10 @@ impl NameRes {
 		decls.append(&mut local_decls);
 		Ok(decls)
 	}
+}
+
+///scope management
+impl NameRes {
 	fn push_scope(&mut self) {
 		self.scope_locals_stack.push(0);
 	}
@@ -200,6 +209,10 @@ impl NameRes {
 		};
 		Ok(info)
 	}
+}
+
+///declaration and collection resolution
+impl NameRes {
 	fn resolve_var_decl(
 		&mut self,
 		decl: ast::Decl,
@@ -275,6 +288,229 @@ impl NameRes {
 		}
 		.to_spanned(span))
 	}
+	fn resolve_field(&mut self, ast_field: ast::Field, parent: &mut Scope) -> Result<Field> {
+		let default = if let Some(field) = ast_field.default {
+			Some(self.resolve_node(field, parent)?)
+		} else {
+			None
+		};
+		Ok(Field {
+			default,
+			readonly: ast_field.readonly,
+			name_span: ast_field.name_span,
+			modifier_span: ast_field.modifier_span,
+			private: ast_field.private,
+		})
+	}
+}
+
+///node resolution
+impl NameRes {
+	fn resolve_class(
+		&mut self,
+		class: ast::ClassLit,
+		parent: &mut Scope,
+		span: Span,
+	) -> Result<RNodeSpan> {
+		let mut fields = hashmap!();
+		for (key, field) in class.fields.into_iter() {
+			let field = self
+				.resolve_field(field.item, parent)?
+				.to_spanned(field.span);
+			fields.insert(key, field);
+		}
+		let mut methods = hashmap!();
+		for (key, method) in class.methods.into_iter() {
+			let method = self
+				.resolve_method(method.item, parent)?
+				.to_spanned(method.span);
+			methods.insert(key, method);
+		}
+		Ok(ClassLit {
+			methods,
+			fields,
+			name: class.name,
+		}
+		.to_rnodespan(span))
+	}
+	fn resolve_method(&mut self, method: ast::Method, parent: &mut Scope) -> Result<Method> {
+		let old_ident_counter = self.ident_counter;
+		// Starts at one due to self being desugared to the first element
+		self.ident_counter = 1;
+		let mut func_scope = Scope::default();
+		let mut args = vec![];
+		for arg in method.args {
+			let new_id = self.gen_name();
+			VarInfo::new(arg.item, new_id)
+				.with_span(arg.span)
+				.define_in(&mut func_scope);
+			args.push(new_id);
+		}
+		self.push_scope();
+		let block = self.resolve_block_with(method.block, parent, func_scope)?;
+		let local_count = self.pop_scope();
+		self.ident_counter = old_ident_counter;
+		Ok(Method {
+			args,
+			local_count,
+			block,
+			name_span: method.name_span,
+			modifier_span: method.modifier_span,
+			private: method.private,
+		})
+	}
+	fn resolve_function_lit(
+		&mut self,
+		func: ast::FunctionLit,
+		parent: &mut Scope,
+		span: Span,
+	) -> Result<RNodeSpan> {
+		let old_ident_counter = self.ident_counter;
+		self.ident_counter = 0;
+		let mut func_scope = Scope::default();
+		let mut args = vec![];
+		for arg in func.args {
+			let new_id = self.gen_name();
+			VarInfo::new(arg.item, new_id)
+				.with_span(arg.span)
+				.define_in(&mut func_scope);
+			args.push(new_id);
+		}
+		self.push_scope();
+		let block = self.resolve_block_with(func.block, parent, func_scope)?;
+		let local_count = self.pop_scope();
+		self.ident_counter = old_ident_counter;
+		Ok(RNode::FunctionLit(FunctionLit {
+			idents: args,
+			block,
+			captures: func.captures,
+			local_count,
+		})
+		.to_spanned(span))
+	}
+	fn resolve_branch(
+		&mut self,
+		branch: ast::Branch,
+		parent: &mut Scope,
+		span: Span,
+	) -> Result<RNodeSpan> {
+		let condition = self
+			.resolve_node(branch.condition.deref_item(), parent)?
+			.box_item();
+		let if_block = self.resolve_block(branch.if_block, parent)?;
+		let else_block = branch
+			.else_block
+			.map(|else_block| self.resolve_block(else_block, parent))
+			.transpose()?;
+		Ok(Branch {
+			condition,
+			if_block,
+			else_block,
+		}
+		.to_rnodespan(span))
+	}
+	fn resolve_for_loop(
+		&mut self,
+		forloop: ast::ForLoop,
+		parent: &mut Scope,
+		span: Span,
+	) -> Result<RNodeSpan> {
+		let mut base = Scope::default();
+		let loop_var = self.gen_name();
+		VarInfo::new(forloop.ident, loop_var)
+			.with_span(forloop.ident_span)
+			.define_in(&mut base);
+		let list = self
+			.resolve_node(forloop.list.deref_item(), parent)?
+			.box_item();
+		let block = self.resolve_block_with(forloop.proc, parent, base)?;
+		Ok(RNode::ForLoop {
+			loop_var,
+			list,
+			block,
+		}
+		.to_spanned(span))
+	}
+	fn resolve_field_access(
+		&mut self,
+		field: ast::FieldAccess,
+		parent: &mut Scope,
+		span: Span,
+	) -> Result<RNodeSpan> {
+		let target = self
+			.resolve_node(field.target.deref_item(), parent)?
+			.box_item();
+		let requested = match field.requested.item {
+			ast::AccessType::Method {
+				args,
+				arg_span,
+				callee,
+				callee_span,
+			} => AccessType::Method {
+				callee,
+				callee_span,
+				arg_span,
+				args: self.resolve_list(args, parent)?,
+			},
+			ast::AccessType::Property(prop) => AccessType::Property(*prop),
+		}
+		.to_spanned(field.requested.span);
+		Ok(RNode::FieldAccess(target, requested).to_spanned(span))
+	}
+	fn resolve_constructor(
+		&mut self,
+		con: ast::Constructor,
+		parent: &mut Scope,
+		span: Span,
+	) -> Result<RNodeSpan> {
+		let target = self
+			.resolve_node(con.target.deref_item(), parent)?
+			.box_item();
+		let mut params = HashMap::new();
+		for (name, value) in con.params {
+			params.insert(name, self.resolve_node(value, parent)?);
+		}
+		Ok(RNode::Constructor { target, params }.to_spanned(span))
+	}
+	fn resolve_struct_lit(
+		&mut self,
+		obj: HashMap<IdentId, ast::NodeSpan>,
+		parent: &mut Scope,
+		span: Span,
+	) -> Result<RNodeSpan> {
+		let mut fields = hashmap!();
+		for (name, node) in obj {
+			fields.insert(name, self.resolve_node(node, parent)?.box_item());
+		}
+		Ok(RNode::StructDef(fields).to_spanned(span))
+	}
+	fn resolve_call(
+		&mut self,
+		call: ast::Call,
+		parent: &mut Scope,
+		span: Span,
+	) -> Result<RNodeSpan> {
+		let callee = self
+			.resolve_node(call.callee.deref_item(), parent)?
+			.box_item();
+		let mut args = vec![];
+		for node in call.args {
+			args.push(self.resolve_node(node, parent)?);
+		}
+		Ok(RNode::Call { args, callee }.to_spanned(span))
+	}
+	fn resolve_record_lit(
+		&mut self,
+		obj: HashMap<IdentId, ast::NodeSpan>,
+		parent: &mut Scope,
+		span: Span,
+	) -> Result<RNodeSpan> {
+		let mut fields = hashmap!();
+		for (name, node) in obj {
+			fields.insert(name, self.resolve_node(node, parent)?.box_item());
+		}
+		Ok(RNode::RecordLit(fields).to_spanned(span))
+	}
 	fn resolve_node(&mut self, node: ast::NodeSpan, parent: &mut Scope) -> Result<RNodeSpan> {
 		use ResolvedNode as RNode;
 		let span = node.span;
@@ -283,11 +519,13 @@ impl NameRes {
 				let decl = self.resolve_var_decl(decl, parent, span)?;
 				Ok(RNode::Decl(decl).to_spanned(span))
 			}
-			AstNode::ClassLit(class) => {
-				todo!()
-			}
+			AstNode::ClassLit(class) => self.resolve_class(class, parent, span),
 
-			AstNode::SelfValue => todo!(),
+			AstNode::SelfValue => Ok(RNode::Variable {
+				id: 0,
+				is_global: false,
+			}
+			.to_spanned(span)),
 			AstNode::SelfTy => todo!(),
 			AstNode::Assignment { target, value } => {
 				self.resolve_assignment(target, value, parent, span)
@@ -301,30 +539,7 @@ impl NameRes {
 				.to_spanned(span))
 			}
 
-			AstNode::FunctionLit(func) => {
-				let old_ident_counter = self.ident_counter;
-				self.ident_counter = 0;
-				let mut func_scope = Scope::default();
-				let mut args = vec![];
-				for arg in func.args {
-					let new_id = self.gen_name();
-					VarInfo::new(arg.item, new_id)
-						.with_span(arg.span)
-						.define_in(&mut func_scope);
-					args.push(new_id);
-				}
-				self.push_scope();
-				let block = self.resolve_block_with(func.block, parent, func_scope)?;
-				let local_count = self.pop_scope();
-				self.ident_counter = old_ident_counter;
-				let resolved = RNode::FunctionLit(FunctionLit {
-					idents: args,
-					block,
-					captures: func.captures,
-					local_count,
-				});
-				Ok(resolved.to_spanned(span))
-			}
+			AstNode::FunctionLit(func) => self.resolve_function_lit(func, parent, span),
 			AstNode::While(node) => {
 				let condition = self
 					.resolve_node(node.condition.deref_item(), parent)?
@@ -336,24 +551,7 @@ impl NameRes {
 				let block = self.resolve_block(block, parent)?;
 				Ok(RNode::Loop(block).to_spanned(span))
 			}
-			AstNode::Branch(branch) => {
-				let condition = self
-					.resolve_node(branch.condition.deref_item(), parent)?
-					.box_item();
-
-				let if_block = self.resolve_block(branch.if_block, parent)?;
-				let else_block = if let Some(else_block) = branch.else_block {
-					Some(self.resolve_block(else_block, parent)?)
-				} else {
-					None
-				};
-				Ok(Branch {
-					condition,
-					if_block,
-					else_block,
-				}
-				.to_rnodespan(span))
-			}
+			AstNode::Branch(branch) => self.resolve_branch(branch, parent, span),
 
 			AstNode::DoBlock(block) => {
 				let block = self.resolve_block(block, parent)?;
@@ -380,79 +578,17 @@ impl NameRes {
 				}
 				.to_spanned(span))
 			}
-			AstNode::ForLoop(forloop) => {
-				let mut base = Scope::default();
-
-				let loop_var = self.gen_name();
-				VarInfo::new(forloop.ident, loop_var)
-					.with_span(forloop.ident_span)
-					.define_in(&mut base);
-
-				let list = self
-					.resolve_node(forloop.list.deref_item(), parent)?
-					.box_item();
-
-				let block = self.resolve_block_with(forloop.proc, parent, base)?;
-				Ok(RNode::ForLoop {
-					loop_var,
-					list,
-					block,
-				}
-				.to_spanned(span))
-			}
+			AstNode::ForLoop(forloop) => self.resolve_for_loop(forloop, parent, span),
 			AstNode::Index { target, index } => {
 				let target = self.resolve_node(target.deref_item(), parent)?.box_item();
 				let index = self.resolve_node(index.deref_item(), parent)?.box_item();
 				Ok(RNode::Index { target, index }.to_spanned(span))
 			}
-			AstNode::StructLit(obj) => {
-				let mut buf = hashmap!();
-				for (name, node) in obj {
-					let node = self.resolve_node(node, parent)?.box_item();
-					buf.insert(name, node);
-				}
-				Ok(RNode::StructDef(buf).to_spanned(span))
-			}
-			AstNode::Call(call) => {
-				let callee = self
-					.resolve_node(call.callee.deref_item(), parent)?
-					.box_item();
-				let mut args = vec![];
-				for node in call.args {
-					args.push(self.resolve_node(node, parent)?);
-				}
-				Ok(RNode::Call { args, callee }.to_spanned(span))
-			}
-			AstNode::FieldAccess(field) => {
-				let target = self
-					.resolve_node(field.target.deref_item(), parent)?
-					.box_item();
-				let requested = match field.requested.item {
-					ast::AccessType::Method {
-						args,
-						arg_span,
-						callee,
-						callee_span,
-					} => AccessType::Method {
-						callee,
-						callee_span,
-						arg_span,
-						args: self.resolve_list(args, parent)?,
-					},
-					ast::AccessType::Property(prop) => AccessType::Property(*prop),
-				}
-				.to_spanned(field.requested.span);
-				Ok(RNode::FieldAccess(target, requested).to_spanned(span))
-			}
+			AstNode::StructLit(obj) => self.resolve_struct_lit(obj, parent, span),
+			AstNode::Call(call) => self.resolve_call(call, parent, span),
+			AstNode::FieldAccess(field) => self.resolve_field_access(field, parent, span),
 
-			AstNode::RecordLit(obj) => {
-				let mut buf = hashmap!();
-				for (name, node) in obj {
-					let node = self.resolve_node(node, parent)?.box_item();
-					buf.insert(name, node);
-				}
-				Ok(RNode::RecordLit(buf).to_spanned(span))
-			}
+			AstNode::RecordLit(obj) => self.resolve_record_lit(obj, parent, span),
 			AstNode::ListLit(list) => {
 				let list = self.resolve_list(list, parent)?;
 				Ok(RNode::ListLit(list).to_spanned(span))
@@ -463,17 +599,7 @@ impl NameRes {
 					.box_item();
 				Ok(RNode::UnaryNode(un.kind, target).to_spanned(span))
 			}
-			AstNode::Constructor(con) => {
-				let target = self
-					.resolve_node(con.target.deref_item(), parent)?
-					.box_item();
-				let mut params = HashMap::new();
-				for (name, value) in con.params {
-					let value = self.resolve_node(value, parent)?;
-					params.insert(name, value);
-				}
-				Ok(RNode::Constructor { target, params }.to_spanned(span))
-			}
+			AstNode::Constructor(con) => self.resolve_constructor(con, parent, span),
 
 			AstNode::ContinueNode => Ok(RNode::Continue.to_spanned(span)),
 			AstNode::BreakNode => Ok(RNode::Break.to_spanned(span)),
@@ -485,6 +611,10 @@ impl NameRes {
 			AstNode::DontResult => Err(NameErr::UnexpectedSemi.to_errorbox(span, self.file_id)),
 		}
 	}
+}
+
+///block resolution
+impl NameRes {
 	fn resolve_block_with(
 		&mut self,
 		ast: ast::Block,

@@ -16,7 +16,12 @@ macro_rules! bx {
 		Box::new($e)
 	};
 }
+
 #[macro_export]
+/// <!-- rust-analyzer delimiter nudge
+/// '''rust ,ignore
+/// hashmap![];
+/// ''' -->
 macro_rules! hashmap {
     [] => {
         HashMap::new()
@@ -70,34 +75,6 @@ macro_rules! _test_func {
     ($lit:literal) => {
         $lit
     };
-}
-#[macro_export]
-macro_rules! test_func {
-    (
-        $(  $section:ident, $func:expr,
-            {$($name:expr => $test:tt $(,)?)* }
-        $(,)?)*
-    ) => {
-
-        $(
-            #[test]
-            fn $section() {
-                use crate::_test_func;
-                insta::with_settings!(
-                {description => stringify!($section)},
-                {
-                    $(
-                        let _ = std::panic::catch_unwind(||{
-                        insta::assert_debug_snapshot!($name,$func(_test_func!($test)));
-                        }).inspect_err(|err| println!("{err:?}"));
-                    )*
-                }
-
-            )
-        }
-        )*
-    };
-
 }
 
 pub fn compact_iter_debug<T: Iterator>(fmt: &mut Formatter, iter: T) -> std::fmt::Result

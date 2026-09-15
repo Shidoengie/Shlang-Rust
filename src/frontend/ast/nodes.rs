@@ -29,11 +29,33 @@ pub struct Ast<'a> {
 	pub ident_pool: IdentArray<'a>,
 	pub file_id: FileId,
 }
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Program<'a> {
 	pub proc: Vec<NodeSpan>,
 	pub ident_pool: IdentArray<'a>,
 	pub file_id: FileId,
+}
+impl Debug for Program<'_> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		if !f.alternate() {
+			f.debug_struct("Program")
+				.field("proc", &self.proc)
+				.field(&"ident_pool", &self.ident_pool)
+				.field(&"file_id", &self.file_id)
+				.finish()?;
+		}
+		f.debug_struct("Program")
+			.field(&"ident_pool", &self.ident_pool)
+			.field(&"file_id", &self.file_id)
+			.finish()?;
+		f.write_str(" = ")?;
+		if self.proc.len() == 1 {
+			write!(f, "{:#?}", self.proc[0])?;
+		} else {
+			write!(f, "{:#?}", self.proc)?;
+		}
+		Ok(())
+	}
 }
 #[derive(Clone, PartialEq, VariantName)]
 pub enum Node {
@@ -103,22 +125,7 @@ impl Debug for Node {
 			Node::Null => f.write_str("Null"),
 			Node::BreakNode => f.write_str("Break"),
 			Node::ContinueNode => f.write_str("Continue"),
-			Node::Decl(decl) => {
-				f.write_str("Decl")?;
-				if decl.readonly && decl.hoisted {
-					f.write_str("(global readonly)")?;
-				} else if decl.readonly {
-					f.write_str("(readonly)")?;
-				} else if decl.hoisted {
-					f.write_str("(global)")?;
-				}
-				write!(
-					f,
-					"::{name:?} = {expr:?}",
-					name = decl.name,
-					expr = decl.expr,
-				)
-			}
+			Node::Decl(decl) => Debug::fmt(decl, f),
 			Node::Index { target, index } => f
 				.debug_struct("Index")
 				.field("target", target)
@@ -139,36 +146,20 @@ impl Debug for Node {
 
 			Node::Return(ret) => f.debug_tuple("Return").field(&ret.item).finish(),
 			Node::Result(ret) => f.debug_tuple("Result").field(&ret.item).finish(),
-			Node::BinaryNode(bin) => write!(f, "{bin:#?}"),
-			Node::UnaryNode(node) => write!(f, "{node:#?}"),
-			Node::Constructor(node) => write!(f, "{node:#?}"),
+			Node::BinaryNode(node) => Debug::fmt(node, f),
+			Node::UnaryNode(node) => Debug::fmt(node, f),
+			Node::Constructor(node) => Debug::fmt(node, f),
 			Node::StructLit(node) => write!(f, "{node:#?}"),
-			Node::Branch(node) => write!(f, "{node:#?}"),
-			Node::ForLoop(node) => write!(f, "{node:#?}"),
 			Node::Assignment { target, value } => write!(f, "Assign({target:#?} = {value:#?})"),
-			Node::FieldAccess(node) => write!(f, "{node:#?}"),
-			Node::While(node) => write!(f, "{node:#?}"),
-			Node::Call(node) => write!(f, "{node:#?}"),
+			Node::FieldAccess(node) => Debug::fmt(node, f),
+			Node::While(node) => Debug::fmt(node, f),
+			Node::Call(node) => Debug::fmt(node, f),
+			Node::Branch(node) => Debug::fmt(node, f),
+			Node::ForLoop(node) => Debug::fmt(node, f),
 
 			Node::DontResult => f.write_str("DontResult"),
 
-			Node::FunctionLit(func) => {
-				if func.captures {
-					write!(f, "Closure(")?;
-				} else {
-					write!(f, "Function(")?;
-				}
-
-				for (index, name) in func.args.iter().enumerate() {
-					write!(f, "{:?}", name.item)?;
-					if index + 1 != func.args.len() {
-						write!(f, ", ")?;
-					}
-				}
-				write!(f, ")")?;
-
-				f.debug_set().entries(&func.block.item).finish()
-			}
+			Node::FunctionLit(func) => Debug::fmt(func, f),
 			Node::SelfTy => f.write_str("SelfTy"),
 			Node::SelfValue => f.write_str("SelfValue"),
 		}
@@ -213,6 +204,7 @@ pub struct BinaryNode {
 	pub left: NodeRef,
 	pub right: NodeRef,
 }
+
 impl BinaryNode {
 	pub fn is(&self, kind: &BinaryOp) -> bool {
 		self.kind.eq(kind)
@@ -222,10 +214,18 @@ impl BinaryNode {
 	}
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct UnaryNode {
 	pub kind: UnaryOp,
 	pub target: NodeRef,
+}
+impl Debug for UnaryNode {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_tuple("Unary")
+			.field(&self.kind)
+			.field(&self.target)
+			.finish()
+	}
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -291,7 +291,7 @@ pub struct ForLoop {
 	pub proc: Spanned<Vec<Spanned<Node>>>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct Decl {
 	pub name: IdentId,
 	pub expr: NodeRef,
@@ -299,6 +299,19 @@ pub struct Decl {
 	pub hoisted: bool,
 	pub modifier_span: Option<Span>,
 	pub is_item: bool,
+}
+impl Debug for Decl {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str("Decl")?;
+		if self.readonly && self.hoisted {
+			f.write_str("(global readonly)")?;
+		} else if self.readonly {
+			f.write_str("(readonly)")?;
+		} else if self.hoisted {
+			f.write_str("(global)")?;
+		}
+		write!(f, "::{:?} = {:?}", self.name, self.expr)
+	}
 }
 
 impl Decl {
@@ -338,11 +351,28 @@ impl Decl {
 	}
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct FunctionLit {
 	pub block: Block,
 	pub args: Vec<Spanned<IdentId>>,
 	pub captures: bool,
+}
+impl Debug for FunctionLit {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		if self.captures {
+			write!(f, "Closure(")?;
+		} else {
+			write!(f, "Function(")?;
+		}
+		for (index, name) in self.args.iter().enumerate() {
+			write!(f, "{:?}", name.item)?;
+			if index + 1 != self.args.len() {
+				write!(f, ", ")?;
+			}
+		}
+		write!(f, ")")?;
+		f.debug_set().entries(&self.block.item).finish()
+	}
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]

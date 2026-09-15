@@ -1,7 +1,6 @@
 use clap::{Parser, ValueEnum};
 use shlang::backend::Runtime;
 use shlang::frontend::Compiler;
-use shlang::frontend::ir::instructions::IrNode;
 use std::fmt::{Debug, Display};
 use std::fs;
 use std::io::{self, Write};

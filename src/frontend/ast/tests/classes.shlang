@@ -1,0 +1,84 @@
+//Class literal
+class Foo {
+	var x; 
+	let b = 10;
+}
+
+//Class literal with private members
+class Foo {
+	priv var x; 
+	priv let b = 10;
+}
+
+//Empty class literal
+class Foo {}
+
+//Empty anonymous class literal
+class {}
+
+//Class literal with methods
+class Foo {
+	func abc(a,b,c) {
+		return 10;
+	}
+	let x = 20;
+}
+//Class literal with private methods
+class Foo {
+	priv func abc(a,b,c) {
+		return 10;
+	}
+	let x = 20;
+}
+
+//Class literal with static properties
+class Foo { 
+	static a = 10; 
+	static var b = 20; 
+}
+
+// Class literal with static methods
+class Foo {
+	static func hello(bar) {
+		return bar;
+	}
+	let x = 10;
+}
+
+//Class literal with methods using self
+class Foo {
+	let x = 20;
+	func double_x(a) {
+		let buzz = self.x * 2;
+		return buzz;
+	}
+	func do_stuff() {
+		println(self.double_x());
+	}
+}
+
+//Class literal using static member
+class Foo {
+	static message = "Well hello there";
+	static func print_msg() {
+		println(Self.message);
+	}
+}
+//Class literal using static function
+class Foo {
+	static message = "Well hello there";
+	static func print_msg() {
+		println(Self.message);
+	}
+	func prompt_with_header(a) {
+		println(a);
+		Self.print_msg();
+	}
+}
+
+//Class constructor
+class Foo {};
+let b = Foo {
+	x:10,
+	y:20
+}

@@ -1,0 +1,11 @@
+//Call expression
+a(102,true,'1')
+
+//Empty call
+a()
+
+//Call as expression
+a(1,1,1)+1
+
+//call_with_paren
+a((1),1,1)

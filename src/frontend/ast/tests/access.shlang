@@ -1,0 +1,23 @@
+//Struct access
+b.a*2
+
+//Struct access with call
+a.b().c
+
+//Chained access
+a.b.c.d
+
+//Chained access with call
+a.b().c().d().e()
+
+//Forced precedence chained access with call
+(((a.b()).c()).d()).e()
+
+//Index
+a[1]
+
+//Index with call
+a[1]()[2]
+
+//Assignment at index
+a[1] = 10

@@ -702,7 +702,6 @@ impl Parser<'_> {
 	fn parse_prefix(&mut self, token: &Token) -> Result {
 		match &token.kind {
 			TokenType::Str(lit) => Ok(Node::Str(lit.to_string()).to_spanned(token.span)),
-			TokenType::Struct => self.parse_struct(token.span),
 			TokenType::Class => self.parse_class(),
 			TokenType::Var => self.parse_vardef(token),
 			TokenType::Let => self.parse_readonly_def(token),
@@ -989,42 +988,6 @@ impl Parser<'_> {
 		self.next()?;
 		self.in_toplevel = prev_toplevel;
 		Ok(Node::ClassLit(class).to_spanned(start_span + end_span))
-	}
-	fn parse_struct(&mut self, struct_keyword: Span) -> Result {
-		self.peek_some()?;
-		let maybe_named = self.is_expected(TokenType::Identifier)?;
-		if let Some(name_ident) = maybe_named {
-			return self.named_struct(&name_ident, struct_keyword);
-		}
-		let block = self.parse_block()?;
-		let mut fields: HashMap<IdentId, NodeSpan> = hashmap!();
-		for node in block {
-			let field = self.node_to_field(node)?;
-			fields.insert(field.0, field.1);
-		}
-
-		let last = self.next()?;
-		let span = struct_keyword + last.span;
-		Ok(Node::StructLit(fields).to_spanned(span))
-	}
-	fn named_struct(&mut self, name_ident: &Token, struct_keyword: Span) -> Result {
-		self.next()?;
-		let block = self.parse_block()?;
-		let last = self.next()?;
-		let name = self.add_ident(name_ident);
-		let span = name_ident.span + last.span;
-		let mut fields: HashMap<IdentId, NodeSpan> = hashmap!();
-		for node in block {
-			let field = self.node_to_field(node)?;
-			fields.insert(field.0, field.1);
-		}
-		let expr = Node::StructLit(fields).to_spanned(span).box_item();
-		let mut def = Decl::new(*name, expr)
-			.as_readonly()
-			.with_modifier_span(struct_keyword)
-			.as_item();
-		def.hoisted = self.in_toplevel;
-		Ok(def.to_nodespan(span))
 	}
 
 	fn struct_params(&mut self) -> Result<HashMap<IdentId, NodeSpan>> {

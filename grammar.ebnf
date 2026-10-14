@@ -1,0 +1,163 @@
+(* Shlang v4 grammar
+ *
+ * This describes syntax implemented by the lexer and parser in this
+ * repository. Whitespace and comments are discarded by the lexer. Some
+ * additional words are reserved by the lexer but intentionally have no
+ * production here; see the notes after the grammar.
+ *)
+
+program              = { block-item } ;
+
+(* A semicolon is parsed as a no-result expression, not as a required
+   statement terminator. Expressions can therefore also be adjacent. *)
+block                = "{" , { block-item } , "}" ;
+block-item           = expression | ";" ;
+
+expression           = assignment ;
+
+(* Operators at each level are left-associative in the current Pratt parser.
+   Their relative binding strength is given from weakest to strongest. *)
+assignment           = logical-or , { assignment-operator , logical-or } ;
+assignment-operator  = "=" | "+=" | "-=" | "*=" | "/=" | "??=" ;
+logical-or           = logical-and , { ("or" | "||") , logical-and } ;
+logical-and          = equality , { ("and" | "&&") , equality } ;
+equality             = comparison , { ("==" | "!=") , comparison } ;
+comparison           = nullish , { ("<" | "<=" | ">" | ">=") , nullish } ;
+nullish              = sum , { "??" , sum } ;
+sum                  = product , { ("+" | "-") , product } ;
+product              = unary , { ("*" | "/" | "%") , unary } ;
+unary                = { "!" | "not" | "-" } , postfix ;
+
+(* Postfix forms can be freely chained. The parser's binding strengths are,
+   from strongest to weakest: member access, constructor, indexing, call. *)
+postfix              = primary , { postfix-suffix } ;
+postfix-suffix       = arguments
+                     | "[" , expression , "]"
+                     | constructor-suffix
+                     | member-suffix ;
+constructor-suffix   = "{" , [ constructor-fields ] , "}" ;
+member-suffix        = "." , identifier , [ arguments ] ;
+
+arguments            = "(" , [ argument-list ] , ")" ;
+argument-list        = expression , { "," , expression } , [ "," ] ;
+
+primary              = literal
+                     | identifier
+                     | "self"
+                     | "Self"
+                     | "(" , expression , ")"
+                     | variable-declaration
+                     | list-literal
+                     | record-literal
+                     | struct-literal
+                     | class-literal
+                     | function-expression
+                     | closure-expression
+                     | if-expression
+                     | while-expression
+                     | for-expression
+                     | loop-expression
+                     | do-expression
+                     | return-expression
+                     | "break"
+                     | "continue" ;
+return-expression   = "return" , ( expression | ";" ) ;
+
+literal              = integer-literal
+                     | float-literal
+                     | string-literal
+                     | "true"
+                     | "false"
+                     | "null" ;
+
+list-literal         = "[" , [ argument-list ] , "]" ;
+record-literal       = "{" , [ record-fields ] , "}" ;
+record-fields        = record-field , { [ "," ] , record-field } , [ "," ] ;
+record-field         = identifier , ":" , expression ;
+constructor-fields   = record-fields ;
+
+variable-declaration = ("var" | "let") , identifier , [ "=" , expression ] ;
+
+function-expression  = "func" ,
+                       ( identifier , parameter-list | parameter-list ) ,
+                       block ;
+parameter-list       = "(" , [ identifier , { "," , identifier } , [ "," ] ] , ")" ;
+closure-expression   = "$" , parameter-list , ( block | expression ) ;
+
+if-expression        = "if" , expression , block ,
+                       [ "else" , ( if-expression | block ) ] ;
+while-expression     = "while" , expression , block ;
+for-expression       = "for" , identifier , "in" , expression , block ;
+loop-expression      = "loop" , block ;
+do-expression        = "do" , block ;
+
+struct-literal       = "struct" , [ identifier ] , block ;
+(* The struct body is parsed as a block; each body item must resolve to a
+   declaration to be accepted as a struct field. *)
+
+class-literal        = "class" , [ identifier ] , "{" , { class-member } , "}" ;
+class-member         = [ "priv" ] ,
+                       ( instance-property
+                       | static-property
+                       | instance-method
+                       | static-method ) ,
+                       [ ";" ] ;
+instance-property    = ( "var" | "let" ) , identifier , [ "=" , expression ] ;
+static-property      = "static" , [ "var" ] , identifier , [ "=" , expression ] ;
+instance-method      = "func" , identifier , parameter-list , block ;
+static-method        = "static" , "func" , identifier , parameter-list , block ;
+
+integer-literal      = digit , { digit | "_" } ;
+float-literal        = digit , { digit | "_" } , "." , digit , { digit | "_" } ;
+digit                = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+
+string-literal       = double-quoted-string | single-quoted-string ;
+double-quoted-string = double-quote , { double-string-character | escape-sequence } ,
+                       double-quote ;
+single-quoted-string = single-quote , { single-string-character | escape-sequence } ,
+                       single-quote ;
+escape-sequence      = backslash , ( "n" | "t" | backslash | "0" |
+                                     double-quote | single-quote ) ;
+double-string-character
+                     = any-character-except(double-quote, backslash) ;
+single-string-character
+                     = any-character-except(single-quote, backslash) ;
+double-quote         = U+0022 ;
+single-quote         = U+0027 ;
+backslash            = U+005C ;
+
+identifier           = identifier-start , { identifier-continue } ;
+identifier-start     = letter | "_" | non-ASCII-number ;
+identifier-continue  = letter | digit | "_" | non-ASCII-number ;
+letter               = "A"…"Z" | "a"…"z" | non-ASCII-letter ;
+
+(* Lexical trivia *)
+whitespace           = " " | "\t" | "\r" | "\n" ;
+line-comment         = "//" , { any-character-except-newline }
+                     | "#" , { any-character-except-newline } ;
+block-comment        = "/*" , { block-comment-character | block-comment } , "*/" ;
+block-comment-character
+                     = any-character-except("/*", "*/") ;
+trivia               = whitespace | line-comment | block-comment ;
+
+(* Implementation notes
+ *
+ * - Record and constructor fields accept optional commas between fields;
+ *   a trailing comma is also accepted. List/call arguments and parameters
+ *   require commas between entries but permit one trailing comma.
+ * - "self" is valid only inside a class method. "Self" is lexed as a
+ *   separate token and is usable as an expression elsewhere.
+ * - The parser does not require semicolons between block items.
+ * - In an if/while/for condition, an unparenthesized opening brace ends the
+ *   condition and begins its body; parenthesized expressions can contain
+ *   record/constructor literals there.
+ * - ASCII digits begin numeric literals. Other Unicode alphanumeric
+ *   characters can occur in identifiers, following the lexer's character
+ *   classification.
+ * - The lexer reserves these words, but this parser has no productions for
+ *   them yet: const, match, case, is, enum, type, interface, impl, def, pub,
+ *   mod, as, import, from.
+ * - The lexer also recognizes @, ?, |, and & as individual tokens, but they
+ *   do not form expressions in the current parser. "||" and "&&" are
+ *   supported logical-operator spellings.
+ *)

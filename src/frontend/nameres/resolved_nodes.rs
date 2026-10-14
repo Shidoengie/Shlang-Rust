@@ -69,7 +69,6 @@ pub enum ResolvedNode {
 	},
 
 	DoBlock(Block),
-	StructDef(HashMap<IdentId, NodeRefSpan>),
 	RecordLit(HashMap<IdentId, NodeRefSpan>),
 	ClassLit(ClassLit),
 	FieldAccess(NodeRefSpan, Spanned<AccessType>),
@@ -219,7 +218,6 @@ impl Debug for ResolvedNode {
 				.field("callee", callee)
 				.field("args", args)
 				.finish(),
-			Self::StructDef(map) => f.debug_map().entries(map).finish(),
 			Self::ClassLit(class) => Debug::fmt(class, f),
 			Self::FunctionLit(func) => Debug::fmt(func, f),
 		}

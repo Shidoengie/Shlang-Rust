@@ -472,18 +472,7 @@ impl NameRes {
 		}
 		Ok(RNode::Constructor { target, params }.to_spanned(span))
 	}
-	fn resolve_struct_lit(
-		&mut self,
-		obj: HashMap<IdentId, ast::NodeSpan>,
-		parent: &mut Scope,
-		span: Span,
-	) -> Result<RNodeSpan> {
-		let mut fields = hashmap!();
-		for (name, node) in obj {
-			fields.insert(name, self.resolve_node(node, parent)?.box_item());
-		}
-		Ok(RNode::StructDef(fields).to_spanned(span))
-	}
+
 	fn resolve_call(
 		&mut self,
 		call: ast::Call,
@@ -584,7 +573,7 @@ impl NameRes {
 				let index = self.resolve_node(index.deref_item(), parent)?.box_item();
 				Ok(RNode::Index { target, index }.to_spanned(span))
 			}
-			AstNode::StructLit(obj) => self.resolve_struct_lit(obj, parent, span),
+
 			AstNode::Call(call) => self.resolve_call(call, parent, span),
 			AstNode::FieldAccess(field) => self.resolve_field_access(field, parent, span),
 

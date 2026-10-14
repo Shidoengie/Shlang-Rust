@@ -368,8 +368,6 @@ impl<'a> StackVM<'a> {
 				self.inc_ip();
 				Ok(())
 			}
-
-			_ => todo!(),
 		}
 	}
 

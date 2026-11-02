@@ -6,7 +6,7 @@ info: test_parser_access
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -22,30 +22,30 @@ Ok(
         target: FieldAccess {
             target: FieldAccess {
                 target: FieldAccess {
-                    target: Var(IdentId(4))[0:1],
+                    target: Var(SymbolId(4))[0:1],
                     requested: Method {
-                        callee: IdentId(5),
+                        callee: SymbolId(5),
                         callee_span: 2:3,
                         args: [],
                         arg_span: 4:5,
                     }[2:5],
                 }[0:5],
                 requested: Method {
-                    callee: IdentId(6),
+                    callee: SymbolId(6),
                     callee_span: 6:7,
                     args: [],
                     arg_span: 8:9,
                 }[6:9],
             }[0:9],
             requested: Method {
-                callee: IdentId(7),
+                callee: SymbolId(7),
                 callee_span: 10:11,
                 args: [],
                 arg_span: 12:13,
             }[10:13],
         }[0:13],
         requested: Method {
-            callee: IdentId(8),
+            callee: SymbolId(8),
             callee_span: 14:15,
             args: [],
             arg_span: 16:17,

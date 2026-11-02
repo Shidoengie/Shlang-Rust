@@ -150,19 +150,19 @@ impl NativeTrait for ListObject {
 }
 
 #[derive(Debug, Clone)]
-pub struct NativeFunction(usize);
+pub struct NativeFunction(u64);
 
 impl NativeFunction {
 	pub const VARIADIC_VALUE: u8 = u8::MAX;
-	pub const MAX_PTR_SIZE: usize = usize::MAX << 8;
+	pub const MAX_PTR_SIZE: u64 = u64::MAX << 8;
 	#[inline(always)]
 	pub fn new(func: FuncPtr, param_count: u8) -> Result<Self, ()> {
-		let ptr_value: usize = func as usize;
+		let ptr_value = func as u64;
 
 		if ptr_value > Self::MAX_PTR_SIZE {
 			return Err(());
 		}
-		let packed_value = param_count as usize | ptr_value << 8;
+		let packed_value = param_count as u64 | ptr_value << 8;
 		Ok(Self(packed_value))
 	}
 	#[inline(always)]

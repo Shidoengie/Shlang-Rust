@@ -1,5 +1,7 @@
 use crate::{
-	backend::vm::values::*, collections::{FileId, SpanMap}, idents::IdentArray,
+	backend::vm::values::*,
+	collections::{FileId, SpanMap},
+	symbols::SymbolArray,
 	utils::compact_iter_debug,
 };
 
@@ -11,13 +13,13 @@ use std::{
 pub struct ByteCode<'a> {
 	pub file_id: FileId,
 	pub ops: Box<[OpCode]>,
-	pub op_args: Box<[usize]>,
+	pub op_args: Box<[u64]>,
 	pub span_map: SpanMap,
 	pub global_count: usize,
 	pub local_count: usize,
 	pub globals: Box<[Value]>,
 	pub const_pool: Box<[Value]>,
-	pub ident_pool: IdentArray<'a>,
+	pub symbol_pool: SymbolArray<'a>,
 }
 
 impl Debug for ByteCode<'_> {
@@ -90,10 +92,9 @@ pub enum OpCode {
 	Index,
 	IndexMut,
 	MakeList,
-	MakeClass,
-	NewAnonClass,
 	SetProperty,
 	GetProperty,
+	NewInstance,
 }
 
 impl Display for OpCode {

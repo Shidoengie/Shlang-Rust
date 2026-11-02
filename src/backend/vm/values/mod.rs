@@ -10,7 +10,7 @@ use crate::{
 		StackVM,
 		error::{ErrCode, Type},
 	},
-	idents::IdentId,
+	symbols::{FieldKey, SymbolId},
 };
 pub use native::*;
 
@@ -58,17 +58,7 @@ impl fmt::Display for Value {
 		}
 	}
 }
-#[derive(Debug, Clone)]
-pub struct Class {
-	pub name: Option<IdentId>,
-	pub static_fields: HashMap<(IdentId, bool), Value>,
-	pub instance_fields: HashMap<(IdentId, bool), Value>,
-}
-#[derive(Debug, Clone)]
-pub struct Instance {
-	pub name: Option<IdentId>,
-	pub fields: HashMap<(IdentId, bool), Value>,
-}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Function {
 	pub address: usize,
@@ -79,6 +69,44 @@ impl From<Function> for Value {
 	fn from(value: Function) -> Self {
 		Self::Function(value)
 	}
+}
+#[derive(Debug, Clone)]
+pub struct Class {
+	pub name: Option<SymbolId>,
+	pub fields: HashMap<FieldKey, Field>,
+}
+#[derive(Debug, Clone)]
+pub struct Field {
+	pub value: Value,
+	pub metadata: FieldData,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct FieldData(u8);
+impl FieldData {
+	pub const PRIVATE: Self = FieldData(1 << 0);
+	pub const READONLY: Self = FieldData(1 << 1);
+
+	pub fn new(is_private: bool, is_readonly: bool) -> Self {
+		let mut data = 0u8;
+		if is_private {
+			data |= Self::PRIVATE.0;
+		}
+		if is_readonly {
+			data |= Self::READONLY.0;
+		}
+		Self(data)
+	}
+	pub const fn is_private(&self) -> bool {
+		(self.0 & Self::PRIVATE.0) != 0
+	}
+	pub const fn is_readonly(&self) -> bool {
+		(self.0 & Self::READONLY.0) != 0
+	}
+}
+#[derive(Debug, Clone)]
+pub struct Instance {
+	pub name: Option<SymbolId>,
+	pub fields: HashMap<SymbolId, Value>,
 }
 
 #[derive(Debug)]

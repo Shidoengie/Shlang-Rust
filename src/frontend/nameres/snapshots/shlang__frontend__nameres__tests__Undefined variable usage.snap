@@ -6,7 +6,7 @@ expression: "test_nameres (_test_func! ({var a = c;}))"
 Err(
     ErrorBox {
         kind: UndefinedVar(
-            IdentId(5),
+            SymbolId(5),
         ),
         span: 8:9,
         id: FileId(1),

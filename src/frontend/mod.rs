@@ -87,7 +87,7 @@ impl Compiler {
 		input: &'b str,
 	) -> Result<ResolvedAst<'b>, Box<dyn LangError>> {
 		let parsed = self.parse(input)?;
-		let mut nameres = NameRes::new(self.file_store.clone());
+		let mut nameres = NameRes::new(&mut self.file_store);
 		let resolved = nameres
 			.resolve(parsed)
 			.inspect_err(|err| {
@@ -96,7 +96,6 @@ impl Compiler {
 				}
 			})
 			.map_err(|err| Box::new(err) as Box<dyn LangError>)?;
-		self.file_store = nameres.file_store;
 		Ok(resolved)
 	}
 	pub fn resolve_expr<'a, 'b>(
@@ -104,7 +103,7 @@ impl Compiler {
 		input: &'b str,
 	) -> Result<ResolvedAstNode<'b>, Box<dyn LangError>> {
 		let parsed = self.parse_expr(input)?;
-		let mut nameres = NameRes::new(self.file_store.clone());
+		let mut nameres = NameRes::new(&mut self.file_store);
 		let resolved = nameres
 			.resolve_expr(parsed)
 			.inspect_err(|err| {
@@ -113,7 +112,7 @@ impl Compiler {
 				}
 			})
 			.map_err(|err| Box::new(err) as Box<dyn LangError>)?;
-		self.file_store = nameres.file_store;
+
 		Ok(resolved)
 	}
 	pub fn compile<'a, 'b>(&'a mut self, input: &'b str) -> Result<Ir<'b>, Box<dyn LangError>> {

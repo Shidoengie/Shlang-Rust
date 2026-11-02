@@ -16,7 +16,7 @@ pub enum ErrCode {
 	MixedTypes { first: Type, last: Type },
 	UnsupportedOperation { op: String, target: Type },
 	InvalidStackIndex(usize),
-	InvalidArgs { expected: u8, got: u8 },
+	InvalidFuncArgs { expected: u8, got: u8 },
 	StackOverflow,
 	IndexOutOfBounds,
 }
@@ -54,7 +54,7 @@ impl LangError for ErrorBox<ErrCode> {
 			ErrCode::Unspecified(unspec) => {
 				MsgBuilder::build_unspecified_err(unspec.to_string(), self.span)
 			}
-			ErrCode::InvalidArgs { expected, got } => {
+			ErrCode::InvalidFuncArgs { expected, got } => {
 				MsgBuilder::build_err("Invalid argument size", self.span)
 					.with_err_label(format!(
 						"This function expected {expected} {arg_msg1}, but {got} {arg_msg2}.",

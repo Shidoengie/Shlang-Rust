@@ -7,7 +7,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum LexError {
 	UnexpectedChar(char),
-	InvalidIdent,
+	InvalidSymbol,
 	UnterminatedStr(char),
 	InvalidNumber,
 	InvalidEscape,
@@ -16,9 +16,9 @@ impl LangError for ErrorBox<LexError> {
 	fn msg(&'_ self) -> ReportBuilder<LangSpan, ReportKind> {
 		use LexError as Le;
 		match self.kind {
-			Le::InvalidIdent => MsgBuilder::build_err("Invalid identifier", self.span)
+			Le::InvalidSymbol => MsgBuilder::build_err("Invalid symbol", self.span)
 				.with_err_label("This contains special charaters.")
-				.with_note("Identifiers can only be made up of ascii charaters.")
+				.with_note("Symbols can only be made up of ascii charaters.")
 				.get_inner(),
 			Le::InvalidNumber => MsgBuilder::build_err("Invalid number", self.span)
 				.with_err_label("This is not a valid number.")

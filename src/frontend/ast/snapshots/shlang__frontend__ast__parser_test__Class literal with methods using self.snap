@@ -6,7 +6,7 @@ info: test_parser_classes
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -21,11 +21,11 @@ Ok(
         file_id: FileId(Anon),
     } = ClassLit {
         name: Some(
-            IdentId(4)[6:9],
+            SymbolId(4)[6:9],
         ),
         fields: {
             (
-                IdentId(5),
+                SymbolId(5),
                 false,
             ): Field {
                 default: Some(
@@ -39,17 +39,17 @@ Ok(
         },
         methods: {
             (
-                IdentId(9),
+                SymbolId(9),
                 false,
             ): Method {
                 block: [
                     Call {
-                        callee: Var(IdentId(1))[109:116],
+                        callee: Var(SymbolId(1))[109:116],
                         args: [
                             FieldAccess {
                                 target: SelfValue[117:121],
                                 requested: Method {
-                                    callee: IdentId(6),
+                                    callee: SymbolId(6),
                                     callee_span: 122:130,
                                     args: [],
                                     arg_span: 131:132,
@@ -64,26 +64,26 @@ Ok(
                 private: false,
             }[89:139],
             (
-                IdentId(6),
+                SymbolId(6),
                 false,
             ): Method {
                 block: [
-                    Decl(readonly)::IdentId(8) = BinaryNode {
+                    Decl(readonly)::SymbolId(8) = BinaryNode {
                         kind: Multiply,
                         left: FieldAccess {
                             target: SelfValue[58:62],
                             requested: Property(
-                                IdentId(5)[63:64],
+                                SymbolId(5)[63:64],
                             )[63:64],
                         }[58:64],
                         right: Int(2)[67:68],
                     }[58:68][47:68],
                     Return(
-                        Var(IdentId(8)),
+                        Var(SymbolId(8)),
                     )[72:78],
                 ][43:87],
                 args: [
-                    IdentId(7)[40:41],
+                    SymbolId(7)[40:41],
                 ],
                 name_span: 31:39,
                 modifier_span: 26:30,

@@ -6,7 +6,7 @@ info: test_parser_access
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -18,9 +18,9 @@ Ok(
     } = BinaryNode {
         kind: Multiply,
         left: FieldAccess {
-            target: Var(IdentId(4))[0:1],
+            target: Var(SymbolId(4))[0:1],
             requested: Property(
-                IdentId(5)[2:3],
+                SymbolId(5)[2:3],
             )[2:3],
         }[0:3],
         right: Int(2)[4:5],

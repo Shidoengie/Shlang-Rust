@@ -4,6 +4,6 @@ pub mod frontend;
 pub mod lang_errors;
 
 pub mod collections;
-pub mod idents;
+pub mod symbols;
 pub mod testing;
 pub mod utils;

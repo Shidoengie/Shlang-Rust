@@ -10,7 +10,7 @@ use crate::{
 		nameres::resolved_nodes::{ResolvedNode as RNode, *},
 		opkind::*,
 	},
-	idents::IdentArray,
+	symbols::SymbolArray,
 	lang_errors::{ErrorBox, ToErrorBox},
 	utils::compact_iter_debug,
 };
@@ -45,7 +45,7 @@ pub struct Ir<'a> {
 	pub span_map: SpanMap,
 	pub global_count: usize,
 	pub local_count: usize,
-	pub ident_pool: IdentArray<'a>,
+	pub symbol_pool: SymbolArray<'a>,
 }
 impl Debug for Ir<'_> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -121,7 +121,7 @@ impl IRgen {
 			span_map: codegen.span_map,
 			global_count: expr.global_count,
 			globals: codegen.globals,
-			ident_pool: expr.ident_pool,
+			symbol_pool: expr.symbol_pool,
 			local_count: expr.local_count,
 		})
 	}
@@ -148,7 +148,7 @@ impl IRgen {
 			span_map: codegen.span_map,
 			global_count: prog.global_count,
 			local_count: prog.local_count,
-			ident_pool: prog.ident_pool,
+			symbol_pool: prog.symbol_pool,
 		})
 	}
 
@@ -422,10 +422,10 @@ impl IRgen {
 		} else {
 			self.gen_block(func.block, &mut func_code)?;
 		}
-		if func.idents.len() > u8::MAX.into() {
-			return Err(GenErr::TooManyArguments(func.idents.len()).to_errorbox(span, self.file_id));
+		if func.symbols.len() > u8::MAX.into() {
+			return Err(GenErr::TooManyArguments(func.symbols.len()).to_errorbox(span, self.file_id));
 		}
-		let param_count = func.idents.len() as u8;
+		let param_count = func.symbols.len() as u8;
 		let local_count = param_count as usize + func.local_count;
 		func_code.push(Op::Push(IrLiteral::Null));
 		func_code.push(Op::Ret);

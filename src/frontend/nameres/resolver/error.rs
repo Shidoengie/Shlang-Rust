@@ -2,12 +2,12 @@ use ariadne::{Label, ReportBuilder, ReportKind};
 
 use crate::{
 	collections::spans::Span,
-	idents::IdentId,
+	symbols::SymbolId,
 	lang_errors::{ErrorBox, LangError, LangSpan, MsgBuilder},
 };
 #[derive(Debug)]
 pub enum NameErr {
-	UndefinedVar(IdentId),
+	UndefinedVar(SymbolId),
 	UnexpectedSemi,
 	AssignmentToReadonly {
 		is_item: bool,

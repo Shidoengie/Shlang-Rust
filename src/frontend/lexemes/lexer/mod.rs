@@ -73,7 +73,7 @@ impl<'a> Lexer<'a> {
 		}
 		Ok(Token::new(TokenType::Int, Span::new(start - 1, self.index)))
 	}
-	fn ident(&mut self) -> Result {
+	fn symbol(&mut self) -> Result {
 		let start = self.index - 1;
 		let mut current = self.peek_char();
 		while let Some(val) = current {
@@ -86,9 +86,9 @@ impl<'a> Lexer<'a> {
 		}
 		let stop = self.index;
 		let Some(span) = self.source.get(start as usize..stop as usize) else {
-			return self.make_err(LexError::InvalidIdent, start, stop);
+			return self.make_err(LexError::InvalidSymbol, start, stop);
 		};
-		let kind = tokens::map_keyword(span).unwrap_or(TokenType::Identifier);
+		let kind = tokens::map_keyword(span).unwrap_or(TokenType::Symbol);
 		Ok(Token::new(kind, Span::new(start, stop)))
 	}
 	fn str(&mut self, quote: char) -> Result {
@@ -157,13 +157,13 @@ impl<'a> Lexer<'a> {
 		))
 	}
 
-	fn ident_or_num(&mut self, expected: char) -> Result {
+	fn symbol_or_num(&mut self, expected: char) -> Result {
 		let start = self.index;
 		if expected.is_ascii_digit() {
 			return self.num();
 		}
 		if expected.is_alphanumeric() || expected == '_' {
-			return self.ident();
+			return self.symbol();
 		}
 		self.make_err(LexError::UnexpectedChar(expected), start - 1, start)
 	}
@@ -278,7 +278,7 @@ impl<'a> Lexer<'a> {
 			'#' => self.single_comment(),
 
 			' ' | '\t' | '\r' | '\n' => self.next(),
-			last => self.ident_or_num(last),
+			last => self.symbol_or_num(last),
 		}
 	}
 	pub fn peek(&self) -> Result {

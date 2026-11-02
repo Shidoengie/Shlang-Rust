@@ -30,7 +30,7 @@ Ok(
         ],
         global_count: 5,
         local_count: 0,
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",

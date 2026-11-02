@@ -6,7 +6,7 @@ info: test_parser_classes
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -16,7 +16,7 @@ Ok(
         file_id: FileId(Anon),
     } = ClassLit {
         name: Some(
-            IdentId(4)[6:9],
+            SymbolId(4)[6:9],
         ),
         fields: {},
         methods: {},

@@ -1,7 +1,10 @@
 use core::fmt;
-use std::fmt::{Debug, Display};
+use std::{
+	collections::HashMap,
+	fmt::{Debug, Display},
+};
 
-use crate::idents::IdentId;
+use crate::symbols::{FieldKey, SymbolId};
 
 #[derive(Clone, Debug, Default)]
 #[repr(u8)]
@@ -47,9 +50,9 @@ pub enum IrNode {
 	Index,
 	IndexMut,
 	MakeList(usize),
-	GetProperty(IdentId),
-	SetProperty(IdentId),
-	MakeClass(Option<IdentId>),
+	GetProperty(SymbolId),
+	SetProperty(SymbolId),
+	NewInstance,
 }
 
 impl Display for IrNode {
@@ -79,6 +82,7 @@ pub enum IrLiteral {
 	Bool(bool),
 	String(String),
 	Function(Function),
+	Class(ClassLit),
 }
 impl fmt::Display for IrLiteral {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -89,6 +93,7 @@ impl fmt::Display for IrLiteral {
 			Self::String(v) => write!(f, "\"{v}\""),
 			Self::Null => write!(f, "null"),
 			Self::Function(v) => write!(f, "<function@{}>", v.address),
+			Self::Class(v) => write!(f, "<class#{:?}>", v.name),
 		}
 	}
 }
@@ -103,4 +108,25 @@ impl From<Function> for IrLiteral {
 	fn from(value: Function) -> Self {
 		Self::Function(value)
 	}
+}
+#[derive(Clone, Debug)]
+pub struct ClassLit {
+	pub name: Option<SymbolId>,
+	pub fields: HashMap<FieldKey, Field>,
+	pub methods: HashMap<FieldKey, Method>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Field {
+	pub default: Option<IrLiteral>,
+	pub readonly: bool,
+	pub private: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct Method {
+	pub address: String,
+	pub local_count: usize,
+	pub param_count: u8,
+	pub private: bool,
 }

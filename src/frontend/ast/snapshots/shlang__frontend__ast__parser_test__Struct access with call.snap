@@ -6,7 +6,7 @@ info: test_parser_access
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -18,16 +18,16 @@ Ok(
         file_id: FileId(Anon),
     } = FieldAccess {
         target: FieldAccess {
-            target: Var(IdentId(4))[0:1],
+            target: Var(SymbolId(4))[0:1],
             requested: Method {
-                callee: IdentId(5),
+                callee: SymbolId(5),
                 callee_span: 2:3,
                 args: [],
                 arg_span: 4:5,
             }[2:5],
         }[0:5],
         requested: Property(
-            IdentId(6)[6:7],
+            SymbolId(6)[6:7],
         )[6:7],
     }[0:7],
 )

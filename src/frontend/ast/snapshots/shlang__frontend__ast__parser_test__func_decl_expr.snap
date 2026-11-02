@@ -6,7 +6,7 @@ info: test_parser_functions
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -15,7 +15,7 @@ Ok(
             5: "b",
         },
         file_id: FileId(Anon),
-    } = Decl(global readonly)::IdentId(4) = Function(IdentId(5)){
+    } = Decl(global readonly)::SymbolId(4) = Function(SymbolId(5)){
         Result(
             Int(1),
         )[12:13],

@@ -6,7 +6,7 @@ info: test_parser_access
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -17,7 +17,7 @@ Ok(
     } = Index {
         target: Call {
             callee: Index {
-                target: Var(IdentId(4))[0:1],
+                target: Var(SymbolId(4))[0:1],
                 index: Int(1)[2:3],
             }[1:4],
             args: [],

@@ -6,7 +6,7 @@ info: test_parser_classes
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -20,11 +20,11 @@ Ok(
         file_id: FileId(Anon),
     } = ClassLit {
         name: Some(
-            IdentId(4)[6:9],
+            SymbolId(4)[6:9],
         ),
         fields: {
             (
-                IdentId(5),
+                SymbolId(5),
                 true,
             ): Field {
                 default: Some(
@@ -38,17 +38,17 @@ Ok(
         },
         methods: {
             (
-                IdentId(6),
+                SymbolId(6),
                 true,
             ): Method {
                 block: [
                     Call {
-                        callee: Var(IdentId(1))[79:86],
+                        callee: Var(SymbolId(1))[79:86],
                         args: [
                             FieldAccess {
                                 target: SelfTy[87:91],
                                 requested: Property(
-                                    IdentId(5)[92:99],
+                                    SymbolId(5)[92:99],
                                 )[92:99],
                             }[87:99],
                         ],
@@ -60,20 +60,20 @@ Ok(
                 private: false,
             }[51:110],
             (
-                IdentId(7),
+                SymbolId(7),
                 false,
             ): Method {
                 block: [
                     Call {
-                        callee: Var(IdentId(1))[137:144],
+                        callee: Var(SymbolId(1))[137:144],
                         args: [
-                            Var(IdentId(8))[145:146],
+                            Var(SymbolId(8))[145:146],
                         ],
                     }[145:147],
                     FieldAccess {
                         target: SelfTy[151:155],
                         requested: Method {
-                            callee: IdentId(6),
+                            callee: SymbolId(6),
                             callee_span: 156:165,
                             args: [],
                             arg_span: 166:167,
@@ -81,7 +81,7 @@ Ok(
                     }[151:167],
                 ][133:171],
                 args: [
-                    IdentId(8)[130:131],
+                    SymbolId(8)[130:131],
                 ],
                 name_span: 111:129,
                 modifier_span: 106:110,

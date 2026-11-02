@@ -212,3 +212,18 @@ impl ariadne::Span for Span {
 		(self.start - self.end) as usize
 	}
 }
+pub trait OkToSpanned<T, U>
+where
+	T: IntoSpanned,
+{
+	fn ok_to_spanned(self, span: Span) -> Result<Spanned<T>, U>;
+}
+
+impl<T, U> OkToSpanned<T, U> for Result<T, U>
+where
+	T: IntoSpanned,
+{
+	fn ok_to_spanned(self, span: Span) -> Result<Spanned<T>, U> {
+		Ok(self?.to_spanned(span))
+	}
+}

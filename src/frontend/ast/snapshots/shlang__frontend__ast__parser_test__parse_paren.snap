@@ -6,7 +6,7 @@ info: test_parser_expressions
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -21,6 +21,6 @@ Ok(
             left: Int(1)[1:2],
             right: Int(2)[3:4],
         }[1:4],
-        right: Var(IdentId(4))[5:6],
+        right: Var(SymbolId(4))[5:6],
     }[1:6],
 )

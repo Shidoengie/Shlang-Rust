@@ -1,8 +1,9 @@
 use std::{fmt::Debug, num::NonZeroU32, ops::Index};
 
 use ariadne::{Cache, Source};
+use nonmax::NonMaxU32;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FileId(NonZeroU32);
+pub struct FileId(NonMaxU32);
 impl Default for FileId {
 	fn default() -> Self {
 		Self::ANON
@@ -20,9 +21,9 @@ impl Debug for FileId {
 	}
 }
 impl FileId {
-	pub const ANON: Self = Self(NonZeroU32::MAX);
+	pub const ANON: Self = Self(NonMaxU32::MAX);
 	pub const unsafe fn new_unchecked(id: u32) -> Self {
-		Self(unsafe { NonZeroU32::new_unchecked(id) })
+		Self(unsafe { NonMaxU32::new_unchecked(id) })
 	}
 	pub const fn is_anonymous(&self) -> bool {
 		self.0.get() == Self::ANON.0.get()
@@ -38,12 +39,12 @@ impl FileStore {
 		Self { data: vec![] }
 	}
 	pub fn add(&mut self, item: String) -> FileId {
-		self.data.push(Source::from(item));
 		let id: u32 = self
 			.data
 			.len()
 			.try_into()
 			.expect("Excepted FileID to be bellow u32::MAX.");
+		self.data.push(Source::from(item));
 		return unsafe { FileId::new_unchecked(id) };
 	}
 	pub fn get(&self, item: FileId) -> Option<&str> {

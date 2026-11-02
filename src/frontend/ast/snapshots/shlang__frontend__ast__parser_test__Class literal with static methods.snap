@@ -6,7 +6,7 @@ info: test_parser_classes
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -19,11 +19,11 @@ Ok(
         file_id: FileId(Anon),
     } = ClassLit {
         name: Some(
-            IdentId(4)[6:9],
+            SymbolId(4)[6:9],
         ),
         fields: {
             (
-                IdentId(7),
+                SymbolId(7),
                 false,
             ): Field {
                 default: Some(
@@ -37,16 +37,16 @@ Ok(
         },
         methods: {
             (
-                IdentId(5),
+                SymbolId(5),
                 true,
             ): Method {
                 block: [
                     Return(
-                        Var(IdentId(6)),
+                        Var(SymbolId(6)),
                     )[40:46],
                 ][36:54],
                 args: [
-                    IdentId(6)[31:34],
+                    SymbolId(6)[31:34],
                 ],
                 name_span: 25:30,
                 modifier_span: 13:19,

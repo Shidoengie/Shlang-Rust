@@ -6,7 +6,7 @@ info: test_parser_variables
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -14,5 +14,5 @@ Ok(
             4: "a",
         },
         file_id: FileId(Anon),
-    } = Decl(readonly)::IdentId(4) = Int(10)[8:10][0:10],
+    } = Decl(readonly)::SymbolId(4) = Int(10)[8:10][0:10],
 )

@@ -6,7 +6,7 @@ info: test_parser_variables
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -15,13 +15,13 @@ Ok(
             5: "b",
         },
         file_id: FileId(Anon),
-    } = Decl::IdentId(4) = BinaryNode {
+    } = Decl::SymbolId(4) = BinaryNode {
         kind: Add,
         left: BinaryNode {
             kind: Add,
             left: Int(1)[8:9],
             right: Int(2)[10:11],
         }[8:11],
-        right: Var(IdentId(5))[12:13],
+        right: Var(SymbolId(5))[12:13],
     }[8:13][0:13],
 )

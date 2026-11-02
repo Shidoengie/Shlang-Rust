@@ -6,7 +6,7 @@ info: test_parser_block_expressions
 ---
 Ok(
     Program {
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",
@@ -15,12 +15,12 @@ Ok(
         },
         file_id: FileId(Anon),
     } = Do{
-        Decl::IdentId(4) = Int(1)[16:17][8:17],
+        Decl::SymbolId(4) = Int(1)[16:17][8:17],
         Result(
             BinaryNode {
                 kind: Add,
                 left: Int(1)[23:24],
-                right: Var(IdentId(4))[25:26],
+                right: Var(SymbolId(4))[25:26],
             },
         )[23:26],
     }[2:28],

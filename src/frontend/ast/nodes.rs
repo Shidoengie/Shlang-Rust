@@ -2,7 +2,7 @@ use variant_name::VariantName;
 
 use crate::collections::{FileId, spans::*};
 use crate::frontend::opkind::{BinaryOp, UnaryOp};
-use crate::idents::{Ident, IdentArray, IdentId};
+use crate::symbols::{FieldKey, Symbol, SymbolArray, SymbolId};
 
 use std::collections::*;
 use std::fmt::Debug;
@@ -26,13 +26,13 @@ pub enum Precedence {
 #[derive(Debug, Clone)]
 pub struct Ast<'a> {
 	pub node: Spanned<Node>,
-	pub ident_pool: IdentArray<'a>,
+	pub symbol_pool: SymbolArray<'a>,
 	pub file_id: FileId,
 }
 #[derive(Clone)]
 pub struct Program<'a> {
 	pub proc: Vec<NodeSpan>,
-	pub ident_pool: IdentArray<'a>,
+	pub symbol_pool: SymbolArray<'a>,
 	pub file_id: FileId,
 }
 impl Debug for Program<'_> {
@@ -40,12 +40,12 @@ impl Debug for Program<'_> {
 		if !f.alternate() {
 			f.debug_struct("Program")
 				.field("proc", &self.proc)
-				.field(&"ident_pool", &self.ident_pool)
+				.field(&"symbol_pool", &self.symbol_pool)
 				.field(&"file_id", &self.file_id)
 				.finish()?;
 		}
 		f.debug_struct("Program")
-			.field(&"ident_pool", &self.ident_pool)
+			.field(&"symbol_pool", &self.symbol_pool)
 			.field(&"file_id", &self.file_id)
 			.finish()?;
 		f.write_str(" = ")?;
@@ -72,7 +72,7 @@ pub enum Node {
 	ContinueNode,
 	Decl(Decl),
 	Assignment { target: NodeRef, value: NodeRef },
-	Variable(IdentId),
+	Variable(SymbolId),
 	Index { target: NodeRef, index: NodeRef },
 	FunctionLit(FunctionLit),
 	ListLit(Vec<NodeSpan>),
@@ -83,7 +83,7 @@ pub enum Node {
 	ForLoop(ForLoop),
 	DoBlock(Block),
 	Constructor(Constructor),
-	RecordLit(HashMap<IdentId, NodeSpan>),
+	RecordLit(HashMap<SymbolId, NodeSpan>),
 	ClassLit(ClassLit),
 	FieldAccess(FieldAccess),
 	SelfTy,
@@ -238,9 +238,9 @@ pub struct FieldAccess {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub enum AccessType {
-	Property(Ident),
+	Property(Symbol),
 	Method {
-		callee: IdentId,
+		callee: SymbolId,
 		callee_span: Span,
 		args: Vec<NodeSpan>,
 		arg_span: Span,
@@ -251,7 +251,7 @@ pub enum AccessType {
 
 pub struct Constructor {
 	pub target: NodeRef,
-	pub params: HashMap<IdentId, NodeSpan>,
+	pub params: HashMap<SymbolId, NodeSpan>,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct Branch {
@@ -283,15 +283,15 @@ pub struct While {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct ForLoop {
-	pub ident: IdentId,
-	pub ident_span: Span,
+	pub symbol: SymbolId,
+	pub symbol_span: Span,
 	pub list: NodeRef,
 	pub proc: Spanned<Vec<Spanned<Node>>>,
 }
 
 #[derive(Clone, PartialEq)]
 pub struct Decl {
-	pub name: IdentId,
+	pub name: SymbolId,
 	pub expr: NodeRef,
 	pub readonly: bool,
 	pub hoisted: bool,
@@ -313,7 +313,7 @@ impl Debug for Decl {
 }
 
 impl Decl {
-	pub fn new(name: IdentId, expr: NodeRef) -> Self {
+	pub fn new(name: SymbolId, expr: NodeRef) -> Self {
 		Self {
 			name,
 			expr,
@@ -352,7 +352,7 @@ impl Decl {
 #[derive(Clone, PartialEq)]
 pub struct FunctionLit {
 	pub block: Block,
-	pub args: Vec<Spanned<IdentId>>,
+	pub args: Vec<Spanned<SymbolId>>,
 	pub captures: bool,
 }
 impl Debug for FunctionLit {
@@ -375,9 +375,9 @@ impl Debug for FunctionLit {
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct ClassLit {
-	pub name: Option<Ident>,
-	pub fields: HashMap<(IdentId, bool), Spanned<Field>>,
-	pub methods: HashMap<(IdentId, bool), Spanned<Method>>,
+	pub name: Option<Symbol>,
+	pub fields: HashMap<FieldKey, Spanned<Field>>,
+	pub methods: HashMap<FieldKey, Spanned<Method>>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -391,7 +391,7 @@ pub struct Field {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Method {
 	pub block: Block,
-	pub args: Vec<Ident>,
+	pub args: Vec<Symbol>,
 	pub name_span: Span,
 	pub modifier_span: Span,
 	pub private: bool,

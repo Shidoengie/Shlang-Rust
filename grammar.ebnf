@@ -36,13 +36,13 @@ postfix-suffix       = arguments
                      | constructor-suffix
                      | member-suffix ;
 constructor-suffix   = "{" , [ constructor-fields ] , "}" ;
-member-suffix        = "." , identifier , [ arguments ] ;
+member-suffix        = "." , symbol , [ arguments ] ;
 
 arguments            = "(" , [ argument-list ] , ")" ;
 argument-list        = expression , { "," , expression } , [ "," ] ;
 
 primary              = literal
-                     | identifier
+                     | symbol
                      | "self"
                      | "Self"
                      | "(" , expression , ")"
@@ -73,39 +73,39 @@ literal              = integer-literal
 list-literal         = "[" , [ argument-list ] , "]" ;
 record-literal       = "{" , [ record-fields ] , "}" ;
 record-fields        = record-field , { [ "," ] , record-field } , [ "," ] ;
-record-field         = identifier , ":" , expression ;
+record-field         = symbol , ":" , expression ;
 constructor-fields   = record-fields ;
 
-variable-declaration = ("var" | "let") , identifier , [ "=" , expression ] ;
+variable-declaration = ("var" | "let") , symbol , [ "=" , expression ] ;
 
 function-expression  = "func" ,
-                       ( identifier , parameter-list | parameter-list ) ,
+                       ( symbol , parameter-list | parameter-list ) ,
                        block ;
-parameter-list       = "(" , [ identifier , { "," , identifier } , [ "," ] ] , ")" ;
+parameter-list       = "(" , [ symbol , { "," , symbol } , [ "," ] ] , ")" ;
 closure-expression   = "$" , parameter-list , ( block | expression ) ;
 
 if-expression        = "if" , expression , block ,
                        [ "else" , ( if-expression | block ) ] ;
 while-expression     = "while" , expression , block ;
-for-expression       = "for" , identifier , "in" , expression , block ;
+for-expression       = "for" , symbol , "in" , expression , block ;
 loop-expression      = "loop" , block ;
 do-expression        = "do" , block ;
 
-struct-literal       = "struct" , [ identifier ] , block ;
+struct-literal       = "struct" , [ symbol ] , block ;
 (* The struct body is parsed as a block; each body item must resolve to a
    declaration to be accepted as a struct field. *)
 
-class-literal        = "class" , [ identifier ] , "{" , { class-member } , "}" ;
+class-literal        = "class" , [ symbol ] , "{" , { class-member } , "}" ;
 class-member         = [ "priv" ] ,
                        ( instance-property
                        | static-property
                        | instance-method
                        | static-method ) ,
                        [ ";" ] ;
-instance-property    = ( "var" | "let" ) , identifier , [ "=" , expression ] ;
-static-property      = "static" , [ "var" ] , identifier , [ "=" , expression ] ;
-instance-method      = "func" , identifier , parameter-list , block ;
-static-method        = "static" , "func" , identifier , parameter-list , block ;
+instance-property    = ( "var" | "let" ) , symbol , [ "=" , expression ] ;
+static-property      = "static" , [ "var" ] , symbol , [ "=" , expression ] ;
+instance-method      = "func" , symbol , parameter-list , block ;
+static-method        = "static" , "func" , symbol , parameter-list , block ;
 
 integer-literal      = digit , { digit | "_" } ;
 float-literal        = digit , { digit | "_" } , "." , digit , { digit | "_" } ;
@@ -126,9 +126,9 @@ double-quote         = U+0022 ;
 single-quote         = U+0027 ;
 backslash            = U+005C ;
 
-identifier           = identifier-start , { identifier-continue } ;
-identifier-start     = letter | "_" | non-ASCII-number ;
-identifier-continue  = letter | digit | "_" | non-ASCII-number ;
+symbol           = symbol-start , { symbol-continue } ;
+symbol-start     = letter | "_" | non-ASCII-number ;
+symbol-continue  = letter | digit | "_" | non-ASCII-number ;
 letter               = "A"…"Z" | "a"…"z" | non-ASCII-letter ;
 
 (* Lexical trivia *)
@@ -152,7 +152,7 @@ trivia               = whitespace | line-comment | block-comment ;
  *   condition and begins its body; parenthesized expressions can contain
  *   record/constructor literals there.
  * - ASCII digits begin numeric literals. Other Unicode alphanumeric
- *   characters can occur in identifiers, following the lexer's character
+ *   characters can occur in symbols, following the lexer's character
  *   classification.
  * - The lexer reserves these words, but this parser has no productions for
  *   them yet: const, match, case, is, enum, type, interface, impl, def, pub,

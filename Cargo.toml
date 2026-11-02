@@ -16,6 +16,7 @@ variant_name = { version = "0.1.0", path = "variant_name" }
 slab = "0.4.11"
 regex = "1.13.1"
 serde = { version = "1.0", features = ["derive"] }
+u24 = "0.6.1"
 
 
 [dev-dependencies]

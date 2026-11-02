@@ -1,15 +1,14 @@
 use crate::backend::instructions::*;
 use crate::backend::vm::values::*;
-use crate::collections::indexset::IndexSet;
 use crate::frontend::ir::instructions::IrNode;
 use crate::frontend::ir::{codegen::Ir, instructions::IrLiteral};
-use crate::idents::IdentId;
+use crate::symbols::SymbolId;
 use std::collections::HashMap;
 
 pub struct Assembler {
 	label_map: HashMap<String, usize>,
 	ops: Vec<OpCode>,
-	op_arguments: Vec<usize>,
+	op_arguments: Vec<u64>,
 	const_pool: Vec<Value>,
 
 	index_map: Vec<Option<usize>>,
@@ -62,7 +61,7 @@ impl Assembler {
 			global_count: ir.global_count,
 			local_count: ir.local_count,
 			globals,
-			ident_pool: ir.ident_pool,
+			symbol_pool: ir.symbol_pool,
 		}
 	}
 
@@ -85,56 +84,60 @@ impl Assembler {
 		let value = self.literal_to_value(lit);
 		let idx = self.const_pool.len();
 		self.const_pool.push(value);
-		self.op_arguments.push(idx);
+		self.op_arguments.push(idx as u64);
 	}
 
-	fn push_op(&mut self, op: OpCode) {
+	fn push_opcode(&mut self, op: OpCode) {
 		self.ops.push(op);
 	}
-	fn push_full_op(&mut self, op: OpCode, arg: usize) {
+
+	fn push_op(&mut self, op: OpCode, arg: u64) {
 		self.ops.push(op);
 		self.op_arguments.push(arg);
 	}
-
+	fn push_usize_op(&mut self, op: OpCode, arg: usize) {
+		self.ops.push(op);
+		self.op_arguments.push(arg as u64);
+	}
 	fn assemble_node(&mut self, node: IrNode) {
 		let code = match node {
 			IrNode::NoOp => OpCode::NoOp,
 			IrNode::Label(_) => unreachable!("This function should always be called after  "),
 			IrNode::Push(lit) => {
-				self.push_op(OpCode::Push);
+				self.push_opcode(OpCode::Push);
 				self.push_literal(lit);
 				return;
 			}
 			IrNode::LoadLocal(idx) => {
-				self.push_full_op(OpCode::LoadLocal, idx);
+				self.push_op(OpCode::LoadLocal, idx as u64);
 				return;
 			}
 			IrNode::StoreLocal(idx) => {
-				self.push_full_op(OpCode::StoreLocal, idx);
+				self.push_op(OpCode::StoreLocal, idx as u64);
 				return;
 			}
 			IrNode::LoadGlobal(idx) => {
-				self.push_full_op(OpCode::LoadGlobal, idx);
+				self.push_op(OpCode::LoadGlobal, idx as u64);
 				return;
 			}
 			IrNode::StoreGlobal(idx) => {
-				self.push_full_op(OpCode::StoreGlobal, idx);
+				self.push_op(OpCode::StoreGlobal, idx as u64);
 				return;
 			}
 			IrNode::Pop => OpCode::Pop,
 			IrNode::Goto(label) => {
 				let address = self.get_label_address(&label);
-				self.push_full_op(OpCode::Goto, address);
+				self.push_op(OpCode::Goto, address as u64);
 				return;
 			}
 			IrNode::Branch(label) => {
 				let address = self.get_label_address(&label);
-				self.push_full_op(OpCode::Branch, address);
+				self.push_op(OpCode::Branch, address as u64);
 				return;
 			}
 			IrNode::NotBranch(label) => {
 				let address = self.get_label_address(&label);
-				self.push_full_op(OpCode::NotBranch, address);
+				self.push_usize_op(OpCode::NotBranch, address);
 				return;
 			}
 			IrNode::Add => OpCode::Add,
@@ -156,7 +159,7 @@ impl Assembler {
 			IrNode::Stop => OpCode::Exit,
 			IrNode::Ret => OpCode::Ret,
 			IrNode::SwapWith(lit) => {
-				self.push_op(OpCode::SwapWith);
+				self.push_opcode(OpCode::SwapWith);
 				self.push_literal(lit);
 				return;
 			}
@@ -172,35 +175,30 @@ impl Assembler {
 				3 => OpCode::Call3,
 				4 => OpCode::Call4,
 				n => {
-					self.push_full_op(OpCode::CallN, n as usize);
+					self.push_op(OpCode::CallN, n as u64);
 					return;
 				}
 			},
-			IrNode::MakeClass(Some(name)) => {
-				self.push_op(OpCode::MakeClass);
-				self.push_ident(name);
-				return;
-			}
-			IrNode::MakeClass(None) => OpCode::NewAnonClass,
 			IrNode::GetProperty(prop) => {
-				self.push_op(OpCode::GetProperty);
-				self.push_ident(prop);
+				self.push_opcode(OpCode::GetProperty);
+				self.push_symbol(prop);
 				return;
 			}
 			IrNode::SetProperty(prop) => {
-				self.push_op(OpCode::SetProperty);
-				self.push_ident(prop);
+				self.push_opcode(OpCode::SetProperty);
+				self.push_symbol(prop);
 				return;
 			}
 			IrNode::MakeList(list) => {
-				self.push_full_op(OpCode::MakeList, list);
+				self.push_usize_op(OpCode::MakeList, list);
 				return;
 			}
+			_ => todo!(),
 		};
 		self.ops.push(code);
 	}
-	fn push_ident(&mut self, ident: IdentId) {
-		self.op_arguments.push(ident.0.get());
+	fn push_symbol(&mut self, symbol: SymbolId) {
+		self.op_arguments.push(symbol.0.get() as u64);
 	}
 	fn literal_to_value(&self, literal: IrLiteral) -> Value {
 		match literal {
@@ -217,6 +215,7 @@ impl Assembler {
 					param_count: func.param_count,
 				})
 			}
+			_ => todo!(),
 		}
 	}
 

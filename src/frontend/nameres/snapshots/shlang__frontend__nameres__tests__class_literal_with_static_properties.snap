@@ -9,11 +9,11 @@ Ok(
         proc: [
             ClassLit {
                 name: Some(
-                    IdentId(4)[6:9],
+                    SymbolId(4)[6:9],
                 ),
                 fields: {
                     (
-                        IdentId(5),
+                        SymbolId(5),
                         true,
                     ): Field {
                         default: Some(
@@ -25,7 +25,7 @@ Ok(
                         private: false,
                     }[12:26],
                     (
-                        IdentId(6),
+                        SymbolId(6),
                         true,
                     ): Field {
                         default: Some(
@@ -42,7 +42,7 @@ Ok(
         ],
         global_count: 4,
         local_count: 0,
-        ident_pool: IdentArray {
+        symbol_pool: SymbolArray {
             0: "input",
             1: "println",
             2: "str_len",

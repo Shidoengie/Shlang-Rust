@@ -18,7 +18,7 @@ use crate::{
 			frame::{CallStack, Frame},
 		},
 	},
-	idents::IdentArray,
+	symbols::SymbolArray,
 };
 
 macro_rules! impl_binary_op {
@@ -149,13 +149,13 @@ pub struct StackVM<'a> {
 	/// Instruction pointer
 	ip: usize,
 	proc: Box<[OpCode]>,
-	op_args: Box<[usize]>,
+	op_args: Box<[u64]>,
 	arg_cursor: usize,
 	call_stack: CallStack,
 	is_finished: bool,
 	objects: ObjectHeap,
 	const_pool: Box<[Value]>,
-	ident_pool: IdentArray<'a>,
+	symbol_pool: SymbolArray<'a>,
 	pub value_map: Vec<usize>,
 	pub values: Vec<Value>,
 	pub globals: Box<[Value]>,
@@ -181,7 +181,7 @@ impl<'a> StackVM<'a> {
 
 			globals: new_globals.into_boxed_slice(),
 			const_pool: bytecode.const_pool,
-			ident_pool: bytecode.ident_pool,
+			symbol_pool: bytecode.symbol_pool,
 		};
 
 		let synthetic = Function {
@@ -259,11 +259,23 @@ impl<'a> StackVM<'a> {
 		self.values.push(objref);
 		self.value_map.push(self.ip);
 	}
-	fn get_args(&mut self) -> usize {
+
+	fn get_index(&mut self) -> Result<usize> {
+		let oparg = std::mem::take(&mut self.op_args[self.arg_cursor]);
+		self.arg_cursor += 1;
+		#[cfg(target_pointer_width = "32")]
+		if oparg > usize::MAX as u64 {
+			std::hint::cold_path::cold_path();
+			return Err(ErrCode::IndexOutOfBounds.into_vmerr(self.ip));
+		}
+		return Ok(oparg as usize);
+	}
+	fn get_args(&mut self) -> u64 {
 		let oparg = std::mem::take(&mut self.op_args[self.arg_cursor]);
 		self.arg_cursor += 1;
 		return oparg;
 	}
+
 	fn exec_op(&mut self, op: OpCode) -> Result<()> {
 		match op {
 			OpCode::NoOp => {
@@ -271,7 +283,7 @@ impl<'a> StackVM<'a> {
 				Ok(())
 			}
 			OpCode::Push => {
-				let args = self.get_args();
+				let args = self.get_index()?;
 				self.push_const(args);
 				self.inc_ip();
 				Ok(())
@@ -285,7 +297,7 @@ impl<'a> StackVM<'a> {
 				Ok(())
 			}
 			OpCode::Goto => {
-				let position = self.get_args();
+				let position = self.get_index()?;
 				self.ip = position;
 				Ok(())
 			}
@@ -343,11 +355,11 @@ impl<'a> StackVM<'a> {
 			}
 			OpCode::LoadGlobal => self.exec_loadglobal(),
 			OpCode::LoadLocal => {
-				let args = self.get_args();
+				let args = self.get_index()?;
 				self.load_local(args)
 			}
 			OpCode::StoreLocal => {
-				let args = self.get_args();
+				let args = self.get_index()?;
 				self.store_local(args)
 			}
 			OpCode::Ret => self.exec_ret(),
@@ -362,19 +374,20 @@ impl<'a> StackVM<'a> {
 				Ok(())
 			}
 			OpCode::MakeList => {
-				let len = self.get_args();
+				let len = self.get_index()?;
 				let chunk = self.pop_chunk(len);
 				self.push_object(ListObject(chunk));
 				self.inc_ip();
 				Ok(())
 			}
+			_ => todo!(),
 		}
 	}
 
 	// --- Helper logic for larger branches ---
 
 	fn exec_branch(&mut self, jump_if_true: bool) -> Result {
-		let position = self.get_args();
+		let position = self.get_index()?;
 		let cond = self.pop_raw()?;
 		let Value::Bool(b) = cond.value else {
 			return self.type_error(Type::Bool, cond);
@@ -388,7 +401,7 @@ impl<'a> StackVM<'a> {
 	}
 
 	fn exec_store_global(&mut self) -> Result {
-		let index = self.get_args();
+		let index = self.get_index()?;
 		let val = self.pop()?;
 		let slot = self
 			.globals
@@ -400,7 +413,7 @@ impl<'a> StackVM<'a> {
 	}
 
 	fn exec_swap_with(&mut self) -> Result {
-		let index = self.get_args();
+		let index = self.get_index()?;
 		let value = self.load_const(index);
 		if let Some(cur) = self.values.last_mut() {
 			*cur = value;
@@ -422,7 +435,7 @@ impl<'a> StackVM<'a> {
 	}
 
 	fn exec_loadglobal(&mut self) -> Result {
-		let index = self.get_args();
+		let index = self.get_index()?;
 		// Using .get() for safe access in case of invalid index from codegen
 		let val = self
 			.globals
@@ -638,7 +651,7 @@ impl<'a> StackVM<'a> {
 impl<'a> StackVM<'a> {
 	fn exec_native_call(&mut self, func: NativeFunction, arg_len: u8) -> Result {
 		if !func.is_arglen_valid(arg_len) {
-			return Err(ErrCode::InvalidArgs {
+			return Err(ErrCode::InvalidFuncArgs {
 				expected: arg_len,
 				got: func.get_param_count(),
 			}
@@ -660,7 +673,7 @@ impl<'a> StackVM<'a> {
 	}
 	fn exec_func_call(&mut self, func: Function, arg_len: u8) -> Result {
 		if arg_len != func.param_count {
-			return Err(ErrCode::InvalidArgs {
+			return Err(ErrCode::InvalidFuncArgs {
 				expected: arg_len,
 				got: func.param_count,
 			}

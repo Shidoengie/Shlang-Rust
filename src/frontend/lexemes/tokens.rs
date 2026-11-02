@@ -10,7 +10,7 @@ pub enum TokenType {
 	DualAmpersand,
 	Float,
 	Int,
-	Identifier,
+	Symbol,
 	Semicolon,
 	Plus,
 	Minus,

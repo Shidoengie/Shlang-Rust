@@ -6,7 +6,7 @@ use crate::{
 		spans::{Span, Spanned},
 	},
 	frontend::opkind::*,
-	idents::{Ident, IdentArray, IdentId},
+	symbols::{FieldKey, Symbol, SymbolArray, SymbolId},
 };
 
 type NodeRefSpan = Spanned<Box<ResolvedNode>>;
@@ -60,7 +60,7 @@ pub enum ResolvedNode {
 	},
 	Constructor {
 		target: NodeRefSpan,
-		params: HashMap<IdentId, Spanned<ResolvedNode>>,
+		params: HashMap<SymbolId, Spanned<ResolvedNode>>,
 	},
 	ForLoop {
 		loop_var: usize,
@@ -69,7 +69,7 @@ pub enum ResolvedNode {
 	},
 
 	DoBlock(Block),
-	RecordLit(HashMap<IdentId, NodeRefSpan>),
+	RecordLit(HashMap<SymbolId, NodeRefSpan>),
 	ClassLit(ClassLit),
 	FieldAccess(NodeRefSpan, Spanned<AccessType>),
 }
@@ -77,6 +77,7 @@ pub enum ResolvedNode {
 pub trait IntoRNodespan {
 	fn to_rnodespan(self, span: Span) -> RNodeSpan;
 }
+
 macro_rules! rnodes_from {
     ($($name:ident)*) => {
         $(
@@ -101,7 +102,7 @@ pub struct ResolvedAstNode<'a> {
 	pub node: RNodeSpan,
 	pub global_count: usize,
 	pub local_count: usize,
-	pub ident_pool: IdentArray<'a>,
+	pub symbol_pool: SymbolArray<'a>,
 	pub file_id: FileId,
 }
 impl<'a> ResolvedAstNode<'a> {
@@ -109,14 +110,14 @@ impl<'a> ResolvedAstNode<'a> {
 		node: RNodeSpan,
 		global_count: usize,
 		local_count: usize,
-		ident_pool: IdentArray<'a>,
+		symbol_pool: SymbolArray<'a>,
 		file_id: FileId,
 	) -> Self {
 		Self {
 			node,
 			global_count,
 			local_count,
-			ident_pool,
+			symbol_pool,
 			file_id,
 		}
 	}
@@ -126,7 +127,7 @@ pub struct ResolvedAst<'a> {
 	pub proc: Vec<RNodeSpan>,
 	pub global_count: usize,
 	pub local_count: usize,
-	pub ident_pool: IdentArray<'a>,
+	pub symbol_pool: SymbolArray<'a>,
 	pub file_id: FileId,
 }
 
@@ -254,7 +255,7 @@ pub struct Decl {
 #[derive(Clone)]
 pub struct FunctionLit {
 	pub captures: bool,
-	pub idents: Vec<usize>,
+	pub symbols: Vec<usize>,
 	pub block: Block,
 	pub local_count: usize,
 }
@@ -265,9 +266,9 @@ impl Debug for FunctionLit {
 		} else {
 			write!(f, "Function(")?;
 		}
-		for (index, id) in self.idents.iter().enumerate() {
+		for (index, id) in self.symbols.iter().enumerate() {
 			write!(f, "{id}")?;
-			if index + 1 != self.idents.len() {
+			if index + 1 != self.symbols.len() {
 				write!(f, ", ")?;
 			}
 		}
@@ -277,9 +278,9 @@ impl Debug for FunctionLit {
 }
 #[derive(Clone, Debug)]
 pub enum AccessType {
-	Property(IdentId),
+	Property(SymbolId),
 	Method {
-		callee: IdentId,
+		callee: SymbolId,
 		callee_span: Span,
 		args: Vec<RNodeSpan>,
 		arg_span: Span,
@@ -287,9 +288,9 @@ pub enum AccessType {
 }
 #[derive(Clone, Debug, Default)]
 pub struct ClassLit {
-	pub name: Option<Ident>,
-	pub fields: HashMap<(IdentId, bool), Spanned<Field>>,
-	pub methods: HashMap<(IdentId, bool), Spanned<Method>>,
+	pub name: Option<Symbol>,
+	pub fields: HashMap<FieldKey, Spanned<Field>>,
+	pub methods: HashMap<FieldKey, Spanned<Method>>,
 }
 
 #[derive(Clone, Debug)]

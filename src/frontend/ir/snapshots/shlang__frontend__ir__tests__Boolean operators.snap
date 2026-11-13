@@ -1,24 +1,23 @@
 ---
 source: src/frontend/ir/tests.rs
-description: ir_expr
-expression: "test_ir (_test_func! (\"true || (false && true)\"))"
+description: "Test: Boolean operators\n──────────────────────────────────────────────────────────────────────────────────\ntrue || (false && true)"
+expression: source
+info: ir_expr
 ---
-Ok(
-    Ir {
-        span_map: SpanMap {
-            0..1 = Span[0,4],
-            1..2 = Span[9,14],
-            2..3 = Span[18,22],
-            1..4 = Span[9,22],
-            0..5 = Span[0,22],
-        },
-        global_count: 4,
-    } = [
-        Push(Bool(true)),
-        Push(Bool(false)),
-        Push(Bool(true)),
-        And,
-        Or,
-        Stop,
-    ],
-)
+Ir {
+    span_map: SpanMap {
+        0..1 = Span[0,4],
+        1..2 = Span[9,14],
+        2..3 = Span[18,22],
+        1..4 = Span[9,22],
+        0..5 = Span[0,22],
+    },
+    global_count: 0,
+} = [
+    Push(Bool(true)),
+    Push(Bool(false)),
+    Push(Bool(true)),
+    And,
+    Or,
+    Stop,
+]

@@ -1,27 +1,25 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: "Test: nested_block_with_result\n──────────────────────────────────────────────────────────────────────────────────\nfunc(b){\n\tdo {\n\t\t1\n\t}\n\t1\n}"
-expression: parse_expr (& source)
+expression: source
 info: test_parser_functions
 ---
-Ok(
-    Program {
-        symbol_pool: SymbolArray {
-            0: "input",
-            1: "println",
-            2: "str_len",
-            3: "parse_str",
-            4: "b",
-        },
-        file_id: FileId(Anon),
-    } = Function(SymbolId(4)){
-        Do{
-            Result(
-                Int(1),
-            )[17:18],
-        }[13:21],
+Program {
+    symbol_pool: SymbolArray {
+        0: "input",
+        1: "println",
+        2: "str_len",
+        3: "parse_str",
+        4: "b",
+    },
+    file_id: FileId(Anon),
+} = Function(SymbolId(4)){
+    Do{
         Result(
             Int(1),
-        )[23:24],
-    }[0:26],
-)
+        )[17:18],
+    }[13:21],
+    Result(
+        Int(1),
+    )[23:24],
+}[0:26]

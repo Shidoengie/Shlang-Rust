@@ -1,12 +1,11 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! (\"\\\"hello\\\" == \\\"hello\\\"\"))"
+description: "Test: Equality string\n──────────────────────────────────────────────────────────────────────────────────\n\"hello\" == \"hello\""
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Bool(
-            true,
-        ),
-    ],
-)
+[
+    Bool(
+        true,
+    ),
+]

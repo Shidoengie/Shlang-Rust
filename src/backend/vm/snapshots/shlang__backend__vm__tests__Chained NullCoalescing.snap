@@ -1,12 +1,11 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! (\"null ?? null ?? 20\"))"
+description: "Test: Chained NullCoalescing\n──────────────────────────────────────────────────────────────────────────────────\nnull ?? null ?? 20"
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Int(
-            20,
-        ),
-    ],
-)
+[
+    Int(
+        20,
+    ),
+]

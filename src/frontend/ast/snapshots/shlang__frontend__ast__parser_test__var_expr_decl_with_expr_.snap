@@ -1,27 +1,25 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: "Test: var_expr_decl_with_expr_\n──────────────────────────────────────────────────────────────────────────────────\nvar a = 1+2+b;"
-expression: parse_expr (& source)
+expression: source
 info: test_parser_variables
 ---
-Ok(
-    Program {
-        symbol_pool: SymbolArray {
-            0: "input",
-            1: "println",
-            2: "str_len",
-            3: "parse_str",
-            4: "a",
-            5: "b",
-        },
-        file_id: FileId(Anon),
-    } = Decl::SymbolId(4) = BinaryNode {
+Program {
+    symbol_pool: SymbolArray {
+        0: "input",
+        1: "println",
+        2: "str_len",
+        3: "parse_str",
+        4: "a",
+        5: "b",
+    },
+    file_id: FileId(Anon),
+} = Decl::SymbolId(4) = BinaryNode {
+    kind: Add,
+    left: BinaryNode {
         kind: Add,
-        left: BinaryNode {
-            kind: Add,
-            left: Int(1)[8:9],
-            right: Int(2)[10:11],
-        }[8:11],
-        right: Var(SymbolId(5))[12:13],
-    }[8:13][0:13],
-)
+        left: Int(1)[8:9],
+        right: Int(2)[10:11],
+    }[8:11],
+    right: Var(SymbolId(5))[12:13],
+}[8:13][0:13]

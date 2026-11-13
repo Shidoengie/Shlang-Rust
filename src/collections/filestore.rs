@@ -2,8 +2,36 @@ use std::{fmt::Debug, num::NonZeroU32, ops::Index};
 
 use ariadne::{Cache, Source};
 use nonmax::NonMaxU32;
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error};
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FileId(NonMaxU32);
+
+impl Serialize for FileId {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
+		serializer.serialize_u32(self.0.get())
+	}
+}
+
+impl<'de> Deserialize<'de> for FileId {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		let id = u32::deserialize(deserializer)?;
+		if id == u32::MAX {
+			Ok(Self::ANON)
+		} else {
+			NonMaxU32::new(id)
+				.map(Self)
+				.ok_or_else(|| D::Error::custom("invalid file id"))
+		}
+	}
+}
+
 impl Default for FileId {
 	fn default() -> Self {
 		Self::ANON

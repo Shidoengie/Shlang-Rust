@@ -1,12 +1,11 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! (\"5.0 / 2.0\"))"
+description: "Test: Division float\n──────────────────────────────────────────────────────────────────────────────────\n5.0 / 2.0"
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Float(
-            2.5,
-        ),
-    ],
-)
+[
+    Float(
+        2.5,
+    ),
+]

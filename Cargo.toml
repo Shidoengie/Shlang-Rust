@@ -6,18 +6,19 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ariadne = { git = "https://codeberg.org/shidopix/shlang-ariadne.git" }
 clap = { version = "4.5.40", features = ["derive"] }
 derive_more = { version = "2.0.1", features = ["display", "from"] }
 dyn-clone = "1.0.20"
 nonmax = "0.5.5"
 rayon = "1.10.0"
-variant_name = { version = "0.1.0", path = "variant_name" }
 slab = "0.4.11"
 regex = "1.13.1"
 serde = { version = "1.0", features = ["derive"] }
-u24 = "0.6.1"
+variant_name = { version = "0.1.0", path = "variant_name" }
+ariadne = { git = "https://codeberg.org/shidopix/shlang-ariadne.git" }
 
 
 [dev-dependencies]
-insta = { version = "1.30.0", features = ["yaml"] }
+test_file_macro = { path = "test_file_macro" }
+insta = { version = "1.30.0", features = ["yaml", "json"] }
+serde_json = "1.0"

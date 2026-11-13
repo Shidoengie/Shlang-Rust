@@ -1,12 +1,11 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! (\"-3.14\"))"
+description: "Test: Negation float\n──────────────────────────────────────────────────────────────────────────────────\n-3.14"
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Float(
-            -3.14,
-        ),
-    ],
-)
+[
+    Float(
+        -3.14,
+    ),
+]

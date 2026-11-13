@@ -1,24 +1,39 @@
 ---
 source: src/frontend/nameres/tests.rs
-description: test_locals
-expression: "test_nameres (_test_func! ({ var b = 10; func a(c) { var d = b; } }))"
+description: "Test: Functions\n──────────────────────────────────────────────────────────────────────────────────\nvar b = 10;\nfunc a(c) {\n\tvar d = b;\n}"
+expression: source
+info: test_locals
 ---
-Ok(
-    ResolvedAstNode {
-        node: Decl {
+ResolvedAstNode {
+    node: Do {
+        Decl {
             id: 0,
-            expr: Int(10)[8:10],
+            expr: Int(10)[13:15],
             is_global: false,
-        }[0:10],
-        global_count: 4,
-        local_count: 1,
-        symbol_pool: SymbolArray {
-            0: "input",
-            1: "println",
-            2: "str_len",
-            3: "parse_str",
-            4: "b",
-        },
-        file_id: FileId(1),
+        }[5:15],
+        Decl {
+            id: 1,
+            expr: Function(0){
+                Decl {
+                    id: 1,
+                    expr: Variable(0)[38:39],
+                    is_global: false,
+                }[30:39],
+            }[22:28],
+            is_global: false,
+        }[22:28],
+    }[3:44],
+    global_count: 0,
+    local_count: 2,
+    symbol_pool: SymbolArray {
+        0: "input",
+        1: "println",
+        2: "str_len",
+        3: "parse_str",
+        4: "b",
+        5: "a",
+        6: "c",
+        7: "d",
     },
-)
+    file_id: FileId(0),
+}

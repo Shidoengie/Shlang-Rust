@@ -1,4 +1,5 @@
-use crate::{frontend::*, test_file};
+use crate::frontend::*;
+use test_file_macro::test_file;
 
 fn test_ir<'a>(input: &'a str) -> Result<Ir<'a>, Box<dyn LangError>> {
 	let mut compiler = Compiler::new();

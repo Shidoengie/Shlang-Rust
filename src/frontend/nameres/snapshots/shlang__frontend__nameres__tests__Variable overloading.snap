@@ -1,24 +1,41 @@
 ---
 source: src/frontend/nameres/tests.rs
-description: test_locals
-expression: "test_nameres (_test_func! ({ var a = 1; var a = 1; var a = 1; var b = a; }))"
+description: "Test: Variable overloading\n──────────────────────────────────────────────────────────────────────────────────\nvar a = 1;\nvar a = 1;\nvar a = 1;\nvar b = a;"
+expression: source
+info: test_locals
 ---
-Ok(
-    ResolvedAstNode {
-        node: Decl {
+ResolvedAstNode {
+    node: Do {
+        Decl {
             id: 0,
-            expr: Int(1)[8:9],
+            expr: Int(1)[13:14],
             is_global: false,
-        }[0:9],
-        global_count: 4,
-        local_count: 1,
-        symbol_pool: SymbolArray {
-            0: "input",
-            1: "println",
-            2: "str_len",
-            3: "parse_str",
-            4: "a",
-        },
-        file_id: FileId(1),
+        }[5:14],
+        Decl {
+            id: 1,
+            expr: Int(1)[24:25],
+            is_global: false,
+        }[16:25],
+        Decl {
+            id: 2,
+            expr: Int(1)[35:36],
+            is_global: false,
+        }[27:36],
+        Decl {
+            id: 3,
+            expr: Variable(2)[46:47],
+            is_global: false,
+        }[38:47],
+    }[3:50],
+    global_count: 0,
+    local_count: 4,
+    symbol_pool: SymbolArray {
+        0: "input",
+        1: "println",
+        2: "str_len",
+        3: "parse_str",
+        4: "a",
+        5: "b",
     },
-)
+    file_id: FileId(0),
+}

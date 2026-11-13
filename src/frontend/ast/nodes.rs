@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use variant_name::VariantName;
 
 use crate::collections::{FileId, spans::*};
@@ -6,7 +7,7 @@ use crate::symbols::{FieldKey, Symbol, SymbolArray, SymbolId};
 
 use std::collections::*;
 use std::fmt::Debug;
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Deserialize, Serialize)]
 pub enum Precedence {
 	Lowest,
 	Assign,      // =
@@ -23,13 +24,15 @@ pub enum Precedence {
 	Constructor, // my_obj{x:10}
 	Member,      // my_obj.field
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 pub struct Ast<'a> {
 	pub node: Spanned<Node>,
 	pub symbol_pool: SymbolArray<'a>,
 	pub file_id: FileId,
 }
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 pub struct Program<'a> {
 	pub proc: Vec<NodeSpan>,
 	pub symbol_pool: SymbolArray<'a>,
@@ -57,7 +60,7 @@ impl Debug for Program<'_> {
 		Ok(())
 	}
 }
-#[derive(Clone, PartialEq, VariantName)]
+#[derive(Clone, PartialEq, VariantName, Deserialize, Serialize)]
 pub enum Node {
 	Null,
 	Bool(bool),
@@ -196,7 +199,7 @@ macro_rules! nodes_from {
 }
 nodes_from! { Decl FunctionLit UnaryNode Constructor  FieldAccess BinaryNode Call Branch While ForLoop}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct BinaryNode {
 	pub kind: BinaryOp,
 	pub left: NodeRef,
@@ -212,7 +215,7 @@ impl BinaryNode {
 	}
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Deserialize, Serialize)]
 pub struct UnaryNode {
 	pub kind: UnaryOp,
 	pub target: NodeRef,
@@ -226,17 +229,17 @@ impl Debug for UnaryNode {
 	}
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Call {
 	pub callee: NodeRef,
 	pub args: Vec<NodeSpan>,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct FieldAccess {
 	pub target: NodeRef,
 	pub requested: Spanned<AccessType>,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum AccessType {
 	Property(Symbol),
 	Method {
@@ -247,13 +250,13 @@ pub enum AccessType {
 	},
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 
 pub struct Constructor {
 	pub target: NodeRef,
 	pub params: HashMap<SymbolId, NodeSpan>,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Branch {
 	pub condition: NodeRef,
 	pub if_block: Block,
@@ -276,12 +279,12 @@ impl Branch {
 	}
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct While {
 	pub condition: NodeRef,
 	pub proc: Block,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ForLoop {
 	pub symbol: SymbolId,
 	pub symbol_span: Span,
@@ -289,7 +292,7 @@ pub struct ForLoop {
 	pub proc: Spanned<Vec<Spanned<Node>>>,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Deserialize, Serialize)]
 pub struct Decl {
 	pub name: SymbolId,
 	pub expr: NodeRef,
@@ -349,7 +352,7 @@ impl Decl {
 	}
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Deserialize, Serialize)]
 pub struct FunctionLit {
 	pub block: Block,
 	pub args: Vec<Spanned<SymbolId>>,
@@ -373,14 +376,16 @@ impl Debug for FunctionLit {
 	}
 }
 
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Clone, Debug, PartialEq, Default, Deserialize, Serialize)]
 pub struct ClassLit {
 	pub name: Option<Symbol>,
+	#[serde(with = "crate::symbols::field_key_map")]
 	pub fields: HashMap<FieldKey, Spanned<Field>>,
+	#[serde(with = "crate::symbols::field_key_map")]
 	pub methods: HashMap<FieldKey, Spanned<Method>>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Field {
 	pub default: Option<NodeSpan>,
 	pub readonly: bool,
@@ -388,7 +393,7 @@ pub struct Field {
 	pub modifier_span: Span,
 	pub private: bool,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Method {
 	pub block: Block,
 	pub args: Vec<Symbol>,

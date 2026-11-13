@@ -5,8 +5,9 @@ use std::{
 };
 
 use crate::symbols::{FieldKey, SymbolId};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[repr(u8)]
 pub enum IrNode {
 	#[default]
@@ -72,7 +73,7 @@ impl Display for IrNode {
 		}
 	}
 }
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[repr(u8)]
 pub enum IrLiteral {
 	#[default]
@@ -98,7 +99,7 @@ impl fmt::Display for IrLiteral {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Function {
 	pub address: String,
 	pub local_count: usize,
@@ -109,21 +110,23 @@ impl From<Function> for IrLiteral {
 		Self::Function(value)
 	}
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ClassLit {
 	pub name: Option<SymbolId>,
+	#[serde(with = "crate::symbols::field_key_map")]
 	pub fields: HashMap<FieldKey, Field>,
+	#[serde(with = "crate::symbols::field_key_map")]
 	pub methods: HashMap<FieldKey, Method>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Field {
 	pub default: Option<IrLiteral>,
 	pub readonly: bool,
 	pub private: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Method {
 	pub address: String,
 	pub local_count: usize,

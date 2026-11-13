@@ -1,23 +1,21 @@
 ---
 source: src/frontend/ir/tests.rs
 description: "Test: Loops\n──────────────────────────────────────────────────────────────────────────────────\nloop {\n\tcontinue;\n\tbreak;\n}"
-expression: test_ir (& source)
+expression: source
 info: ir_expr
 ---
-Ok(
-    Ir {
-        span_map: SpanMap {
-            1..4 = Span[5,27],
-            0..6 = Span[5,27],
-        },
-        global_count: 4,
-    } = [
-        Label("loop_start@0"),
-        Goto("loop_start@0"),
-        Goto("loop_end@0"),
-        FlushNull,
-        Goto("loop_start@0"),
-        Label("loop_end@0"),
-        Stop,
-    ],
-)
+Ir {
+    span_map: SpanMap {
+        1..4 = Span[5,27],
+        0..6 = Span[5,27],
+    },
+    global_count: 0,
+} = [
+    Label("loop_start@0"),
+    Goto("loop_start@0"),
+    Goto("loop_end@0"),
+    FlushNull,
+    Goto("loop_start@0"),
+    Label("loop_end@0"),
+    Stop,
+]

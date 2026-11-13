@@ -1,8 +1,9 @@
 use std::{fmt::Debug, ops::Index};
 
 use crate::collections::spans::{IntoSpanned, Span, Spanned};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub struct SpanMap {
 	/// The map is a vector of `((start, stop), Span)`.
 	/// **NO Invariants**:  Ranges can overlap and the vector is unsorted.

@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fmt::Debug};
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
 	collections::{
 		FileId,
@@ -11,7 +13,7 @@ use crate::{
 
 type NodeRefSpan = Spanned<Box<ResolvedNode>>;
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub enum ResolvedNode {
 	Null,
 	Bool(bool),
@@ -97,7 +99,8 @@ macro_rules! rnodes_from {
 }
 rnodes_from! { Decl Branch FunctionLit ClassLit }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 pub struct ResolvedAstNode<'a> {
 	pub node: RNodeSpan,
 	pub global_count: usize,
@@ -122,7 +125,8 @@ impl<'a> ResolvedAstNode<'a> {
 		}
 	}
 }
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 pub struct ResolvedAst<'a> {
 	pub proc: Vec<RNodeSpan>,
 	pub global_count: usize,
@@ -239,20 +243,20 @@ impl ResolvedNode {
 }
 pub type Block = Spanned<Vec<RNodeSpan>>;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Branch {
 	pub condition: NodeRefSpan,
 	pub if_block: Block,
 	pub else_block: Option<Block>,
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Decl {
 	pub id: usize,
 	pub expr: NodeRefSpan,
 	pub is_global: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct FunctionLit {
 	pub captures: bool,
 	pub symbols: Vec<usize>,
@@ -276,7 +280,7 @@ impl Debug for FunctionLit {
 		f.debug_set().entries(&self.block.item).finish()
 	}
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum AccessType {
 	Property(SymbolId),
 	Method {
@@ -286,14 +290,16 @@ pub enum AccessType {
 		arg_span: Span,
 	},
 }
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ClassLit {
 	pub name: Option<Symbol>,
+	#[serde(with = "crate::symbols::field_key_map")]
 	pub fields: HashMap<FieldKey, Spanned<Field>>,
+	#[serde(with = "crate::symbols::field_key_map")]
 	pub methods: HashMap<FieldKey, Spanned<Method>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Field {
 	pub default: Option<RNodeSpan>,
 	pub readonly: bool,
@@ -301,7 +307,7 @@ pub struct Field {
 	pub modifier_span: Span,
 	pub private: bool,
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Method {
 	pub block: Block,
 	pub args: Vec<usize>,
@@ -309,4 +315,54 @@ pub struct Method {
 	pub name_span: Span,
 	pub modifier_span: Span,
 	pub private: bool,
+}
+
+#[cfg(test)]
+mod serde_tests {
+	use super::*;
+	use crate::symbols::SymbolSet;
+
+	#[test]
+	fn resolved_ast_round_trips_as_json() {
+		let span = Span::new(0, 0);
+		let mut symbols = SymbolSet::new();
+		let field_id = symbols.push("field");
+		let mut fields = HashMap::new();
+		fields.insert(
+			FieldKey::new(field_id, false),
+			Spanned::new(
+				Field {
+					default: None,
+					readonly: false,
+					name_span: span,
+					modifier_span: span,
+					private: false,
+				},
+				span,
+			),
+		);
+		let ast = ResolvedAst {
+			proc: vec![Spanned::new(
+				ResolvedNode::ClassLit(ClassLit {
+					name: None,
+					fields,
+					methods: HashMap::new(),
+				}),
+				span,
+			)],
+			global_count: 0,
+			local_count: 0,
+			symbol_pool: symbols.into_packed(),
+			file_id: FileId::ANON,
+		};
+
+		let json = serde_json::to_string(&ast).unwrap();
+		let decoded: ResolvedAst<'_> = serde_json::from_str(&json).unwrap();
+		assert_eq!(decoded.proc.len(), 1);
+		assert!(matches!(
+			&decoded.proc[0].item,
+			ResolvedNode::ClassLit(class) if class.fields.len() == 1
+		));
+		assert!(decoded.file_id.is_anonymous());
+	}
 }

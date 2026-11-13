@@ -5,11 +5,14 @@ use crate::{
 	utils::compact_iter_debug,
 };
 
+use serde::{Deserialize, Serialize};
 use std::{
 	collections::HashMap,
 	fmt::{Debug, Display},
 };
 
+#[derive(Deserialize, Serialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 pub struct ByteCode<'a> {
 	pub file_id: FileId,
 	pub ops: Box<[OpCode]>,
@@ -32,6 +35,7 @@ impl Debug for ByteCode<'_> {
 		compact_iter_debug(f, self.ops.iter())
 	}
 }
+
 impl Display for ByteCode<'_> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		if self.ops.is_empty() {
@@ -44,7 +48,7 @@ impl Display for ByteCode<'_> {
 		Ok(())
 	}
 }
-#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[repr(u8)]
 pub enum OpCode {
 	NoOp = 0,

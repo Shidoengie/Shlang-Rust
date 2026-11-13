@@ -1,12 +1,11 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! (\"null == null\"))"
+description: "Test: Equality null\n──────────────────────────────────────────────────────────────────────────────────\nnull == null"
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Bool(
-            true,
-        ),
-    ],
-)
+[
+    Bool(
+        true,
+    ),
+]

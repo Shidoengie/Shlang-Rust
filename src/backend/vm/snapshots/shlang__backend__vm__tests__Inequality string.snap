@@ -1,12 +1,11 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! (\"\\\"hello\\\" != \\\"world\\\"\"))"
+description: "Test: Inequality string\n──────────────────────────────────────────────────────────────────────────────────\n\"hello\" != \"world\""
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Bool(
-            true,
-        ),
-    ],
-)
+[
+    Bool(
+        true,
+    ),
+]

@@ -14,7 +14,9 @@ use crate::{
 };
 pub use native::*;
 
-#[derive(Debug, Clone, Default)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[repr(u8)]
 pub enum Value {
 	#[default]
@@ -25,6 +27,7 @@ pub enum Value {
 	Bool(bool),
 	String(String),
 	Function(Function),
+	#[serde(skip)]
 	NativeFunction(NativeFunction),
 	ObjectRef(usize),
 }
@@ -59,7 +62,7 @@ impl fmt::Display for Value {
 	}
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub struct Function {
 	pub address: usize,
 	pub local_count: usize,
@@ -70,17 +73,18 @@ impl From<Function> for Value {
 		Self::Function(value)
 	}
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Class {
 	pub name: Option<SymbolId>,
+	#[serde(with = "crate::symbols::field_key_map")]
 	pub fields: HashMap<FieldKey, Field>,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Field {
 	pub value: Value,
 	pub metadata: FieldData,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
 pub struct FieldData(u8);
 impl FieldData {
 	pub const PRIVATE: Self = FieldData(1 << 0);
@@ -103,14 +107,15 @@ impl FieldData {
 		(self.0 & Self::READONLY.0) != 0
 	}
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Instance {
 	pub name: Option<SymbolId>,
 	pub fields: HashMap<SymbolId, Value>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum Object {
+	#[serde(skip)]
 	Native(Box<dyn NativeTrait>),
 	Instance(Instance),
 	Class(Class),

@@ -1,40 +1,38 @@
 ---
 source: src/frontend/nameres/tests.rs
 description: "Test: global_fns\n──────────────────────────────────────────────────────────────────────────────────\nvar b = a();\nfunc a() {\n\treturn 10;\n}"
-expression: test_global_nameres (& source)
+expression: source
 info: test_globals
 ---
-Ok(
-    ResolvedAst {
-        proc: [
-            Decl {
-                id: 4,
-                expr: Function(){
-                    Return(
-                        Int(10),
-                    )[25:31],
-                }[18:23],
-                is_global: true,
+ResolvedAst {
+    proc: [
+        Decl {
+            id: 0,
+            expr: Function(){
+                Return(
+                    Int(10),
+                )[25:31],
             }[18:23],
-            Decl {
-                id: 0,
-                expr: Call {
-                    callee: Variable(global 4)[8:9],
-                    args: [],
-                }[10:11],
-                is_global: false,
-            }[0:11],
-        ],
-        global_count: 5,
-        local_count: 1,
-        symbol_pool: SymbolArray {
-            0: "input",
-            1: "println",
-            2: "str_len",
-            3: "parse_str",
-            4: "b",
-            5: "a",
-        },
-        file_id: FileId(1),
+            is_global: true,
+        }[18:23],
+        Decl {
+            id: 0,
+            expr: Call {
+                callee: Variable(global 0)[8:9],
+                args: [],
+            }[10:11],
+            is_global: false,
+        }[0:11],
+    ],
+    global_count: 1,
+    local_count: 1,
+    symbol_pool: SymbolArray {
+        0: "input",
+        1: "println",
+        2: "str_len",
+        3: "parse_str",
+        4: "b",
+        5: "a",
     },
-)
+    file_id: FileId(0),
+}

@@ -44,15 +44,15 @@ not false
 3 < 5
 //Lesser than false
 5 < 3
-//Greater or equal true (equal)
+//Greater or equal true equal
 5 >= 5
-//Greater or equal true (greater)
+//Greater or equal true greater
 6 >= 5
 //Greater or equal false
 4 >= 5
-//Lesser or equal true (equal)
+//Lesser or equal true equal
 5 <= 5
-//Lesser or equal true (lesser)
+//Lesser or equal true lesser
 4 <= 5
 //Lesser or equal false
 6 <= 5

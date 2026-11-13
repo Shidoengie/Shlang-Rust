@@ -39,9 +39,3 @@ do {
 	var c = 30;
 	var d = 123;
 }
-var c = 10;
-do {
-	var b = 20;
-	var c = 30;
-	var d = 123;
-}

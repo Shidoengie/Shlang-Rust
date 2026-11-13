@@ -1,11 +1,34 @@
 use std::{fmt, ops::Index};
 
 use nonmax::NonMaxU32;
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error};
 
 use crate::collections::{Spanned, indexset::IndexSet};
 pub type Symbol = Spanned<SymbolId>;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SymbolId(pub(crate) NonMaxU32);
+
+impl Serialize for SymbolId {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+	{
+		serializer.serialize_u32(self.0.get())
+	}
+}
+
+impl<'de> Deserialize<'de> for SymbolId {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		let id = u32::deserialize(deserializer)?;
+		NonMaxU32::new(id)
+			.map(Self)
+			.ok_or_else(|| D::Error::custom("symbol id cannot be u32::MAX"))
+	}
+}
+
 impl SymbolId {
 	#[allow(unsafe_op_in_unsafe_fn)]
 	pub unsafe fn new_unchecked(inp: u32) -> Self {
@@ -21,7 +44,8 @@ impl fmt::Debug for SymbolId {
 		}
 	}
 }
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Deserialize, Serialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 pub struct SymbolArray<'a> {
 	inner: Box<[&'a str]>,
 }
@@ -76,7 +100,7 @@ impl<'a> SymbolSet<'a> {
 		}
 	}
 }
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Deserialize, Serialize)]
 pub struct FieldKey {
 	pub id: SymbolId,
 	pub is_static: bool,
@@ -84,5 +108,29 @@ pub struct FieldKey {
 impl FieldKey {
 	pub fn new(id: SymbolId, is_static: bool) -> Self {
 		Self { id, is_static }
+	}
+}
+
+pub(crate) mod field_key_map {
+	use std::collections::HashMap;
+
+	use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+	use super::FieldKey;
+
+	pub fn serialize<S, V>(map: &HashMap<FieldKey, V>, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: Serializer,
+		V: Serialize,
+	{
+		map.iter().collect::<Vec<_>>().serialize(serializer)
+	}
+
+	pub fn deserialize<'de, D, V>(deserializer: D) -> Result<HashMap<FieldKey, V>, D::Error>
+	where
+		D: Deserializer<'de>,
+		V: Deserialize<'de>,
+	{
+		Vec::<(FieldKey, V)>::deserialize(deserializer).map(|entries| entries.into_iter().collect())
 	}
 }

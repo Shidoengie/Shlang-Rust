@@ -1,36 +1,34 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: "Test: Class constructor\n──────────────────────────────────────────────────────────────────────────────────\nclass Foo {};\nlet b = Foo {\n\tx:10,\n\ty:20\n}"
-expression: parse_expr (& source)
+expression: source
 info: test_parser_classes
 ---
-Ok(
-    Program {
-        symbol_pool: SymbolArray {
-            0: "input",
-            1: "println",
-            2: "str_len",
-            3: "parse_str",
-            4: "Foo",
-            5: "b",
-            6: "x",
-            7: "y",
+Program {
+    symbol_pool: SymbolArray {
+        0: "input",
+        1: "println",
+        2: "str_len",
+        3: "parse_str",
+        4: "Foo",
+        5: "b",
+        6: "x",
+        7: "y",
+    },
+    file_id: FileId(Anon),
+} = [
+    ClassLit {
+        name: Some(
+            SymbolId(4)[6:9],
+        ),
+        fields: {},
+        methods: {},
+    }[10:12],
+    Decl(readonly)::SymbolId(5) = Constructor {
+        target: Var(SymbolId(4))[22:25],
+        params: {
+            SymbolId(6): Int(10)[31:33],
+            SymbolId(7): Int(20)[38:40],
         },
-        file_id: FileId(Anon),
-    } = [
-        ClassLit {
-            name: Some(
-                SymbolId(4)[6:9],
-            ),
-            fields: {},
-            methods: {},
-        }[10:12],
-        Decl(readonly)::SymbolId(5) = Constructor {
-            target: Var(SymbolId(4))[22:25],
-            params: {
-                SymbolId(7): Int(20)[38:40],
-                SymbolId(6): Int(10)[31:33],
-            },
-        }[22:42][14:42],
-    ],
-)
+    }[22:42][14:42],
+]

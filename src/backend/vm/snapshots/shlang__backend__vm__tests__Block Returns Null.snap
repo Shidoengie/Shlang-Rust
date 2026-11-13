@@ -1,10 +1,9 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! ({ if true {10;} }))"
+description: "Test: Block Returns Null\n──────────────────────────────────────────────────────────────────────────────────\nif true {10;}"
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Null,
-    ],
-)
+[
+    Null,
+]

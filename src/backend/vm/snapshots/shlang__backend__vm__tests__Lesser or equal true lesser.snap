@@ -1,0 +1,11 @@
+---
+source: src/backend/vm/tests.rs
+description: "Test: Lesser or equal true lesser\n──────────────────────────────────────────────────────────────────────────────────\n4 <= 5"
+expression: source
+info: vm_expr
+---
+[
+    Bool(
+        true,
+    ),
+]

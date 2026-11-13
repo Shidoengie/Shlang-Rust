@@ -1,14 +1,15 @@
 ---
 source: src/frontend/nameres/tests.rs
-description: test_locals
-expression: "test_nameres (_test_func! ({var a = c;}))"
+description: "Test: Undefined variable usage\n──────────────────────────────────────────────────────────────────────────────────\nvar a = c;"
+expression: result
+info: test_locals
 ---
 Err(
     ErrorBox {
         kind: UndefinedVar(
             SymbolId(5),
         ),
-        span: 8:9,
-        id: FileId(1),
+        span: 13:14,
+        id: FileId(0),
     },
 )

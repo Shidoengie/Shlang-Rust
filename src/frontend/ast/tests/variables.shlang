@@ -5,7 +5,7 @@ var a;
 //var_expr_decl_with_expr_
 var a = 1+2+b;
 
-//Immutable/Let declaration
+//Immutable Let declaration
 let a = 10;
 
 //variable assignment

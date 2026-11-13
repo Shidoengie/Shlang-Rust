@@ -1,12 +1,11 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! (\"5 ?? 10\"))"
+description: "Test: NullCoalescing with number\n──────────────────────────────────────────────────────────────────────────────────\n5 ?? 10"
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Int(
-            5,
-        ),
-    ],
-)
+[
+    Int(
+        5,
+    ),
+]

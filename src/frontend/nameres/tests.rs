@@ -4,11 +4,12 @@ use crate::{
 		nameres::resolved_nodes::{ResolvedAst, ResolvedAstNode},
 	},
 	lang_errors::LangResult,
-	test_file,
 };
 
-fn test_nameres(body: &str) -> LangResult<ResolvedAstNode> {
-	Compiler::new().resolve_expr(body)
+use test_file_macro::test_file;
+fn test_nameres(body: &str) -> LangResult<ResolvedAstNode<'_>> {
+	let string = format!("do {{ {body} }}").leak();
+	Compiler::new().resolve_expr(string)
 }
 fn test_global_nameres(body: &str) -> LangResult<ResolvedAst> {
 	Compiler::new().resolve(body)

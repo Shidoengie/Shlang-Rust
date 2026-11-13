@@ -1,12 +1,11 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! (\"(true or false) and (not false)\"))"
+description: "Test: Complex logical expr\n──────────────────────────────────────────────────────────────────────────────────\n(true or false) and (not false)"
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Bool(
-            true,
-        ),
-    ],
-)
+[
+    Bool(
+        true,
+    ),
+]

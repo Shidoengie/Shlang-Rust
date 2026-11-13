@@ -2,6 +2,7 @@ use std::fmt::{self, Debug, Display};
 
 use crate::collections::{FileId, spans::*};
 use ariadne::{Label, Report, ReportBuilder, Span as SpanTrait};
+use serde::{Deserialize, Serialize};
 
 pub struct LangSpan {
 	span: Span,
@@ -93,6 +94,14 @@ where
 		msg.with_sourceid(self.source().to_owned()).finish()
 	}
 	fn msg(&'_ self) -> ReportBuilder<LangSpan, ariadne::ReportKind>;
+}
+impl<'de> Serialize for dyn LangError {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+	where
+		S: serde::Serializer,
+	{
+		serializer.serialize_newtype_struct("LangError", &format!("{self:?}"))
+	}
 }
 pub type LangResult<T> = Result<T, Box<dyn LangError>>;
 pub struct MsgBuilder {

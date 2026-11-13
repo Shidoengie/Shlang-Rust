@@ -1,24 +1,23 @@
 ---
 source: src/frontend/ir/tests.rs
-description: ir_expr
-expression: "test_ir (_test_func! (\"-1 != !true\"))"
+description: "Test: Unary operators\n──────────────────────────────────────────────────────────────────────────────────\n-1 != !true"
+expression: source
+info: ir_expr
 ---
-Ok(
-    Ir {
-        span_map: SpanMap {
-            0..1 = Span[1,2],
-            0..2 = Span[1,2],
-            2..3 = Span[7,11],
-            2..4 = Span[7,11],
-            0..5 = Span[1,11],
-        },
-        global_count: 4,
-    } = [
-        Push(Int(1)),
-        Neg,
-        Push(Bool(true)),
-        Not,
-        NotEq,
-        Stop,
-    ],
-)
+Ir {
+    span_map: SpanMap {
+        0..1 = Span[1,2],
+        0..2 = Span[1,2],
+        2..3 = Span[7,11],
+        2..4 = Span[7,11],
+        0..5 = Span[1,11],
+    },
+    global_count: 0,
+} = [
+    Push(Int(1)),
+    Neg,
+    Push(Bool(true)),
+    Not,
+    NotEq,
+    Stop,
+]

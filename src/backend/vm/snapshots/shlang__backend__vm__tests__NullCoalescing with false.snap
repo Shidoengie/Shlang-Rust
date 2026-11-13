@@ -1,12 +1,11 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! (\"false ?? true\"))"
+description: "Test: NullCoalescing with false\n──────────────────────────────────────────────────────────────────────────────────\nfalse ?? true"
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Bool(
-            false,
-        ),
-    ],
-)
+[
+    Bool(
+        false,
+    ),
+]

@@ -1,7 +1,0 @@
----
-source: src/collections/indexset.rs
-expression: set.get(id1)
----
-Some(
-    100,
-)

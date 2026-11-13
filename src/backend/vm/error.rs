@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use super::values::Value;
 use crate::{
 	collections::{SpanMap, spans::*},
@@ -5,7 +7,7 @@ use crate::{
 };
 use std::fmt::Display;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ErrCode {
 	Unspecified(String),
 	InvalidOffset,
@@ -95,7 +97,7 @@ impl ErrCode {
 }
 /// This enum is used for type errors, as to ease constructing such errors.
 /// Dont use this enum for no other purpose.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Type {
 	String,
 	Int,
@@ -131,7 +133,7 @@ impl Display for Type {
 		}
 	}
 }
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct VmErr {
 	index: usize,
 	code: ErrCode,

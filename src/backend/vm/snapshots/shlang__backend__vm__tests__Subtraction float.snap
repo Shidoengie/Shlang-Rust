@@ -1,12 +1,11 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! (\"5.5 - 1.25\"))"
+description: "Test: Subtraction float\n──────────────────────────────────────────────────────────────────────────────────\n5.5 - 1.25"
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Float(
-            4.25,
-        ),
-    ],
-)
+[
+    Float(
+        4.25,
+    ),
+]

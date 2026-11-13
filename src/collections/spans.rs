@@ -3,6 +3,8 @@ use std::{
 	ops::{Add, Deref, Index, IndexMut},
 };
 
+use serde::{Deserialize, Serialize};
+
 use crate::collections::FileId;
 
 pub trait SpanUtil {
@@ -10,7 +12,7 @@ pub trait SpanUtil {
 	fn take_span(self) -> Span;
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct Spanned<T> {
 	pub item: T,
 	pub span: Span,
@@ -81,7 +83,7 @@ pub trait IntoSpanned {
 }
 impl<T> IntoSpanned for T {}
 
-#[derive(Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Clone, PartialEq, Eq, Hash, Copy, Deserialize, Serialize)]
 pub struct Span {
 	pub start: u32,
 	pub end: u32,

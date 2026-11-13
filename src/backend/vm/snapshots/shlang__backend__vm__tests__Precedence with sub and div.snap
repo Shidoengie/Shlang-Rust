@@ -1,12 +1,11 @@
 ---
 source: src/backend/vm/tests.rs
-description: vm_expr
-expression: "run_expr (_test_func! (\"10 - 6 / 2\"))"
+description: "Test: Precedence with sub and div\n──────────────────────────────────────────────────────────────────────────────────\n10 - 6 / 2"
+expression: source
+info: vm_expr
 ---
-Ok(
-    [
-        Int(
-            7,
-        ),
-    ],
-)
+[
+    Int(
+        7,
+    ),
+]

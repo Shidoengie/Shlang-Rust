@@ -1,7 +1,7 @@
 ---
 source: src/frontend/ast/parser_test.rs
 description: "Test: Invalid usage of variable assignment\n──────────────────────────────────────────────────────────────────────────────────\nvar a = b = 1;"
-expression: parse_expr (& source)
+expression: result
 info: test_parser_variables
 ---
 Err(

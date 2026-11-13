@@ -76,26 +76,3 @@ pub fn format_test_description(name: &str, source: &str) -> String {
 	let source = source.trim();
 	format!("Test: {name}\n{:─<82}\n{source}", "")
 }
-#[macro_export]
-macro_rules! test_file {
-	($section:ident, $func:expr, $path:expr $(,)?) => {
-		#[test]
-		fn $section() {
-
-			insta::with_settings!(
-				{ info => &stringify!($section), sort_maps => true},
-				{
-					for (name, source) in crate::testing::test_file($path).unwrap() {
-
-						insta::with_settings!(
-							{ description => &crate::testing::format_test_description(&name,&source)},
-							{
-								insta::assert_debug_snapshot!(name, $func(&source));
-							}
-						);
-					}
-				}
-			)
-		}
-	};
-}

@@ -1,25 +1,23 @@
 ---
 source: src/frontend/ir/tests.rs
 description: "Test: While Loops\n──────────────────────────────────────────────────────────────────────────────────\nwhile true {\n\tbreak\n}"
-expression: test_ir (& source)
+expression: source
 info: ir_expr
 ---
-Ok(
-    Ir {
-        span_map: SpanMap {
-            1..2 = Span[6,10],
-            3..5 = Span[11,21],
-            0..7 = Span[6,12],
-        },
-        global_count: 4,
-    } = [
-        Label("loop_start@0"),
-        Push(Bool(true)),
-        Branch("loop_end@0"),
-        Goto("loop_end@0"),
-        FlushNull,
-        Goto("loop_start@0"),
-        Label("loop_end@0"),
-        Stop,
-    ],
-)
+Ir {
+    span_map: SpanMap {
+        1..2 = Span[6,10],
+        3..5 = Span[11,21],
+        0..7 = Span[6,12],
+    },
+    global_count: 0,
+} = [
+    Label("loop_start@0"),
+    Push(Bool(true)),
+    Branch("loop_end@0"),
+    Goto("loop_end@0"),
+    FlushNull,
+    Goto("loop_start@0"),
+    Label("loop_end@0"),
+    Stop,
+]

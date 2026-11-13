@@ -1,36 +1,35 @@
 ---
 source: src/frontend/ir/tests.rs
-description: ir_expr
-expression: "test_ir (_test_func! ({1+(2-(3*(4/(5 % 6))))}))"
+description: "Test: Basic arithmetic\n──────────────────────────────────────────────────────────────────────────────────\n1+(2-(3*(4/(5 % 6))))"
+expression: source
+info: ir_expr
 ---
-Ok(
-    Ir {
-        span_map: SpanMap {
-            0..1 = Span[0,1],
-            1..2 = Span[3,4],
-            2..3 = Span[6,7],
-            3..4 = Span[9,10],
-            4..5 = Span[12,13],
-            5..6 = Span[16,17],
-            4..7 = Span[12,17],
-            3..8 = Span[9,17],
-            2..9 = Span[6,17],
-            1..10 = Span[3,17],
-            0..11 = Span[0,17],
-        },
-        global_count: 4,
-    } = [
-        Push(Int(1)),
-        Push(Int(2)),
-        Push(Int(3)),
-        Push(Int(4)),
-        Push(Int(5)),
-        Push(Int(6)),
-        Mod,
-        Div,
-        Mult,
-        Sub,
-        Add,
-        Stop,
-    ],
-)
+Ir {
+    span_map: SpanMap {
+        0..1 = Span[0,1],
+        1..2 = Span[3,4],
+        2..3 = Span[6,7],
+        3..4 = Span[9,10],
+        4..5 = Span[12,13],
+        5..6 = Span[16,17],
+        4..7 = Span[12,17],
+        3..8 = Span[9,17],
+        2..9 = Span[6,17],
+        1..10 = Span[3,17],
+        0..11 = Span[0,17],
+    },
+    global_count: 0,
+} = [
+    Push(Int(1)),
+    Push(Int(2)),
+    Push(Int(3)),
+    Push(Int(4)),
+    Push(Int(5)),
+    Push(Int(6)),
+    Mod,
+    Div,
+    Mult,
+    Sub,
+    Add,
+    Stop,
+]

@@ -1,4 +1,5 @@
 mod error;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 
 pub use error::GenErr;
@@ -10,8 +11,8 @@ use crate::{
 		nameres::resolved_nodes::{ResolvedNode as RNode, *},
 		opkind::*,
 	},
-	symbols::SymbolArray,
 	lang_errors::{ErrorBox, ToErrorBox},
+	symbols::SymbolArray,
 	utils::compact_iter_debug,
 };
 
@@ -38,6 +39,8 @@ impl From<BinaryOp> for Op {
 		}
 	}
 }
+#[derive(Deserialize, Serialize)]
+#[serde(bound(deserialize = "'de: 'a"))]
 pub struct Ir<'a> {
 	pub file_id: crate::collections::FileId,
 	pub ops: Vec<Op>,
@@ -423,7 +426,9 @@ impl IRgen {
 			self.gen_block(func.block, &mut func_code)?;
 		}
 		if func.symbols.len() > u8::MAX.into() {
-			return Err(GenErr::TooManyArguments(func.symbols.len()).to_errorbox(span, self.file_id));
+			return Err(
+				GenErr::TooManyArguments(func.symbols.len()).to_errorbox(span, self.file_id)
+			);
 		}
 		let param_count = func.symbols.len() as u8;
 		let local_count = param_count as usize + func.local_count;

@@ -1,5 +1,0 @@
----
-source: src/collections/indexset.rs
-expression: set.get_id(&1)
----
-None

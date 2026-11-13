@@ -21,6 +21,16 @@ Program {
     ),
     fields: {
         FieldKey {
+            id: SymbolId(5),
+            is_static: false,
+        }: Field {
+            default: None,
+            readonly: false,
+            name_span: 22:23,
+            modifier_span: 13:21,
+            private: true,
+        }[13:24],
+        FieldKey {
             id: SymbolId(6),
             is_static: false,
         }: Field {
@@ -32,16 +42,6 @@ Program {
             modifier_span: 27:35,
             private: true,
         }[27:43],
-        FieldKey {
-            id: SymbolId(5),
-            is_static: false,
-        }: Field {
-            default: None,
-            readonly: false,
-            name_span: 22:23,
-            modifier_span: 13:21,
-            private: true,
-        }[13:24],
     },
     methods: {},
 }[10:45]

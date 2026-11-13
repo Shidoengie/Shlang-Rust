@@ -38,6 +38,31 @@ Program {
     },
     methods: {
         FieldKey {
+            id: SymbolId(9),
+            is_static: false,
+        }: Method {
+            block: [
+                Call {
+                    callee: Var(SymbolId(1))[109:116],
+                    args: [
+                        FieldAccess {
+                            target: SelfValue[117:121],
+                            requested: Method {
+                                callee: SymbolId(6),
+                                callee_span: 122:130,
+                                args: [],
+                                arg_span: 131:132,
+                            }[122:132],
+                        }[117:132],
+                    ],
+                }[117:133],
+            ][105:137],
+            args: [],
+            name_span: 94:102,
+            modifier_span: 89:93,
+            private: false,
+        }[89:139],
+        FieldKey {
             id: SymbolId(6),
             is_static: false,
         }: Method {
@@ -63,30 +88,5 @@ Program {
             modifier_span: 26:30,
             private: false,
         }[26:93],
-        FieldKey {
-            id: SymbolId(9),
-            is_static: false,
-        }: Method {
-            block: [
-                Call {
-                    callee: Var(SymbolId(1))[109:116],
-                    args: [
-                        FieldAccess {
-                            target: SelfValue[117:121],
-                            requested: Method {
-                                callee: SymbolId(6),
-                                callee_span: 122:130,
-                                args: [],
-                                arg_span: 131:132,
-                            }[122:132],
-                        }[117:132],
-                    ],
-                }[117:133],
-            ][105:137],
-            args: [],
-            name_span: 94:102,
-            modifier_span: 89:93,
-            private: false,
-        }[89:139],
     },
 }[10:139]

@@ -37,6 +37,28 @@ Program {
     },
     methods: {
         FieldKey {
+            id: SymbolId(6),
+            is_static: true,
+        }: Method {
+            block: [
+                Call {
+                    callee: Var(SymbolId(1))[79:86],
+                    args: [
+                        FieldAccess {
+                            target: SelfTy[87:91],
+                            requested: Property(
+                                SymbolId(5)[92:99],
+                            )[92:99],
+                        }[87:99],
+                    ],
+                }[87:100],
+            ][75:104],
+            args: [],
+            name_span: 63:72,
+            modifier_span: 51:57,
+            private: false,
+        }[51:110],
+        FieldKey {
             id: SymbolId(7),
             is_static: false,
         }: Method {
@@ -64,27 +86,5 @@ Program {
             modifier_span: 106:110,
             private: false,
         }[106:173],
-        FieldKey {
-            id: SymbolId(6),
-            is_static: true,
-        }: Method {
-            block: [
-                Call {
-                    callee: Var(SymbolId(1))[79:86],
-                    args: [
-                        FieldAccess {
-                            target: SelfTy[87:91],
-                            requested: Property(
-                                SymbolId(5)[92:99],
-                            )[92:99],
-                        }[87:99],
-                    ],
-                }[87:100],
-            ][75:104],
-            args: [],
-            name_span: 63:72,
-            modifier_span: 51:57,
-            private: false,
-        }[51:110],
     },
 }[10:173]

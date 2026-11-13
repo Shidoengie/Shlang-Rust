@@ -2,15 +2,15 @@ mod error;
 use crate::{
 	collections::spans::{IntoSpanned, OkToSpanned, Span, Spanned},
 	frontend::{
-		FileStore,
 		ast::{
 			nodes::{self as ast, Constructor, Node as AstNode},
 			parser::GLOBAL_NAME_MAP,
 		},
 		nameres::{
 			resolved_nodes::*,
-			scope::{Scope, ScopeInfo, VarInfo},
+			scope::{Scope, ScopeInfo, VarBuilder, VarInfo},
 		},
+		FileStore,
 	},
 	hashmap,
 	lang_errors::{ErrorBox, ToErrorBox},
@@ -38,11 +38,9 @@ where
 	}
 }
 pub struct NameRes<'store> {
-	symbol_counter: usize,
 	scopes: Scope,
 	file_store: &'store mut FileStore,
 	file_id: crate::collections::FileId,
-	scope_locals_stack: Vec<usize>,
 }
 ///resolver entry points
 impl<'store> NameRes<'store> {
@@ -50,16 +48,15 @@ impl<'store> NameRes<'store> {
 		Self {
 			file_store,
 			file_id: crate::collections::FileId::ANON,
-			scopes: Scope::default(),
-			symbol_counter: 0,
-			scope_locals_stack: vec![],
+			scopes: Scope::new(),
 		}
 	}
 	pub fn resolve<'a>(&mut self, ast: ast::Program<'a>) -> Result<ResolvedAst<'a>> {
 		self.file_id = ast.file_id;
-		self.push_var_counter();
-		let decls = self.resolve_toplevel(ast.proc)?;
-		let local_count = self.pop_var_counter();
+		self.scopes.enter_frame();
+		let decls = self.resolve_toplevel(ast.proc);
+		let local_count = self.scopes.leave_frame();
+		let decls = decls?;
 		Ok(ResolvedAst {
 			proc: decls,
 			symbol_pool: ast.symbol_pool,
@@ -70,11 +67,10 @@ impl<'store> NameRes<'store> {
 	}
 	pub fn resolve_expr<'a>(&mut self, expr: ast::Ast<'a>) -> Result<ResolvedAstNode<'a>> {
 		self.file_id = expr.file_id;
-		let start_symbol = self.symbol_counter;
-		self.push_var_counter();
-		let node = self.resolve_node(expr.node)?;
-		let local_count = self.pop_var_counter();
-		self.symbol_counter = start_symbol;
+		self.scopes.enter_frame();
+		let node = self.resolve_node(expr.node);
+		let local_count = self.scopes.leave_frame();
+		let node = node?;
 		Ok(ResolvedAstNode::new(
 			node,
 			self.scopes.globals.len(),
@@ -86,31 +82,11 @@ impl<'store> NameRes<'store> {
 }
 ///scope management
 impl NameRes<'_> {
-	fn push_var_counter(&mut self) {
-		self.scope_locals_stack.push(0);
-	}
-	fn pop_var_counter(&mut self) -> usize {
-		self.scope_locals_stack.pop().unwrap_or(0)
-	}
-	fn update_var_counter(&mut self) {
-		if let Some(max) = self.scope_locals_stack.last_mut() {
-			*max = self.symbol_counter;
-		}
-	}
 	fn enter_scope(&mut self) {
 		self.scopes.enter_scope();
 	}
-	fn enter_scope_with(&mut self, info: ScopeInfo) {
-		self.scopes.enter_scope_with(info);
-	}
 	fn leave_scope(&mut self) {
 		self.scopes.leave_scope();
-	}
-	fn gen_name(&mut self) -> usize {
-		let old_count = self.symbol_counter;
-		self.symbol_counter += 1;
-		self.update_var_counter();
-		old_count
 	}
 
 	fn get_var(&self, name: SymbolId, span: Span) -> Result<&VarInfo> {
@@ -143,9 +119,9 @@ impl NameRes<'_> {
 				AstNode::ClassLit(class) if class.name.is_some() => class.name.unwrap().item,
 				_ => continue,
 			};
-			let mut info = VarInfo::new_global(name).with_span(span);
+			let mut info = VarBuilder::new_global(name).with_span(span);
 			info.modifier_span = modifier_span;
-			info.define_in(&mut self.scopes);
+			self.scopes.define(info);
 		}
 	}
 
@@ -153,15 +129,8 @@ impl NameRes<'_> {
 	fn resolve_toplevel_body(&mut self, exprs: Vec<ast::NodeSpan>) -> Result<Vec<RNodeSpan>> {
 		let mut local_decls = vec![];
 		let mut hoisted_decls = vec![];
-		let base_locals = 0usize;
-		self.push_var_counter();
 		for node in exprs {
 			self.resolve_toplevel_expr(&mut local_decls, &mut hoisted_decls, node)?;
-		}
-		let inner_max = self.pop_var_counter();
-		self.symbol_counter = base_locals;
-		if let Some(max) = self.scope_locals_stack.last_mut() {
-			*max = (*max).max(inner_max);
 		}
 		let mut decls = hoisted_decls;
 		decls.append(&mut local_decls);
@@ -207,14 +176,13 @@ impl NameRes<'_> {
 	fn resolve_var_decl(&mut self, decl: ast::Decl, span: Span) -> Result<Decl> {
 		let expr = self.resolve_node(decl.expr.deref_item())?.box_item();
 
-		let id = self.gen_name();
-		let mut info = VarInfo::new(decl.name, id)
+		let mut info = VarBuilder::new(decl.name)
 			.with_readonly(decl.readonly)
 			.with_item(decl.is_item)
 			.with_span(span);
 
 		info.modifier_span = decl.modifier_span;
-		info.define_in(&mut self.scopes);
+		let id = self.scopes.define(info);
 		Ok(Decl {
 			expr,
 			id,
@@ -304,22 +272,20 @@ impl NameRes<'_> {
 		})
 	}
 	fn resolve_method(&mut self, method: ast::Method) -> Result<Method> {
-		let old_symbol_counter = self.symbol_counter;
-		// Starts at one due to self being desugared to the first element
-		self.symbol_counter = 1;
 		let mut func_scope = ScopeInfo::default();
 		let mut args = vec![];
+		let mut next_id = 1;
 		for arg in method.args {
-			let new_id = self.gen_name();
-			VarInfo::new(arg.item, new_id)
-				.with_span(arg.span)
-				.define_in(&mut func_scope);
+			let new_id = next_id;
+			next_id += 1;
+			func_scope.define(VarBuilder::new(arg.item).with_span(arg.span).finish(new_id));
 			args.push(new_id);
 		}
-		self.push_var_counter();
-		let block = self.resolve_block_with(method.block, func_scope)?;
-		let local_count = self.pop_var_counter();
-		self.symbol_counter = old_symbol_counter;
+		self.scopes.enter_frame_with(func_scope);
+		self.scopes.reserve_local_slots(1);
+		let block = self.resolve_block(method.block);
+		let local_count = self.scopes.leave_frame();
+		let block = block?;
 		Ok(Method {
 			args,
 			local_count,
@@ -330,21 +296,16 @@ impl NameRes<'_> {
 		})
 	}
 	fn resolve_function_lit(&mut self, func: ast::FunctionLit) -> Result<FunctionLit> {
-		let old_symbol_counter = self.symbol_counter;
-		self.symbol_counter = 0;
 		let mut func_scope = ScopeInfo::default();
 		let mut args = vec![];
-		for arg in func.args {
-			let new_id = self.gen_name();
-			VarInfo::new(arg.item, new_id)
-				.with_span(arg.span)
-				.define_in(&mut func_scope);
+		for (new_id, arg) in func.args.into_iter().enumerate() {
+			func_scope.define(VarBuilder::new(arg.item).with_span(arg.span).finish(new_id));
 			args.push(new_id);
 		}
-		self.push_var_counter();
-		let block = self.resolve_block_with(func.block, func_scope)?;
-		let local_count = self.pop_var_counter();
-		self.symbol_counter = old_symbol_counter;
+		self.scopes.enter_frame_with(func_scope);
+		let block = self.resolve_block(func.block);
+		let local_count = self.scopes.leave_frame();
+		let block = block?;
 		Ok(FunctionLit {
 			symbols: args,
 			block,
@@ -366,11 +327,13 @@ impl NameRes<'_> {
 		})
 	}
 	fn resolve_for_loop(&mut self, forloop: ast::ForLoop) -> Result<ResolvedNode> {
-		let loop_var = self.gen_name();
+		let loop_var = self.scopes.next_local_id();
 		let mut base = ScopeInfo::default();
-		VarInfo::new(forloop.symbol, loop_var)
-			.with_span(forloop.symbol_span)
-			.define_in(&mut base);
+		base.define(
+			VarBuilder::new(forloop.symbol)
+				.with_span(forloop.symbol_span)
+				.finish(loop_var),
+		);
 		let list = self.resolve_node(forloop.list.deref_item())?.box_item();
 		let block = self.resolve_block_with(forloop.proc, base)?;
 		Ok(RNode::ForLoop {
@@ -530,20 +493,18 @@ impl NameRes<'_> {
 		let ast_span = ast.span;
 		self.scopes.enter_scope_with(base);
 		let mut buffer = vec![];
-		let base_locals = self.symbol_counter;
-		self.push_var_counter();
-
+		let mut result = Ok(());
 		for node in ast {
-			let resolved = self.resolve_node(node)?;
-			buffer.push(resolved);
-		}
-		let inner_max = self.pop_var_counter();
-		self.symbol_counter = base_locals;
-		// Propagate the inner scope's max to the parent scope
-		if let Some(max) = self.scope_locals_stack.last_mut() {
-			*max = (*max).max(inner_max);
+			match self.resolve_node(node) {
+				Ok(resolved) => buffer.push(resolved),
+				Err(err) => {
+					result = Err(err);
+					break;
+				}
+			}
 		}
 		self.scopes.leave_scope();
+		result?;
 		Ok(buffer.to_spanned(ast_span))
 	}
 	fn resolve_block(&mut self, ast: ast::Block) -> Result<Block> {

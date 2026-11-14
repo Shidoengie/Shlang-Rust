@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{collections::spans::Span, symbols::SymbolId};
+use nonmax::NonMaxU32;
+
+use crate::{collections::spans::Span, frontend::ast::parser::GLOBAL_NAME_MAP, symbols::SymbolId};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct VarInfo {
@@ -190,9 +192,26 @@ pub struct Scope {
 	pub globals: HashMap<SymbolId, VarInfo>,
 	pub class_stack: Vec<ClassInfo>,
 }
+#[allow(unused)]
 impl Scope {
 	pub fn new() -> Self {
 		Self::default()
+	}
+	/// This function is temporary and will be removed in the future
+	pub fn with_defaults() -> Self {
+		fn map_globals(id: usize) -> (SymbolId, VarInfo) {
+			let symbol_id = SymbolId(NonMaxU32::new(id as u32).unwrap());
+			let info = VarBuilder::new_global(symbol_id).finish(id);
+			(symbol_id, info)
+		}
+		let globals = (0..GLOBAL_NAME_MAP.len()).into_iter().map(map_globals);
+		Self::with_globals(HashMap::from_iter(globals))
+	}
+	pub fn with_globals(globals: HashMap<SymbolId, VarInfo>) -> Self {
+		Self {
+			globals,
+			..Default::default()
+		}
 	}
 }
 impl Scope {

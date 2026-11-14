@@ -27,7 +27,7 @@ ResolvedAst {
             is_global: true,
         }[5:12],
     ],
-    global_count: 1,
+    global_count: 5,
     local_count: 0,
     symbol_pool: SymbolArray {
         0: "input",

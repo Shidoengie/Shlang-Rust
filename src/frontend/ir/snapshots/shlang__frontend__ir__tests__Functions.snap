@@ -1,0 +1,34 @@
+---
+source: src/frontend/ir/tests.rs
+description: "Test: Functions\n──────────────────────────────────────────────────────────────────────────────────\nfunc hello(a) {\n\tprintln(a,2,3);\n}"
+expression: source
+info: ir_expr
+---
+Ir {
+    span_map: SpanMap {
+        0..1 = Span[25,26],
+        1..2 = Span[27,28],
+        2..3 = Span[29,30],
+        0..3 = Span[25,31],
+        3..4 = Span[17,24],
+        0..5 = Span[25,31],
+        0..6 = Span[14,34],
+        0..1 = Span[5,15],
+        0..2 = Span[5,15],
+    },
+    global_count: 4,
+} = [
+    Push(Function(Function { address: "func_start@0", local_count: 2, param_count: 1 })),
+    StoreLocal(0),
+    Stop,
+    Label("func_start@0"),
+    LoadLocal(0),
+    Push(Int(2)),
+    Push(Int(3)),
+    LoadGlobal(1),
+    Call(3),
+    FlushNull,
+    Push(Null),
+    Ret,
+    Label("func_end@1"),
+]

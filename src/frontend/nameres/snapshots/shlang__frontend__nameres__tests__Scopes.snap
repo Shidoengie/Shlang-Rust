@@ -21,7 +21,7 @@ ResolvedAstNode {
             },
         )[20:35],
     }[3:37],
-    global_count: 0,
+    global_count: 4,
     local_count: 2,
     symbol_pool: SymbolArray {
         0: "input",

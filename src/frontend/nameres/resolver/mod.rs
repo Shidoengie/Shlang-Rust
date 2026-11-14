@@ -2,6 +2,7 @@ mod error;
 use crate::{
 	collections::spans::{IntoSpanned, OkToSpanned, Span, Spanned},
 	frontend::{
+		FileStore,
 		ast::{
 			nodes::{self as ast, Constructor, Node as AstNode},
 			parser::GLOBAL_NAME_MAP,
@@ -10,7 +11,6 @@ use crate::{
 			resolved_nodes::*,
 			scope::{Scope, ScopeInfo, VarBuilder, VarInfo},
 		},
-		FileStore,
 	},
 	hashmap,
 	lang_errors::{ErrorBox, ToErrorBox},
@@ -48,7 +48,7 @@ impl<'store> NameRes<'store> {
 		Self {
 			file_store,
 			file_id: crate::collections::FileId::ANON,
-			scopes: Scope::new(),
+			scopes: Scope::with_defaults(),
 		}
 	}
 	pub fn resolve<'a>(&mut self, ast: ast::Program<'a>) -> Result<ResolvedAst<'a>> {

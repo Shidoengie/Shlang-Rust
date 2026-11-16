@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use variant_name::VariantName;
 
-use crate::collections::{FileId, spans::*};
+use crate::collections::{FileId, sorted_debug_map, spans::*};
 use crate::frontend::opkind::{BinaryOp, UnaryOp};
 use crate::symbols::{FieldKey, Symbol, SymbolArray, SymbolId};
 
@@ -119,7 +119,7 @@ impl Debug for Node {
 				}
 			}
 			Node::ClassLit(class) => write!(f, "{class:#?}"),
-			Node::RecordLit(map) => f.debug_map().entries(map).finish(),
+			Node::RecordLit(map) => Debug::fmt(&sorted_debug_map(map), f),
 			Node::Int(num) => write!(f, "Int({num})"),
 			Node::Float(num) => write!(f, "Float({num})"),
 			Node::Str(txt) => write!(f, r#""{txt}""#),
@@ -250,11 +250,18 @@ pub enum AccessType {
 	},
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-
+#[derive(Clone, PartialEq, Deserialize, Serialize)]
 pub struct Constructor {
 	pub target: NodeRef,
 	pub params: HashMap<SymbolId, NodeSpan>,
+}
+impl Debug for Constructor {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Constructor")
+			.field("target", &self.target)
+			.field("params", &sorted_debug_map(&self.params))
+			.finish()
+	}
 }
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Branch {
@@ -376,13 +383,22 @@ impl Debug for FunctionLit {
 	}
 }
 
-#[derive(Clone, Debug, PartialEq, Default, Deserialize, Serialize)]
+#[derive(Clone, PartialEq, Default, Deserialize, Serialize)]
 pub struct ClassLit {
 	pub name: Option<Symbol>,
 	#[serde(with = "crate::symbols::field_key_map")]
 	pub fields: HashMap<FieldKey, Spanned<Field>>,
 	#[serde(with = "crate::symbols::field_key_map")]
 	pub methods: HashMap<FieldKey, Spanned<Method>>,
+}
+impl Debug for ClassLit {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("ClassLit")
+			.field("name", &self.name)
+			.field("fields", &sorted_debug_map(&self.fields))
+			.field("methods", &sorted_debug_map(&self.methods))
+			.finish()
+	}
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]

@@ -100,10 +100,17 @@ impl<'a> SymbolSet<'a> {
 		}
 	}
 }
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Deserialize, Serialize, PartialOrd)]
 pub struct FieldKey {
 	pub id: SymbolId,
 	pub is_static: bool,
+}
+impl Ord for FieldKey {
+	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+		self.id
+			.cmp(&other.id)
+			.then_with(|| self.is_static.cmp(&other.is_static))
+	}
 }
 impl FieldKey {
 	pub fn new(id: SymbolId, is_static: bool) -> Self {

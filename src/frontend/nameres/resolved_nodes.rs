@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
 	collections::{
-		FileId,
-		spans::{Span, Spanned},
+		FileId, sorted_debug_map,
+		spans::{IntoSpanned, Span, Spanned},
 	},
 	frontend::opkind::*,
 	symbols::{FieldKey, Symbol, SymbolArray, SymbolId},
@@ -147,10 +147,10 @@ impl Debug for ResolvedNode {
 					f.write_str("false")
 				}
 			}
-			Self::RecordLit(map) => f.debug_map().entries(map).finish(),
+			Self::RecordLit(map) => Debug::fmt(&sorted_debug_map(map), f),
 			Self::Int(num) => write!(f, "Int({num})"),
 			Self::Float(num) => write!(f, "Float({num})"),
-			Self::String(val) => write!(f, r#""{val}""#),
+			Self::String(val) => write!(f, r#"String("{val}")"#),
 			Self::Variable { id, is_global } => {
 				write!(f, "Variable(")?;
 				if *is_global {
@@ -194,7 +194,7 @@ impl Debug for ResolvedNode {
 			Self::Constructor { target, params } => f
 				.debug_struct("Constructor")
 				.field("target", target)
-				.field("params", params)
+				.field("params", &sorted_debug_map(params))
 				.finish(),
 			Self::Branch(branch) => write!(f, "{:?}", branch),
 			Self::ForLoop {
@@ -290,7 +290,7 @@ pub enum AccessType {
 		arg_span: Span,
 	},
 }
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 pub struct ClassLit {
 	pub name: Option<Symbol>,
 	#[serde(with = "crate::symbols::field_key_map")]
@@ -298,7 +298,15 @@ pub struct ClassLit {
 	#[serde(with = "crate::symbols::field_key_map")]
 	pub methods: HashMap<FieldKey, Spanned<Method>>,
 }
-
+impl Debug for ClassLit {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("ClassLit")
+			.field("name", &self.name)
+			.field("fields", &sorted_debug_map(&self.fields))
+			.field("methods", &sorted_debug_map(&self.methods))
+			.finish()
+	}
+}
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Field {
 	pub default: Option<RNodeSpan>,

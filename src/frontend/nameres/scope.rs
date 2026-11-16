@@ -1,8 +1,12 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Debug};
 
 use nonmax::NonMaxU32;
 
-use crate::{collections::spans::Span, frontend::ast::parser::GLOBAL_NAME_MAP, symbols::SymbolId};
+use crate::{
+	collections::{sorted_debug_map, spans::Span},
+	frontend::ast::parser::GLOBAL_NAME_MAP,
+	symbols::SymbolId,
+};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct VarInfo {
@@ -109,9 +113,16 @@ pub struct ClassInfo {
 	pub global: bool,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct ScopeInfo {
 	pub vars: HashMap<SymbolId, VarInfo>,
+}
+impl Debug for ScopeInfo {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("ScopeInfo")
+			.field("vars", &sorted_debug_map(&self.vars))
+			.finish()
+	}
 }
 impl ScopeInfo {
 	pub fn define(&mut self, info: VarInfo) {
@@ -184,13 +195,24 @@ impl Frame {
 			.or_else(|| self.scope.vars.get(&var_name))
 	}
 }
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct Scope {
 	main_frame: Frame,
 	child_frames: Vec<Frame>,
 	global_counter: usize,
 	pub globals: HashMap<SymbolId, VarInfo>,
 	pub class_stack: Vec<ClassInfo>,
+}
+impl Debug for Scope {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("Scope")
+			.field("main_frame", &self.main_frame)
+			.field("child_frames", &self.child_frames)
+			.field("global_counter", &self.global_counter)
+			.field("globals", &sorted_debug_map(&self.globals))
+			.field("class_stack", &self.class_stack)
+			.finish()
+	}
 }
 #[allow(unused)]
 impl Scope {

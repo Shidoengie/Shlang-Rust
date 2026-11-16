@@ -10,6 +10,7 @@ use crate::{
 		StackVM,
 		error::{ErrCode, Type},
 	},
+	collections::sorted_debug_map,
 	symbols::{FieldKey, SymbolId},
 };
 pub use native::*;
@@ -73,11 +74,19 @@ impl From<Function> for Value {
 		Self::Function(value)
 	}
 }
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Class {
 	pub name: Option<SymbolId>,
 	#[serde(with = "crate::symbols::field_key_map")]
 	pub fields: HashMap<FieldKey, Field>,
+}
+impl fmt::Debug for Class {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("Class")
+			.field("name", &self.name)
+			.field("fields", &sorted_debug_map(&self.fields))
+			.finish()
+	}
 }
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Field {
@@ -107,10 +116,18 @@ impl FieldData {
 		(self.0 & Self::READONLY.0) != 0
 	}
 }
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Instance {
 	pub name: Option<SymbolId>,
 	pub fields: HashMap<SymbolId, Value>,
+}
+impl fmt::Debug for Instance {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("Instance")
+			.field("name", &self.name)
+			.field("fields", &sorted_debug_map(&self.fields))
+			.finish()
+	}
 }
 
 #[derive(Debug, Deserialize, Serialize)]

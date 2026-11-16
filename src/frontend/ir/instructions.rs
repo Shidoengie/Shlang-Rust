@@ -4,6 +4,7 @@ use std::{
 	fmt::{Debug, Display},
 };
 
+use crate::collections::sorted_debug_map;
 use crate::symbols::{FieldKey, SymbolId};
 use serde::{Deserialize, Serialize};
 
@@ -110,13 +111,22 @@ impl From<Function> for IrLiteral {
 		Self::Function(value)
 	}
 }
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct ClassLit {
 	pub name: Option<SymbolId>,
 	#[serde(with = "crate::symbols::field_key_map")]
 	pub fields: HashMap<FieldKey, Field>,
 	#[serde(with = "crate::symbols::field_key_map")]
 	pub methods: HashMap<FieldKey, Method>,
+}
+impl Debug for ClassLit {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("ClassLit")
+			.field("name", &self.name)
+			.field("fields", &sorted_debug_map(&self.fields))
+			.field("methods", &sorted_debug_map(&self.methods))
+			.finish()
+	}
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

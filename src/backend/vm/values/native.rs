@@ -2,7 +2,7 @@ use crate::backend::vm::{StackVM, values::*};
 
 impl<T: NativeTrait> From<T> for Object {
 	fn from(value: T) -> Self {
-		return Self::Native(Box::new(value));
+		Self::Native(Box::new(value))
 	}
 }
 pub type FuncPtr = fn(ctx: &mut StackVM, args: &[Value]) -> FuncResult;
@@ -55,12 +55,12 @@ impl From<CallError> for ErrCode {
 }
 impl<T> From<ErrCode> for NativeFuncResult<T> {
 	fn from(value: ErrCode) -> Self {
-		return Err(NativeCallError::Major(value));
+		Err(NativeCallError::Major(value))
 	}
 }
 impl From<ErrCode> for FuncResult {
 	fn from(value: ErrCode) -> Self {
-		return Err(CallError::Major(value));
+		Err(CallError::Major(value))
 	}
 }
 
@@ -73,31 +73,31 @@ pub trait NativeTrait: std::fmt::Debug + Any {
 	) -> NativeFuncResult;
 	#[allow(unused_variables)]
 	fn lang_get(&mut self, name: &str, ctx: &mut StackVM) -> Option<Value> {
-		return None;
+		None
 	}
 	#[inline(always)]
 	fn get_typename(&self) -> &'static str {
 		std::any::type_name::<Self>()
 	}
-	fn lang_index(&self, key: Value) -> NativeFuncResult {
-		return ErrCode::UnsupportedOperation {
-			op: format!("[x]"),
+	fn lang_index(&self, _key: Value) -> NativeFuncResult {
+		ErrCode::UnsupportedOperation {
+			op: "[x]".to_string(),
 			target: Type::Custom(self.get_typename().to_owned()),
 		}
-		.into();
+		.into()
 	}
-	fn lang_index_mut(&mut self, key: Value, value: Value) -> NativeFuncResult<()> {
-		return ErrCode::UnsupportedOperation {
-			op: format!("x[y] = z"),
+	fn lang_index_mut(&mut self, _key: Value, _value: Value) -> NativeFuncResult<()> {
+		ErrCode::UnsupportedOperation {
+			op: "x[y] = z".to_string(),
 			target: Type::Custom(self.get_typename().to_owned()),
 		}
-		.into();
+		.into()
 	}
 	fn lang_repr(&self) -> String {
-		return String::new();
+		String::new()
 	}
 	fn get_type_id(&self) -> std::any::TypeId {
-		return self.type_id();
+		self.type_id()
 	}
 }
 
@@ -106,14 +106,14 @@ pub struct ListObject(pub Vec<Value>);
 impl NativeTrait for ListObject {
 	fn call_native_method(
 		&mut self,
-		name: &str,
-		ctx: &mut StackVM,
-		data: Vec<Value>,
+		_name: &str,
+		_ctx: &mut StackVM,
+		_data: Vec<Value>,
 	) -> NativeFuncResult {
 		todo!()
 	}
 	fn get_typename(&self) -> &'static str {
-		return "List";
+		"List"
 	}
 	fn lang_index_mut(&mut self, key: Value, value: Value) -> NativeFuncResult<()> {
 		let Value::Int(key) = key else {
@@ -145,7 +145,7 @@ impl NativeTrait for ListObject {
 		let Some(val) = self.0.get(key) else {
 			return ErrCode::IndexOutOfBounds.into();
 		};
-		return Ok(val.clone());
+		Ok(val.clone())
 	}
 }
 
@@ -168,10 +168,10 @@ impl NativeFunction {
 	#[inline(always)]
 	unsafe fn get_func_ptr(&self) -> FuncPtr {
 		let ptr = (self.0 >> 8) as *const ();
-		return unsafe { std::mem::transmute(ptr) };
+		unsafe { std::mem::transmute(ptr) }
 	}
 	pub const fn get_param_count(&self) -> u8 {
-		return (self.0 & !Self::MAX_PTR_SIZE) as u8;
+		(self.0 & !Self::MAX_PTR_SIZE) as u8
 	}
 	#[inline(always)]
 	pub fn call(&self, ctx: &mut StackVM, args: &[Value]) -> FuncResult {

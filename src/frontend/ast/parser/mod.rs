@@ -83,7 +83,7 @@ pub struct Parser<'input> {
 /// Currently theres no module system and no function signature declaration,
 /// as such each names index cooresponds directly to a symbolid
 
-pub const GLOBAL_NAME_MAP: [&'static str; 4] = ["input", "println", "str_len", "parse_str"];
+pub const GLOBAL_NAME_MAP: [&str; 4] = ["input", "println", "str_len", "parse_str"];
 
 ///base parser
 impl<'input> Parser<'input> {
@@ -142,9 +142,9 @@ impl<'i> Parser<'i> {
 		&self.input[token.span]
 	}
 	fn add_symbol(&mut self, token: &Token) -> Symbol {
-		let text = self.borrow_text(&token);
+		let text = self.borrow_text(token);
 		let id = self.symbols.push(text);
-		return id.as_spanned(token.span);
+		id.as_spanned(token.span)
 	}
 	fn parse_int(&mut self, token: &Token) -> Node {
 		let mut text = self.input[token.span].to_string();
@@ -239,7 +239,7 @@ impl<'i> Parser<'i> {
 		};
 		let symbol = self.add_symbol(&symbol);
 		self.next()?;
-		return Ok(Some(symbol));
+		Ok(Some(symbol))
 	}
 	/// Filter DontResult nodes in order to determine if the last expression should or shouldnt result
 	fn filter_block(body: Vec<Spanned<Node>>) -> Vec<Spanned<Node>> {
@@ -716,9 +716,7 @@ impl Parser<'_> {
 			TokenType::True => Ok(Node::Bool(true).to_spanned(token.span)),
 			TokenType::Null => Ok(Node::Null.to_spanned(token.span)),
 			TokenType::SelfTok if self.in_method => Ok(Node::SelfValue.to_spanned(token.span)),
-			TokenType::SelfTok => err(ParseError::Unspecified(format!(
-				"`self` used outside of a method."
-			))
+			TokenType::SelfTok => err(ParseError::Unspecified("`self` used outside of a method.".to_string())
 			.to_errorbox(token.span, self.file_id)),
 			TokenType::SelfType => Ok(Node::SelfTy.to_spanned(token.span)),
 			TokenType::Func => {

@@ -14,6 +14,12 @@ pub struct Assembler {
 	index_map: Vec<Option<usize>>,
 }
 
+impl Default for Assembler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Assembler {
 	pub fn new() -> Self {
 		Self {

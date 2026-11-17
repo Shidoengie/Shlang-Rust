@@ -1,4 +1,4 @@
-use std::{fmt::Debug, num::NonZeroU32, ops::Index};
+use std::{fmt::Debug, ops::Index};
 
 use ariadne::{Cache, Source};
 use nonmax::NonMaxU32;
@@ -73,7 +73,7 @@ impl FileStore {
 			.try_into()
 			.expect("Excepted FileID to be bellow u32::MAX.");
 		self.data.push(Source::from(item));
-		return unsafe { FileId::new_unchecked(id) };
+		unsafe { FileId::new_unchecked(id) }
 	}
 	pub fn get(&self, item: FileId) -> Option<&str> {
 		self.data.get(item.0.get() as usize).map(|x| x.text())
@@ -100,7 +100,7 @@ impl Cache<FileId> for FileStore {
 				format!("Invalid file id {id:?}"),
 			));
 		};
-		return Ok(file);
+		Ok(file)
 	}
 	fn display<'a>(&self, id: &'a FileId) -> Option<impl std::fmt::Display + 'a> {
 		Some(id.0)

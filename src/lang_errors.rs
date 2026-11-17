@@ -1,4 +1,4 @@
-use std::fmt::{self, Debug, Display};
+use std::fmt::{Debug, Display};
 
 use crate::collections::{FileId, spans::*};
 use ariadne::{Label, Report, ReportBuilder, Span as SpanTrait};

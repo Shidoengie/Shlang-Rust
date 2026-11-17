@@ -24,13 +24,13 @@ pub const PARSE_STR: FuncPtr = |_, args| {
 	if result.fract() == 0.0 {
 		return Ok(Value::Int(result as i64));
 	}
-	return Ok(Value::Float(result));
+	Ok(Value::Float(result))
 };
 pub const STR_LEN: FuncPtr = |_, args| {
 	let Value::String(string) = &args[0] else {
 		return Ok(Value::Null);
 	};
-	return Ok(Value::Int(string.len() as i64));
+	Ok(Value::Int(string.len() as i64))
 };
 pub const NATIVE_PRINTLN: FuncPtr = |_, args| {
 	if args.is_empty() {

@@ -91,7 +91,7 @@ impl<'a> SymbolSet<'a> {
 			"Id surpassed the (32/64)-bit unsigned integer limit"
 		);
 		let id = NonMaxU32::new(id as u32).unwrap();
-		return SymbolId(id);
+		SymbolId(id)
 	}
 	pub fn into_packed(mut self) -> SymbolArray<'a> {
 		let flushed = self.inner.flush();
@@ -100,10 +100,15 @@ impl<'a> SymbolSet<'a> {
 		}
 	}
 }
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Deserialize, Serialize, PartialOrd)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash, Deserialize, Serialize)]
 pub struct FieldKey {
 	pub id: SymbolId,
 	pub is_static: bool,
+}
+impl PartialOrd for FieldKey {
+	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+		Some(self.cmp(other))
+	}
 }
 impl Ord for FieldKey {
 	fn cmp(&self, other: &Self) -> std::cmp::Ordering {

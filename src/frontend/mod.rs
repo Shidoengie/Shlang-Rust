@@ -1,8 +1,8 @@
 use crate::{
-	collections::{filestore::FileStore, spans::Spanned},
+	collections::filestore::FileStore,
 	frontend::{
 		ast::{
-			nodes::{Ast, Node, Program},
+			nodes::{Ast, Program},
 			parser::Parser,
 		},
 		ir::codegen::{IRgen, Ir},
@@ -59,7 +59,7 @@ impl Compiler {
 		}
 		Ok(buf)
 	}
-	pub fn parse<'a, 'b>(&'a mut self, input: &'b str) -> Result<Program<'b>, Box<dyn LangError>> {
+	pub fn parse<'b>(&mut self, input: &'b str) -> Result<Program<'b>, Box<dyn LangError>> {
 		let file_id = self.file_store.add(input.to_owned());
 		Parser::parse(input, file_id).inspect_err(|err| {
 			if !self.silent {
@@ -72,7 +72,7 @@ impl Compiler {
 	pub fn print_langerr(&self, err: &dyn LangError) -> std::io::Result<()> {
 		err.make().eprint(self.file_store.clone())
 	}
-	pub fn parse_expr<'a, 'b>(&'a mut self, input: &'b str) -> Result<Ast<'b>, Box<dyn LangError>> {
+	pub fn parse_expr<'b>(&mut self, input: &'b str) -> Result<Ast<'b>, Box<dyn LangError>> {
 		let file_id = self.file_store.add(input.to_owned());
 		Parser::parse_expr(input, file_id).inspect_err(|err| {
 			if !self.silent {
@@ -82,8 +82,8 @@ impl Compiler {
 			}
 		})
 	}
-	pub fn resolve<'a, 'b>(
-		&'a mut self,
+	pub fn resolve<'b>(
+		&mut self,
 		input: &'b str,
 	) -> Result<ResolvedAst<'b>, Box<dyn LangError>> {
 		let parsed = self.parse(input)?;
@@ -98,8 +98,8 @@ impl Compiler {
 			.map_err(|err| Box::new(err) as Box<dyn LangError>)?;
 		Ok(resolved)
 	}
-	pub fn resolve_expr<'a, 'b>(
-		&'a mut self,
+	pub fn resolve_expr<'b>(
+		&mut self,
 		input: &'b str,
 	) -> Result<ResolvedAstNode<'b>, Box<dyn LangError>> {
 		let parsed = self.parse_expr(input)?;
@@ -115,7 +115,7 @@ impl Compiler {
 
 		Ok(resolved)
 	}
-	pub fn compile<'a, 'b>(&'a mut self, input: &'b str) -> Result<Ir<'b>, Box<dyn LangError>> {
+	pub fn compile<'b>(&mut self, input: &'b str) -> Result<Ir<'b>, Box<dyn LangError>> {
 		let resolved = self.resolve(input)?;
 		IRgen::generate(resolved)
 			.inspect_err(|err| {
@@ -125,8 +125,8 @@ impl Compiler {
 			})
 			.map_err(|err| Box::new(err) as Box<dyn LangError>)
 	}
-	pub fn compile_expr<'a, 'b>(
-		&'a mut self,
+	pub fn compile_expr<'b>(
+		&mut self,
 		input: &'b str,
 	) -> Result<Ir<'b>, Box<dyn LangError>> {
 		let resolved = self.resolve_expr(input)?;

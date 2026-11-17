@@ -75,7 +75,7 @@ impl LangError for ErrorBox<ErrCode> {
 					.get_inner()
 			}
 			ErrCode::UsedBeforeInit => {
-				MsgBuilder::build_err(format!("This value hasnt been defined yet"), self.span)
+				MsgBuilder::build_err("This value hasnt been defined yet".to_string(), self.span)
 					.with_err_label("This points to an invalid address.".to_string())
 					.get_inner()
 			}

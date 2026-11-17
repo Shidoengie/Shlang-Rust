@@ -40,16 +40,16 @@ impl Runtime {
 			..self
 		}
 	}
-	pub fn assemble<'a, 'b>(
-		&'a mut self,
+	pub fn assemble<'b>(
+		&mut self,
 		input: &'b str,
 	) -> Result<ByteCode<'b>, Box<dyn LangError>> {
 		let ir = self.compiler.compile(input)?;
 
 		Ok(Assembler::assemble(ir))
 	}
-	pub fn assemble_expr<'a, 'b>(
-		&'a mut self,
+	pub fn assemble_expr<'b>(
+		&mut self,
 		input: &'b str,
 	) -> Result<ByteCode<'b>, Box<dyn LangError>> {
 		let ir = self.compiler.compile_expr(input)?;

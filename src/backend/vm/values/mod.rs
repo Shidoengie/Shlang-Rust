@@ -2,14 +2,10 @@ use std::{
 	any::Any,
 	collections::HashMap,
 	fmt::{self, Write},
-	num::NonZeroU8,
 };
 mod native;
 use crate::{
-	backend::vm::{
-		StackVM,
-		error::{ErrCode, Type},
-	},
+	backend::vm::error::{ErrCode, Type},
 	collections::sorted_debug_map,
 	symbols::{FieldKey, SymbolId},
 };

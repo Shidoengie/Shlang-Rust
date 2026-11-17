@@ -1,7 +1,7 @@
 use super::tokens::*;
 use crate::collections::FileId;
 use crate::collections::charvec::CharVec;
-use crate::collections::spans::{IntoSpanned, Span, Spanned};
+use crate::collections::spans::Span;
 use crate::frontend::lexemes::*;
 use crate::lang_errors::{ErrorBox, ToErrorBox};
 use std::str::Chars;

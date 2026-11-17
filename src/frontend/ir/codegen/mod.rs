@@ -101,10 +101,10 @@ impl Default for IRgen {
 
 impl IRgen {
 	pub fn new() -> Self {
-		return Self {
+		Self {
 			loop_stack: Vec::with_capacity(4),
 			..Default::default()
-		};
+		}
 	}
 	/// Generates bytecode and a source map for a single expression.
 	pub fn generate_expr(expr: ResolvedAstNode) -> Result<Ir> {

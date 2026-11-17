@@ -7,6 +7,7 @@ pub struct Frame {
 	pub ret_address: usize,
 	pub locals: Box<[Value]>,
 }
+#[allow(unused)]
 impl Frame {
 	pub fn new(func: Function, ret_address: usize) -> Self {
 		let local_count = func.local_count;
@@ -47,6 +48,7 @@ impl IndexMut<usize> for Frame {
 pub struct CallStack<const MAX: usize = 10_000> {
 	inner: Vec<Frame>,
 }
+#[allow(unused)]
 impl<const MAX: usize> CallStack<MAX> {
 	pub const MAX: usize = MAX;
 	pub fn new() -> Self {

@@ -6,7 +6,7 @@ mod tests;
 pub mod values;
 use rayon::{iter::ParallelIterator, str::ParallelString};
 use slab::Slab;
-use std::{fmt::format, mem, ops::Index};
+use std::{mem, ops::Index};
 use values::*;
 
 use crate::{
@@ -109,21 +109,21 @@ impl ObjectHeap {
 	}
 	pub fn add(&mut self, obj: Object) -> Value {
 		let id = self.items.insert(obj.into());
-		return Value::ObjectRef(id);
+		Value::ObjectRef(id)
 	}
 	pub fn inc_ref(&mut self, id: usize) -> Option<Value> {
 		if !self.items.contains(id) {
 			return None;
 		}
 		self.items[id].refcount += 1;
-		return Some(Value::ObjectRef(id));
+		Some(Value::ObjectRef(id))
 	}
 	pub fn dec_ref(&mut self, id: usize) -> Option<Value> {
 		if !self.items.contains(id) {
 			return None;
 		}
 		let obj = &mut self.items[id];
-		if obj.refcount <= 0 {
+		if obj.refcount == 0 {
 			self.items.remove(id);
 			return None;
 		}
@@ -140,7 +140,7 @@ impl ObjectHeap {
 impl Index<usize> for ObjectHeap {
 	type Output = Object;
 	fn index(&self, index: usize) -> &Self::Output {
-		return &self.items[index].obj;
+		&self.items[index].obj
 	}
 }
 
@@ -163,10 +163,10 @@ pub struct StackVM<'a> {
 
 pub type Result<T = ()> = std::result::Result<T, VmErr>;
 impl<'a> StackVM<'a> {
-	pub fn new(mut bytecode: ByteCode<'a>) -> Self {
+	pub fn new(bytecode: ByteCode<'a>) -> Self {
 		// this is done so the builtins dont colide with the user defined globals
 		let mut new_globals = get_builtins();
-		new_globals.extend_from_slice(&mut bytecode.globals);
+		new_globals.extend_from_slice(&bytecode.globals);
 		new_globals.resize(bytecode.global_count, Value::Undefined);
 		let mut vm = Self {
 			ip: 0,
@@ -268,12 +268,12 @@ impl<'a> StackVM<'a> {
 			std::hint::cold_path::cold_path();
 			return Err(ErrCode::IndexOutOfBounds.into_vmerr(self.ip));
 		}
-		return Ok(oparg as usize);
+		Ok(oparg as usize)
 	}
 	fn get_args(&mut self) -> u64 {
 		let oparg = std::mem::take(&mut self.op_args[self.arg_cursor]);
 		self.arg_cursor += 1;
-		return oparg;
+		oparg
 	}
 
 	fn exec_op(&mut self, op: OpCode) -> Result<()> {
@@ -496,7 +496,7 @@ impl<'a> StackVM<'a> {
 		self.values
 			.drain(self.values.len() - len..)
 			.zip(self.value_map.drain(self.value_map.len() - len..))
-			.map(|value| IndexOrigin::from(value))
+			.map(IndexOrigin::from)
 			.collect()
 	}
 	fn pop_pair(&mut self) -> Result<(Value, Value)> {
@@ -720,7 +720,7 @@ impl<'a> StackVM<'a> {
 		Ok(())
 	}
 	fn push_frame(&mut self, frame: Frame) -> Result {
-		if let Err(_) = self.call_stack.push(frame) {
+		if self.call_stack.push(frame).is_err() {
 			return Err(ErrCode::StackOverflow.into_vmerr(self.ip));
 		};
 		Ok(())
@@ -737,7 +737,7 @@ impl<'a> StackVM<'a> {
 			return self.type_error(Type::ObjectRef, refid);
 		};
 		let Some(obj) = self.objects.get(refid) else {
-			return Err(ErrCode::Unspecified(format!("Invalid object id")).into_vmerr(self.ip));
+			return Err(ErrCode::Unspecified("Invalid object id".to_string()).into_vmerr(self.ip));
 		};
 		match obj {
 			Object::Native(list) => {
@@ -746,7 +746,7 @@ impl<'a> StackVM<'a> {
 					.map_err(|err| VmErr::new(index.origin, err))?;
 				self.push(res);
 
-				return Ok(());
+				Ok(())
 			}
 			_ => todo!(),
 		}
@@ -761,7 +761,7 @@ impl<'a> StackVM<'a> {
 
 		if content.is_ascii() {
 			let index = index as usize;
-			if index as usize >= content.len() {
+			if index >= content.len() {
 				return Err(ErrCode::IndexOutOfBounds.into_vmerr(self.ip));
 			}
 			let ch = &content[index..index + 1];
@@ -775,7 +775,7 @@ impl<'a> StackVM<'a> {
 			return Err(ErrCode::IndexOutOfBounds.into_vmerr(self.ip));
 		};
 		self.push(Value::String(ch.to_string()));
-		return Ok(());
+		Ok(())
 	}
 	fn exec_index_mut(&mut self) -> Result {
 		let target = self.pop_raw()?;
@@ -785,13 +785,13 @@ impl<'a> StackVM<'a> {
 			return self.type_error(Type::ObjectRef, target);
 		};
 		let Some(obj) = self.objects.get_mut(id) else {
-			return Err(ErrCode::Unspecified(format!("Invalid object id")).into_vmerr(self.ip));
+			return Err(ErrCode::Unspecified("Invalid object id".to_string()).into_vmerr(self.ip));
 		};
 		match obj {
 			Object::Native(list) => {
 				list.lang_index_mut(index, value)
 					.map_err(|err| VmErr::new(self.ip, err))?;
-				return Ok(());
+				Ok(())
 			}
 			_ => todo!(),
 		}

@@ -3,10 +3,7 @@ use crate::{
 	collections::spans::{IntoSpanned, OkToSpanned, Span, Spanned},
 	frontend::{
 		FileStore,
-		ast::{
-			nodes::{self as ast, Constructor, Node as AstNode},
-			parser::GLOBAL_NAME_MAP,
-		},
+		ast::nodes::{self as ast, Node as AstNode},
 		nameres::{
 			resolved_nodes::*,
 			scope::{Scope, ScopeInfo, VarBuilder, VarInfo},

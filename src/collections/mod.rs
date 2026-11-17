@@ -17,7 +17,7 @@ pub struct SortedDebugMap<'a, T: Eq + Hash, U>(&'a HashMap<T, U>);
 impl<T: Ord + Hash + Eq + fmt::Debug, U: fmt::Debug> fmt::Debug for SortedDebugMap<'_, T, U> {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let mut entries: Vec<_> = self.0.iter().collect();
-		entries.sort_unstable_by(|(left, _), (right, _)| left.cmp(right));
+		entries.sort_unstable_by_key(|(left, _)| *left);
 		f.debug_map().entries(entries).finish()
 	}
 }

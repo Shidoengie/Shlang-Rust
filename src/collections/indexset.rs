@@ -22,9 +22,9 @@ impl<T: Hash + Eq> IndexSet<T> {
 	}
 
 	fn hash_item(&self, item: &T) -> u64 {
-		let mut hasher = self.map.hasher().build_hasher();
-		item.hash(&mut hasher);
-		hasher.finish()
+		
+		
+		self.map.hasher().hash_one(item)
 	}
 
 	pub fn push(&mut self, item: T) -> usize {

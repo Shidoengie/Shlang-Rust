@@ -55,7 +55,7 @@ macro_rules! test_func {
         $(
             #[test]
             fn $section() {
-                use crate::_test_func;
+                use $crate::_test_func;
                 insta::with_settings!(
                 {description => stringify!($section),sort_maps => true},
                 {

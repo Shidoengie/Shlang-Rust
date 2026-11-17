@@ -43,13 +43,13 @@ impl Debug for Program<'_> {
 		if !f.alternate() {
 			f.debug_struct("Program")
 				.field("proc", &self.proc)
-				.field(&"symbol_pool", &self.symbol_pool)
-				.field(&"file_id", &self.file_id)
+				.field("symbol_pool", &self.symbol_pool)
+				.field("file_id", &self.file_id)
 				.finish()?;
 		}
 		f.debug_struct("Program")
-			.field(&"symbol_pool", &self.symbol_pool)
-			.field(&"file_id", &self.file_id)
+			.field("symbol_pool", &self.symbol_pool)
+			.field("file_id", &self.file_id)
 			.finish()?;
 		f.write_str(" = ")?;
 		if self.proc.len() == 1 {

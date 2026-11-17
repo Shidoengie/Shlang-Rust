@@ -1,9 +1,6 @@
 use ariadne::{ReportBuilder, ReportKind};
 
-use crate::{
-	collections::spans::*,
-	lang_errors::{ErrorBox, LangError, LangSpan, MsgBuilder},
-};
+use crate::lang_errors::{ErrorBox, LangError, LangSpan, MsgBuilder};
 #[derive(Debug, Clone)]
 pub enum LexError {
 	UnexpectedChar(char),

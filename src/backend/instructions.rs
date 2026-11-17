@@ -6,10 +6,7 @@ use crate::{
 };
 
 use serde::{Deserialize, Serialize};
-use std::{
-	collections::HashMap,
-	fmt::{Debug, Display},
-};
+use std::fmt::{Debug, Display};
 
 #[derive(Deserialize, Serialize)]
 #[serde(bound(deserialize = "'de: 'a"))]

@@ -402,7 +402,7 @@ impl NameRes<'_> {
 		for (name, node) in obj {
 			fields.insert(name, self.resolve_node(node)?.box_item());
 		}
-		Ok(RNode::RecordLit(fields))
+		Ok(RNode::Literal(Literal::RecordLit(fields)))
 	}
 	fn resolve_node(&mut self, node: ast::NodeSpan) -> Result<RNodeSpan> {
 		use ResolvedNode as RNode;
@@ -415,12 +415,12 @@ impl NameRes<'_> {
 				let resolved = self.resolve_class(class);
 				self.scopes.leave_class();
 				let class = resolved?;
-				Ok(RNode::ClassLit(ClassLit {
+				Ok(ClassLit {
 					id: class_info.id,
 					is_global: false,
 					..class
-				})
-				.to_spanned(span))
+				}
+				.to_rnodespan(span))
 			}
 
 			AstNode::SelfValue => Ok(RNode::Variable {
@@ -496,7 +496,7 @@ impl NameRes<'_> {
 			AstNode::RecordLit(obj) => self.resolve_record_lit(obj).ok_to_spanned(span),
 			AstNode::ListLit(list) => {
 				let list = self.resolve_list(list)?;
-				Ok(RNode::ListLit(list).to_spanned(span))
+				Ok(RNode::Literal(Literal::ListLit(list)).to_spanned(span))
 			}
 			AstNode::UnaryNode(un) => {
 				let target = self.resolve_node(un.target.deref_item())?.box_item();
@@ -506,11 +506,11 @@ impl NameRes<'_> {
 
 			AstNode::ContinueNode => Ok(RNode::Continue.to_spanned(span)),
 			AstNode::BreakNode => Ok(RNode::Break.to_spanned(span)),
-			AstNode::Bool(v) => Ok(RNode::Bool(v).to_spanned(span)),
-			AstNode::Float(v) => Ok(RNode::Float(v).to_spanned(span)),
-			AstNode::Null => Ok(RNode::Null.to_spanned(span)),
-			AstNode::Str(v) => Ok(RNode::String(v).to_spanned(span)),
-			AstNode::Int(v) => Ok(RNode::Int(v).to_spanned(span)),
+			AstNode::Bool(v) => Ok(RNode::Literal(Literal::Bool(v)).to_spanned(span)),
+			AstNode::Float(v) => Ok(RNode::Literal(Literal::Float(v)).to_spanned(span)),
+			AstNode::Null => Ok(RNode::Literal(Literal::Null).to_spanned(span)),
+			AstNode::Str(v) => Ok(RNode::Literal(Literal::String(v)).to_spanned(span)),
+			AstNode::Int(v) => Ok(RNode::Literal(Literal::Int(v)).to_spanned(span)),
 			AstNode::DontResult => Err(NameErr::UnexpectedSemi.to_errorbox(span, self.file_id)),
 		}
 	}

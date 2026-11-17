@@ -1,0 +1,62 @@
+---
+source: src/frontend/nameres/tests.rs
+description: "Test: anonymous_global_class_self_type\n──────────────────────────────────────────────────────────────────────────────────\nclass {\n\tstatic value = 10;\n\tstatic func get() {\n\t\treturn Self.value;\n\t}\n}"
+expression: source
+info: test_globals
+---
+ResolvedAst {
+    proc: [
+        ClassLit {
+            id: 4,
+            is_global: true,
+            name: None,
+            fields: {
+                FieldKey {
+                    id: SymbolId(4),
+                    is_static: true,
+                }: Field {
+                    default: Some(
+                        Int(10)[24:26],
+                    ),
+                    readonly: true,
+                    name_span: 16:21,
+                    modifier_span: 9:15,
+                    private: false,
+                }[9:27],
+            },
+            methods: {
+                FieldKey {
+                    id: SymbolId(5),
+                    is_static: true,
+                }: Method {
+                    block: [
+                        Return(
+                            FieldAccess(
+                                Variable(global 4)[58:62],
+                                Property(
+                                    SymbolId(4),
+                                )[63:68],
+                            ),
+                        )[51:57],
+                    ][47:72],
+                    args: [],
+                    local_count: 1,
+                    name_span: 41:44,
+                    modifier_span: 29:35,
+                    private: false,
+                }[29:74],
+            },
+        }[6:74],
+    ],
+    global_count: 5,
+    local_count: 0,
+    symbol_pool: SymbolArray {
+        0: "input",
+        1: "println",
+        2: "str_len",
+        3: "parse_str",
+        4: "value",
+        5: "get",
+    },
+    file_id: FileId(0),
+}

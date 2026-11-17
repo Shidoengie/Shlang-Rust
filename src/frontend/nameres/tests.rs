@@ -1,7 +1,7 @@
 use crate::{
 	frontend::{
 		Compiler,
-		nameres::resolved_nodes::{ResolvedAst, ResolvedAstNode, ResolvedNode},
+		nameres::resolved_nodes::{Literal, ResolvedAst, ResolvedAstNode, ResolvedNode},
 	},
 	lang_errors::LangResult,
 };
@@ -39,7 +39,7 @@ fn anonymous_class_self_type_resolves_to_its_local_slot() {
 	let ResolvedNode::Result(class_node) = &block[0].item else {
 		panic!("expected the block result");
 	};
-	let ResolvedNode::ClassLit(class) = class_node.item.as_ref() else {
+	let ResolvedNode::Literal(Literal::ClassLit(class)) = class_node.item.as_ref() else {
 		panic!("expected a class literal");
 	};
 	assert_eq!(class.id, 0);
@@ -65,7 +65,7 @@ fn named_global_class_self_type_resolves_to_its_global_slot() {
 	let resolved = compiler
 		.resolve("class Example { static func get() { return Self; } }")
 		.unwrap();
-	let ResolvedNode::ClassLit(class) = &resolved.proc[0].item else {
+	let ResolvedNode::Literal(Literal::ClassLit(class)) = &resolved.proc[0].item else {
 		panic!("expected a class literal");
 	};
 	assert_eq!(class.id, 4);

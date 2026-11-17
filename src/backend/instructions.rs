@@ -28,8 +28,14 @@ pub struct ByteCode<'a> {
 impl Debug for ByteCode<'_> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("ByteCode")
+			.field("file_id", &self.file_id)
+			.field("op_args", &self.op_args)
 			.field("span_map", &self.span_map)
 			.field("global_count", &self.global_count)
+			.field("local_count", &self.local_count)
+			.field("globals", &self.globals)
+			.field("const_pool", &self.const_pool)
+			.field("symbol_pool", &self.symbol_pool)
 			.finish()?;
 		write!(f, " = ")?;
 		compact_iter_debug(f, self.ops.iter())

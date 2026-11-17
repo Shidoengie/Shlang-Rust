@@ -175,14 +175,14 @@ impl IRgen {
 		self.span_map.push(bytecode.len(), bytecode.len() + 1, span);
 		bytecode.push(Op::Push(val));
 	}
-	fn gen_literal(&mut self, node: RNodeSpan) -> Result<IrLiteral> {
-		let lit = match node.item {
-			RNode::Null => IrLiteral::Null,
-			RNode::Float(num) => IrLiteral::Float(num),
-			RNode::Int(num) => IrLiteral::Int(num),
-			RNode::Bool(cond) => IrLiteral::Bool(cond),
-			RNode::String(txt) => IrLiteral::String(txt),
-			RNode::FunctionLit(func) => self.gen_func_lit(func, node.span)?.into(),
+	fn gen_literal(&mut self, literal: Literal, span: Span) -> Result<IrLiteral> {
+		let lit = match literal {
+			Literal::Null => IrLiteral::Null,
+			Literal::Float(num) => IrLiteral::Float(num),
+			Literal::Int(num) => IrLiteral::Int(num),
+			Literal::Bool(cond) => IrLiteral::Bool(cond),
+			Literal::String(txt) => IrLiteral::String(txt),
+			Literal::FunctionLit(func) => self.gen_func_lit(func, span)?.into(),
 			_ => unimplemented!(),
 		};
 		Ok(lit)
@@ -234,16 +234,29 @@ impl IRgen {
 	/// Generates the expression's value, then stores it in a local.
 	fn gen_vardecl(&mut self, decl: Decl, span: Span, bytecode: &mut Vec<Op>) -> Result {
 		let start = bytecode.len();
-		if decl.is_global && decl.expr.is_literal() {
-			let lit = self.gen_literal(decl.expr.deref_item())?;
-			self.globals.push(lit);
-			return Ok(());
-		}
-		self.node_gen(decl.expr.deref_item(), bytecode)?;
-		if decl.is_global {
-			bytecode.push(Op::StoreGlobal(decl.id));
+		let Decl {
+			id,
+			is_global,
+			expr,
+		} = decl;
+		let expr_span = expr.span;
+		let expr = *expr.item;
+		if is_global {
+			match expr {
+				RNode::Literal(literal) if literal.is_literal() => {
+					let lit = self.gen_literal(literal, expr_span)?;
+					self.globals.push(lit);
+					return Ok(());
+				}
+				expr => self.node_gen(Spanned::new(expr, expr_span), bytecode)?,
+			}
 		} else {
-			bytecode.push(Op::StoreLocal(decl.id));
+			self.node_gen(Spanned::new(expr, expr_span), bytecode)?;
+		}
+		if is_global {
+			bytecode.push(Op::StoreGlobal(id));
+		} else {
+			bytecode.push(Op::StoreLocal(id));
 		}
 		let stop = bytecode.len();
 		self.span_map.push(start, stop, span);
@@ -554,13 +567,17 @@ impl IRgen {
 				};
 				bytecode.push(Op::Goto(format!("loop_end@{loopid}")))
 			}
+
 			RNode::Return(expr) => self.gen_return(expr.deref_item(), span, bytecode)?,
-			RNode::ListLit(lit) => self.gen_list(lit, span, bytecode)?,
-			RNode::ClassLit(class) => {}
-			ref item if item.is_literal() => {
-				let lit = self.gen_literal(node)?;
-				self.push_val(lit, span, bytecode);
-			}
+			RNode::Literal(literal) => match literal {
+				Literal::ListLit(lit) => self.gen_list(lit, span, bytecode)?,
+				Literal::ClassLit(_) => {}
+				literal if literal.is_literal() => {
+					let lit = self.gen_literal(literal, span)?;
+					self.push_val(lit, span, bytecode);
+				}
+				literal => todo!("{literal:?}"),
+			},
 			node => {
 				todo!("{node:?}");
 			}

@@ -1,0 +1,71 @@
+---
+source: src/frontend/nameres/tests.rs
+description: "Test: anonymous_local_class_self_type\n──────────────────────────────────────────────────────────────────────────────────\nfunc make() {\n\tclass {\n\t\tstatic value = 10;\n\t\tstatic func get() {\n\t\t\treturn Self.value;\n\t\t}\n\t}\n}"
+expression: source
+info: test_globals
+---
+ResolvedAst {
+    proc: [
+        Decl {
+            id: 4,
+            expr: Function(){
+                Result(
+                    ClassLit {
+                        id: 0,
+                        is_global: false,
+                        name: None,
+                        fields: {
+                            FieldKey {
+                                id: SymbolId(5),
+                                is_static: true,
+                            }: Field {
+                                default: Some(
+                                    Int(10)[40:42],
+                                ),
+                                readonly: true,
+                                name_span: 32:37,
+                                modifier_span: 25:31,
+                                private: false,
+                            }[25:43],
+                        },
+                        methods: {
+                            FieldKey {
+                                id: SymbolId(6),
+                                is_static: true,
+                            }: Method {
+                                block: [
+                                    Return(
+                                        FieldAccess(
+                                            Variable(0)[76:80],
+                                            Property(
+                                                SymbolId(5),
+                                            )[81:86],
+                                        ),
+                                    )[69:75],
+                                ][64:91],
+                                args: [],
+                                local_count: 1,
+                                name_span: 58:61,
+                                modifier_span: 46:52,
+                                private: false,
+                            }[46:94],
+                        },
+                    },
+                )[21:94],
+            }[5:13],
+            is_global: true,
+        }[5:13],
+    ],
+    global_count: 5,
+    local_count: 0,
+    symbol_pool: SymbolArray {
+        0: "input",
+        1: "println",
+        2: "str_len",
+        3: "parse_str",
+        4: "make",
+        5: "value",
+        6: "get",
+    },
+    file_id: FileId(0),
+}

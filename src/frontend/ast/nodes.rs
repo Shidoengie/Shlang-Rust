@@ -95,14 +95,18 @@ pub enum Node {
 }
 
 impl Node {
-	pub fn can_result(&self) -> bool {
+	pub fn is_expr(&self) -> bool {
 		!matches!(
-			self.clone(),
+			self,
 			Self::Decl(_)
-				| Self::Assignment {
-					target: _,
-					value: _
-				} | Self::Return(_)
+				| Self::ClassLit(ClassLit {
+					name: Some(_),
+					fields: _,
+					methods: _
+				}) | Self::Assignment {
+				target: _,
+				value: _
+			} | Self::Return(_)
 				| Self::BreakNode
 				| Self::ContinueNode
 		)

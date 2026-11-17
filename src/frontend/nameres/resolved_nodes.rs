@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
 	collections::{
 		FileId, sorted_debug_map,
-		spans::{IntoSpanned, Span, Spanned},
+		spans::{Span, Spanned},
 	},
 	frontend::opkind::*,
 	symbols::{FieldKey, Symbol, SymbolArray, SymbolId},
@@ -15,11 +15,6 @@ type NodeRefSpan = Spanned<Box<ResolvedNode>>;
 
 #[derive(Clone, Deserialize, Serialize)]
 pub enum ResolvedNode {
-	Null,
-	Bool(bool),
-	String(String),
-	Float(f64),
-	Int(i64),
 	BinaryNode {
 		kind: BinaryOp,
 		left: NodeRefSpan,
@@ -30,7 +25,6 @@ pub enum ResolvedNode {
 	Return(NodeRefSpan),
 	Break,
 	Continue,
-
 	Assignment {
 		target: NodeRefSpan,
 		value: NodeRefSpan,
@@ -39,15 +33,11 @@ pub enum ResolvedNode {
 		id: usize,
 		is_global: bool,
 	},
-
 	Decl(Decl),
-
 	Index {
 		target: NodeRefSpan,
 		index: NodeRefSpan,
 	},
-	FunctionLit(FunctionLit),
-	ListLit(Vec<Spanned<ResolvedNode>>),
 	Call {
 		callee: NodeRefSpan,
 		args: Vec<Spanned<ResolvedNode>>,
@@ -69,13 +59,61 @@ pub enum ResolvedNode {
 		list: NodeRefSpan,
 		block: Block,
 	},
-
 	DoBlock(Block),
+	FieldAccess(NodeRefSpan, Spanned<AccessType>),
+
+	Literal(Literal),
+}
+#[derive(Clone, Serialize, Deserialize)]
+pub enum Literal {
+	Null,
+	Bool(bool),
+	String(String),
+	Float(f64),
+	Int(i64),
 	RecordLit(HashMap<SymbolId, NodeRefSpan>),
 	ClassLit(ClassLit),
-	FieldAccess(NodeRefSpan, Spanned<AccessType>),
+	FunctionLit(FunctionLit),
+	ListLit(Vec<Spanned<ResolvedNode>>),
 }
-
+impl Literal {
+	pub fn is_literal(&self) -> bool {
+		matches!(
+			self,
+			Self::Null
+				| Self::Bool(_)
+				| Self::String(_)
+				| Self::Float(_)
+				| Self::Int(_)
+				| Self::RecordLit(_)
+				| Self::FunctionLit(_)
+		)
+	}
+}
+impl Debug for Literal {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			Self::Bool(val) => {
+				if *val {
+					f.write_str("true")
+				} else {
+					f.write_str("false")
+				}
+			}
+			Self::RecordLit(map) => Debug::fmt(&sorted_debug_map(map), f),
+			Self::Int(num) => write!(f, "Int({num})"),
+			Self::Float(num) => write!(f, "Float({num})"),
+			Self::String(val) => write!(f, r#"String("{val}")"#),
+			Self::ListLit(list) => {
+				f.write_str("List")?;
+				f.debug_list().entries(list).finish()
+			}
+			Self::ClassLit(class) => Debug::fmt(class, f),
+			Self::FunctionLit(func) => Debug::fmt(func, f),
+			Self::Null => f.write_str("Null"),
+		}
+	}
+}
 pub trait IntoRNodespan {
 	fn to_rnodespan(self, span: Span) -> RNodeSpan;
 }
@@ -97,8 +135,25 @@ macro_rules! rnodes_from {
         )*
     }
 }
-rnodes_from! { Decl Branch FunctionLit ClassLit }
+rnodes_from! { Decl Branch }
+macro_rules! literals_from {
+    ($($name:ident)*) => {
+        $(
+            impl ::core::convert::From<$name> for ResolvedNode {
+                fn from(node: $name) -> Self {
+                    Self::Literal(Literal::$name(node))
+                }
+            }
+            impl IntoRNodespan for $name {
+                fn to_rnodespan(self,span:Span) -> RNodeSpan {
+                    Spanned::new(ResolvedNode::Literal(Literal::$name(self)),span)
+                }
 
+            }
+        )*
+    }
+}
+literals_from!(ClassLit FunctionLit);
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(bound(deserialize = "'de: 'a"))]
 pub struct ResolvedAstNode<'a> {
@@ -140,17 +195,6 @@ pub type RNodeSpan = Spanned<ResolvedNode>;
 impl Debug for ResolvedNode {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			Self::Bool(val) => {
-				if *val {
-					f.write_str("true")
-				} else {
-					f.write_str("false")
-				}
-			}
-			Self::RecordLit(map) => Debug::fmt(&sorted_debug_map(map), f),
-			Self::Int(num) => write!(f, "Int({num})"),
-			Self::Float(num) => write!(f, "Float({num})"),
-			Self::String(val) => write!(f, r#"String("{val}")"#),
 			Self::Variable { id, is_global } => {
 				write!(f, "Variable(")?;
 				if *is_global {
@@ -160,7 +204,7 @@ impl Debug for ResolvedNode {
 				};
 				Ok(())
 			}
-			Self::Null => f.write_str("Null"),
+			Self::Literal(lit) => Debug::fmt(lit, f),
 			Self::Break => f.write_str("Break"),
 			Self::Continue => f.write_str("Continue"),
 			Self::Decl(decl) => Debug::fmt(decl, f),
@@ -169,10 +213,6 @@ impl Debug for ResolvedNode {
 				.field("target", target)
 				.field("index", index)
 				.finish(),
-			Self::ListLit(list) => {
-				f.write_str("List")?;
-				f.debug_list().entries(list).finish()
-			}
 			Self::DoBlock(block) => {
 				write!(f, "Do ")?;
 				f.debug_set().entries(&block.item).finish()
@@ -223,24 +263,10 @@ impl Debug for ResolvedNode {
 				.field("callee", callee)
 				.field("args", args)
 				.finish(),
-			Self::ClassLit(class) => Debug::fmt(class, f),
-			Self::FunctionLit(func) => Debug::fmt(func, f),
 		}
 	}
 }
-impl ResolvedNode {
-	pub fn is_literal(&self) -> bool {
-		return matches!(
-			self,
-			Self::RecordLit(_)
-				| Self::FunctionLit(_)
-				| Self::Null | Self::Bool(_)
-				| Self::String(_)
-				| Self::Float(_)
-				| Self::Int(_)
-		);
-	}
-}
+
 pub type Block = Spanned<Vec<RNodeSpan>>;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -300,6 +326,7 @@ pub struct ClassLit {
 	#[serde(with = "crate::symbols::field_key_map")]
 	pub methods: HashMap<FieldKey, Spanned<Method>>,
 }
+
 impl Debug for ClassLit {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("ClassLit")
@@ -354,16 +381,16 @@ mod serde_tests {
 			),
 		);
 		let ast = ResolvedAst {
-			proc: vec![Spanned::new(
-				ResolvedNode::ClassLit(ClassLit {
+			proc: vec![
+				ClassLit {
 					id: 0,
 					is_global: false,
 					name: None,
 					fields,
 					methods: HashMap::new(),
-				}),
-				span,
-			)],
+				}
+				.to_rnodespan(span),
+			],
 			global_count: 0,
 			local_count: 0,
 			symbol_pool: symbols.into_packed(),
@@ -375,7 +402,7 @@ mod serde_tests {
 		assert_eq!(decoded.proc.len(), 1);
 		assert!(matches!(
 			&decoded.proc[0].item,
-			ResolvedNode::ClassLit(class) if class.fields.len() == 1
+			ResolvedNode::Literal(Literal::ClassLit(class)) if class.fields.len() == 1
 		));
 		assert!(decoded.file_id.is_anonymous());
 	}

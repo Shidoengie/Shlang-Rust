@@ -252,7 +252,7 @@ impl<'i> Parser<'i> {
 			.filter(|&x| x.item != Node::DontResult)
 			.cloned()
 			.collect();
-		if last.item != Node::DontResult && last.item.can_result() {
+		if last.item != Node::DontResult && last.item.is_expr() {
 			let index = filtered.len() - 1;
 			filtered[index] = last.clone().wrap_in_result();
 		}
@@ -297,8 +297,11 @@ impl Parser<'_> {
 	}
 	fn let_decl(&mut self, name: SymbolId, name_symbol: &Token) -> Result {
 		self.next()?; // Consume '='
-		let val = self.parse_only_expr(false)?;
+		let mut val = self.parse_only_expr(false)?;
 		let span = name_symbol.span + val.span;
+		if let Node::ClassLit(ref mut class_lit) = val.item {
+			class_lit.name = Some(name.to_spanned(name_symbol.span))
+		}
 		Ok(Decl::new(name, val.box_item())
 			.as_readonly()
 			.with_modifier_span(name_symbol.span)
@@ -327,7 +330,10 @@ impl Parser<'_> {
 
 	fn var_decl(&mut self, name: SymbolId, name_symbol: &Token) -> Result {
 		self.next()?; // Consume '='
-		let val = self.parse_only_expr(false)?;
+		let mut val = self.parse_only_expr(false)?;
+		if let Node::ClassLit(ref mut class_lit) = val.item {
+			class_lit.name = Some(name.to_spanned(name_symbol.span))
+		}
 		let span = name_symbol.span + val.span;
 		Ok(Decl::new(name, val.box_item())
 			.with_modifier_span(name_symbol.span)
@@ -816,14 +822,6 @@ impl Parser<'_> {
 
 ///struct parsing
 impl Parser<'_> {
-	fn node_to_field(&mut self, node: NodeSpan) -> Result<(SymbolId, NodeSpan)> {
-		match node.item {
-			Node::Decl(decl) => Ok((decl.name, decl.expr.deref_item())),
-			_ => {
-				err(ParseError::UnexpectedFieldNode(node.item).to_errorbox(node.span, self.file_id))
-			}
-		}
-	}
 	fn map_literal(&mut self) -> Result {
 		let token = self.peek_some()?;
 		let mut entries: HashMap<SymbolId, NodeSpan> = hashmap!();
@@ -1079,7 +1077,7 @@ fn unexpected_token<T>(token: Token, file_id: FileId) -> Result<T> {
 }
 
 fn expect_expr(expr: &NodeSpan, file_id: FileId) -> Result<&NodeSpan> {
-	if !expr.item.can_result() {
+	if !expr.item.is_expr() {
 		return err(ParseError::UnexpectedVoidExpression.to_errorbox(expr.span, file_id));
 	}
 	Ok(expr)

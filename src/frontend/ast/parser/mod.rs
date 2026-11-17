@@ -716,7 +716,9 @@ impl Parser<'_> {
 			TokenType::True => Ok(Node::Bool(true).to_spanned(token.span)),
 			TokenType::Null => Ok(Node::Null.to_spanned(token.span)),
 			TokenType::SelfTok if self.in_method => Ok(Node::SelfValue.to_spanned(token.span)),
-			TokenType::SelfTok => err(ParseError::Unspecified("`self` used outside of a method.".to_string())
+			TokenType::SelfTok => err(ParseError::Unspecified(
+				"`self` used outside of a method.".to_string(),
+			)
 			.to_errorbox(token.span, self.file_id)),
 			TokenType::SelfType => Ok(Node::SelfTy.to_spanned(token.span)),
 			TokenType::Func => {

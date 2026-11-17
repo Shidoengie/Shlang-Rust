@@ -306,7 +306,6 @@ pub struct Decl {
 	pub readonly: bool,
 	pub hoisted: bool,
 	pub modifier_span: Option<Span>,
-	pub is_item: bool,
 }
 impl Debug for Decl {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -330,7 +329,6 @@ impl Decl {
 			readonly: false,
 			hoisted: false,
 			modifier_span: None,
-			is_item: false,
 		}
 	}
 	pub fn with_modifier_span(self, span: Span) -> Self {
@@ -348,12 +346,6 @@ impl Decl {
 	pub fn as_hoisted(self) -> Self {
 		Self {
 			hoisted: true,
-			..self
-		}
-	}
-	pub fn as_item(self) -> Self {
-		Self {
-			is_item: true,
 			..self
 		}
 	}

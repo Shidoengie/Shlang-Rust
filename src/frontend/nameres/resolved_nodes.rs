@@ -292,6 +292,8 @@ pub enum AccessType {
 }
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct ClassLit {
+	pub id: usize,
+	pub is_global: bool,
 	pub name: Option<Symbol>,
 	#[serde(with = "crate::symbols::field_key_map")]
 	pub fields: HashMap<FieldKey, Spanned<Field>>,
@@ -301,6 +303,8 @@ pub struct ClassLit {
 impl Debug for ClassLit {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		f.debug_struct("ClassLit")
+			.field("id", &self.id)
+			.field("is_global", &self.is_global)
 			.field("name", &self.name)
 			.field("fields", &sorted_debug_map(&self.fields))
 			.field("methods", &sorted_debug_map(&self.methods))
@@ -352,6 +356,8 @@ mod serde_tests {
 		let ast = ResolvedAst {
 			proc: vec![Spanned::new(
 				ResolvedNode::ClassLit(ClassLit {
+					id: 0,
+					is_global: false,
 					name: None,
 					fields,
 					methods: HashMap::new(),

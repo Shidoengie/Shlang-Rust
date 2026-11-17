@@ -556,6 +556,7 @@ impl IRgen {
 			}
 			RNode::Return(expr) => self.gen_return(expr.deref_item(), span, bytecode)?,
 			RNode::ListLit(lit) => self.gen_list(lit, span, bytecode)?,
+			RNode::ClassLit(class) => {}
 			ref item if item.is_literal() => {
 				let lit = self.gen_literal(node)?;
 				self.push_val(lit, span, bytecode);

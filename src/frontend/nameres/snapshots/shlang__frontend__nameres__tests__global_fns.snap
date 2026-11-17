@@ -7,7 +7,7 @@ info: test_globals
 ResolvedAst {
     proc: [
         Decl {
-            id: 0,
+            id: 4,
             expr: Function(){
                 Return(
                     Int(10),
@@ -18,7 +18,7 @@ ResolvedAst {
         Decl {
             id: 0,
             expr: Call {
-                callee: Variable(global 0)[8:9],
+                callee: Variable(global 4)[8:9],
                 args: [],
             }[10:11],
             is_global: false,

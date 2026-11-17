@@ -28,3 +28,29 @@ class foo {
 
 //class_literal_with_static_properties
 class foo { static a = 10; static var b = 20; }
+
+//anonymous_global_class_self_type
+class {
+	static value = 10;
+	static func get() {
+		return Self.value;
+	}
+}
+
+//anonymous_local_class_self_type
+func make() {
+	class {
+		static value = 10;
+		static func get() {
+			return Self.value;
+		}
+	}
+}
+
+//named_class_self_type
+class example {
+	static value = 10;
+	static func get() {
+		return Self.value;
+	}
+}

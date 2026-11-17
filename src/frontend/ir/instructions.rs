@@ -52,6 +52,7 @@ pub enum IrNode {
 	Index,
 	IndexMut,
 	MakeList(usize),
+
 	GetProperty(SymbolId),
 	SetProperty(SymbolId),
 	NewInstance,

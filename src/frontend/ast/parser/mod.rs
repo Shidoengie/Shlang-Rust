@@ -468,7 +468,6 @@ impl Parser<'_> {
 			.box_item(),
 		)
 		.as_readonly()
-		.as_item()
 		.with_modifier_span(func_keyword);
 
 		decl.hoisted = self.in_toplevel;

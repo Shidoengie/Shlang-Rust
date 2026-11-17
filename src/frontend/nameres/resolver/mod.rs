@@ -60,7 +60,7 @@ impl<'store> NameRes<'store> {
 		Ok(ResolvedAst {
 			proc: decls,
 			symbol_pool: ast.symbol_pool,
-			global_count: self.scopes.globals.len(),
+			global_count: self.scopes.global_count(),
 			local_count,
 			file_id: ast.file_id,
 		})
@@ -73,7 +73,7 @@ impl<'store> NameRes<'store> {
 		let node = node?;
 		Ok(ResolvedAstNode::new(
 			node,
-			self.scopes.globals.len(),
+			self.scopes.global_count(),
 			local_count,
 			expr.symbol_pool,
 			expr.file_id,
@@ -120,6 +120,9 @@ impl NameRes<'_> {
 				_ => continue,
 			};
 			let mut info = VarBuilder::new_global(name).with_span(span);
+			if matches!(&val.item, AstNode::ClassLit(_)) {
+				info = info.as_class().as_readonly();
+			}
 			info.modifier_span = modifier_span;
 			self.scopes.define(info);
 		}
@@ -157,9 +160,20 @@ impl NameRes<'_> {
 				);
 			}
 			AstNode::ClassLit(class) => {
-				todo!()
-				// self.scopes.enter_class();
-				// let class = self.resolve_class(class);
+				let name = class.name.map(|f| f.item);
+				let id = name.map(|name| self.scopes.globals[&name].id);
+				let class_info = self.scopes.enter_global_class(name, id);
+				let resolved = self.resolve_class(class);
+				self.scopes.leave_class();
+				let class = resolved?;
+				local_decls.push(
+					ClassLit {
+						id: class_info.id,
+						is_global: true,
+						..class
+					}
+					.to_rnodespan(node.span),
+				);
 			}
 
 			_ => {
@@ -178,7 +192,6 @@ impl NameRes<'_> {
 
 		let mut info = VarBuilder::new(decl.name)
 			.with_readonly(decl.readonly)
-			.with_item(decl.is_item)
 			.with_span(span);
 
 		info.modifier_span = decl.modifier_span;
@@ -219,7 +232,7 @@ impl NameRes<'_> {
 			let mut span = span;
 			span.start = var_span.end + 1;
 			return Err(NameErr::AssignmentToReadonly {
-				is_item: info.is_item,
+				is_class: info.is_class,
 				decl_span: info.span,
 				modifier_span: info.modifier_span,
 			}
@@ -266,6 +279,8 @@ impl NameRes<'_> {
 			methods.insert(key, method);
 		}
 		Ok(ClassLit {
+			id: 0,
+			is_global: false,
 			methods,
 			fields,
 			name: class.name,
@@ -395,12 +410,17 @@ impl NameRes<'_> {
 		match node.item {
 			AstNode::Decl(decl) => self.resolve_var_decl(decl, span).ok_to_rnodespan(span),
 			AstNode::ClassLit(class) => {
-				todo!()
-				// self.scopes.enter_class(value);
-				// if let Some(ref name) = class.name.clone() {
-				// 	parent.define(name.item, VarInfo::new(name.item));
-				// }
-				// self.resolve_class(class).ok_to_rnodespan(span)
+				let name = class.name.map(|name| name.item);
+				let class_info = self.scopes.enter_local_class(name);
+				let resolved = self.resolve_class(class);
+				self.scopes.leave_class();
+				let class = resolved?;
+				Ok(RNode::ClassLit(ClassLit {
+					id: class_info.id,
+					is_global: false,
+					..class
+				})
+				.to_spanned(span))
 			}
 
 			AstNode::SelfValue => Ok(RNode::Variable {
@@ -408,7 +428,16 @@ impl NameRes<'_> {
 				is_global: false,
 			}
 			.to_spanned(span)),
-			AstNode::SelfTy => todo!(),
+			AstNode::SelfTy => {
+				let Some(class) = self.scopes.class_stack.last() else {
+					return Err(NameErr::SelfOutsideClass.to_errorbox(span, self.file_id));
+				};
+				Ok(RNode::Variable {
+					id: class.id,
+					is_global: class.global,
+				}
+				.to_spanned(span))
+			}
 			AstNode::Assignment { target, value } => self.resolve_assignment(target, value, span),
 			AstNode::Variable(name) => {
 				let info = self.get_var(name, span)?;

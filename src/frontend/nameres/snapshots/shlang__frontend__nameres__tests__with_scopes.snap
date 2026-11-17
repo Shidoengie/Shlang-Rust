@@ -7,7 +7,7 @@ info: test_globals
 ResolvedAst {
     proc: [
         Decl {
-            id: 0,
+            id: 4,
             expr: Function(){
                 Decl {
                     id: 0,

@@ -16,7 +16,7 @@ pub struct VarInfo {
 	pub readonly: bool,
 	pub span: Option<Span>,
 	pub modifier_span: Option<Span>,
-	pub is_item: bool,
+	pub is_class: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -26,7 +26,7 @@ pub struct VarBuilder {
 	pub readonly: bool,
 	pub span: Option<Span>,
 	pub modifier_span: Option<Span>,
-	pub is_item: bool,
+	pub is_class: bool,
 }
 #[allow(unused)]
 impl VarBuilder {
@@ -38,7 +38,7 @@ impl VarBuilder {
 			readonly: false,
 			span: None,
 			modifier_span: None,
-			is_item: false,
+			is_class: false,
 		}
 	}
 	pub const fn new_global(name: SymbolId) -> Self {
@@ -48,7 +48,7 @@ impl VarBuilder {
 			readonly: false,
 			span: None,
 			modifier_span: None,
-			is_item: false,
+			is_class: false,
 		}
 	}
 	#[inline(always)]
@@ -90,8 +90,15 @@ impl VarBuilder {
 		}
 	}
 	#[inline(always)]
-	pub fn with_item(self, is_item: bool) -> Self {
-		Self { is_item, ..self }
+	pub fn as_class(self) -> Self {
+		Self {
+			is_class: true,
+			..self
+		}
+	}
+	#[inline(always)]
+	pub fn with_class(self, is_class: bool) -> Self {
+		Self { is_class, ..self }
 	}
 	pub fn finish(self, id: usize) -> VarInfo {
 		VarInfo {
@@ -101,7 +108,7 @@ impl VarBuilder {
 			readonly: self.readonly,
 			span: self.span,
 			modifier_span: self.modifier_span,
-			is_item: self.is_item,
+			is_class: self.is_class,
 		}
 	}
 }
@@ -187,6 +194,12 @@ impl Frame {
 		scope.define(info);
 		id
 	}
+	fn define_anon_symbol(&mut self) -> usize {
+		let id = self.local_counter;
+		self.local_counter += 1;
+		self.max_local_count = self.max_local_count.max(self.local_counter);
+		id
+	}
 	fn get_var(&self, var_name: SymbolId) -> Option<&VarInfo> {
 		self.child_scopes
 			.iter()
@@ -230,8 +243,14 @@ impl Scope {
 		Self::with_globals(HashMap::from_iter(globals))
 	}
 	pub fn with_globals(globals: HashMap<SymbolId, VarInfo>) -> Self {
+		let global_counter = globals
+			.values()
+			.map(|var| var.id.saturating_add(1))
+			.max()
+			.unwrap_or(0);
 		Self {
 			globals,
+			global_counter,
 			..Default::default()
 		}
 	}
@@ -304,26 +323,39 @@ impl Scope {
 	fn current_scope_mut(&mut self) -> &mut ScopeInfo {
 		self.current_frame_mut().current_scope_mut()
 	}
-	pub fn enter_local_class(&mut self, name: Option<SymbolId>, id: usize) {
+	pub fn enter_local_class(&mut self, name: Option<SymbolId>) -> ClassInfo {
+		let id = if let Some(name) = name {
+			self.define(VarBuilder::new(name).as_class().as_readonly())
+		} else {
+			self.current_frame_mut().define_anon_symbol()
+		};
 		let info = ClassInfo {
 			name,
 			id,
 			global: false,
 		};
-		self.class_stack.push(info);
+		self.class_stack.push(info.clone());
+		info
 	}
-	pub fn enter_global_class(&mut self, name: Option<SymbolId>) {
-		let id = self.global_counter;
-		self.inc_globals();
+	pub fn enter_global_class(&mut self, name: Option<SymbolId>, id: Option<usize>) -> ClassInfo {
+		let id = id.unwrap_or_else(|| {
+			let id = self.global_counter;
+			self.inc_globals();
+			id
+		});
 		let info = ClassInfo {
 			global: true,
 			id,
 			name,
 		};
-		self.class_stack.push(info);
+		self.class_stack.push(info.clone());
+		info
 	}
 	pub fn leave_class(&mut self) {
 		self.class_stack.pop();
+	}
+	pub fn global_count(&self) -> usize {
+		self.global_counter
 	}
 	pub fn define(&mut self, value: VarBuilder) -> usize {
 		if value.global {

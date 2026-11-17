@@ -121,7 +121,6 @@ impl From<Value> for Type {
 			Value::Function(_) => Self::Function,
 			Value::NativeFunction(_) => Self::Function,
 			Value::ObjectRef(_) => Self::ObjectRef,
-			_ => todo!(),
 		}
 	}
 }

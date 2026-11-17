@@ -8,6 +8,17 @@ impl<T: NativeTrait> From<T> for Object {
 pub type FuncPtr = fn(ctx: &mut StackVM, args: &[Value]) -> FuncResult;
 pub type FuncResult = Result<Value, CallError>;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NativeFunctionError;
+
+impl std::fmt::Display for NativeFunctionError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_str("native function pointer is too large to pack")
+	}
+}
+
+impl std::error::Error for NativeFunctionError {}
+
 pub type NativeFuncResult<T = Value> = Result<T, NativeCallError>;
 pub enum CallError {
 	Unspecified(String),
@@ -156,11 +167,11 @@ impl NativeFunction {
 	pub const VARIADIC_VALUE: u8 = u8::MAX;
 	pub const MAX_PTR_SIZE: u64 = u64::MAX << 8;
 	#[inline(always)]
-	pub fn new(func: FuncPtr, param_count: u8) -> Result<Self, ()> {
-		let ptr_value = func as u64;
+	pub fn new(func: FuncPtr, param_count: u8) -> Result<Self, NativeFunctionError> {
+		let ptr_value = func as usize as u64;
 
 		if ptr_value > Self::MAX_PTR_SIZE {
-			return Err(());
+			return Err(NativeFunctionError);
 		}
 		let packed_value = param_count as u64 | ptr_value << 8;
 		Ok(Self(packed_value))
@@ -179,7 +190,7 @@ impl NativeFunction {
 		(fn_ptr)(ctx, args)
 	}
 	#[inline(always)]
-	pub fn new_variadic(func: FuncPtr) -> Result<Self, ()> {
+	pub fn new_variadic(func: FuncPtr) -> Result<Self, NativeFunctionError> {
 		Self::new(func, Self::VARIADIC_VALUE)
 	}
 	///Determines if a given parameter length is the accepted parameter count

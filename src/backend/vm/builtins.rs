@@ -1,9 +1,10 @@
+//! This module is temporary, as it is not the ideal solution.
+//! It will get replaced with FFI.
+
 use std::io::{self, Write};
 
 use crate::backend::vm::values::FuncPtr;
 
-///! This module is temporary, as it is not the ideal solution
-///! It will get replaced with FFI
 use super::values::{NativeFunction, Value};
 
 pub fn get_builtins() -> Vec<Value> {

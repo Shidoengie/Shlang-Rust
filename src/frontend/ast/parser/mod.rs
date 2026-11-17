@@ -82,7 +82,6 @@ pub struct Parser<'input> {
 /// This is temporary;
 /// Currently theres no module system and no function signature declaration,
 /// as such each names index cooresponds directly to a symbolid
-
 pub const GLOBAL_NAME_MAP: [&str; 4] = ["input", "println", "str_len", "parse_str"];
 
 ///base parser
@@ -182,7 +181,9 @@ impl<'i> Parser<'i> {
 	}
 	/// advances to the next token
 	fn next(&mut self) -> Result<Token> {
-		self.tokens.next().map_err(|err| Box::new(err) as Box<_>)
+		self.tokens
+			.next_token()
+			.map_err(|err| Box::new(err) as Box<_>)
 	}
 	fn expect_next(&mut self) -> Result<Token> {
 		let token = self.peek_some()?;
@@ -616,7 +617,6 @@ impl Parser<'_> {
 		Ok(Branch::new(condition, if_block, elif_block).to_nodespan(span))
 	}
 	/// parses if expressions
-
 	fn parse_branch(&mut self) -> Result {
 		let first = self.peek_some()?;
 		let condition = self.parse_only_expr(true)?;
@@ -872,7 +872,7 @@ impl Parser<'_> {
 	}
 	fn parse_prop_pair(&mut self) -> Result<(Symbol, Option<NodeSpan>)> {
 		let symbol = self.consume_symbol()?;
-		if let Some(_) = self.try_consume(TokenType::Equal)? {
+		if self.try_consume(TokenType::Equal)?.is_some() {
 			let expr = self.parse_only_expr(false)?;
 			return Ok((symbol, Some(expr)));
 		}

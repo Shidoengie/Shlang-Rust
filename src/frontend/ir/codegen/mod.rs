@@ -67,7 +67,7 @@ impl Display for Ir<'_> {
 			return Ok(());
 		}
 		for (index, op) in self.ops.iter().enumerate() {
-			writeln!(f, "{pos} | {op}", pos = format!("{index:<2}"),)?;
+			writeln!(f, "{index:<2} | {op}")?;
 		}
 		Ok(())
 	}

@@ -11,7 +11,7 @@ fn test_nameres(body: &str) -> LangResult<ResolvedAstNode<'_>> {
 	let string = format!("do {{ {body} }}").leak();
 	Compiler::new().resolve_expr(string)
 }
-fn test_global_nameres(body: &str) -> LangResult<ResolvedAst> {
+fn test_global_nameres(body: &str) -> LangResult<ResolvedAst<'_>> {
 	Compiler::new().resolve(body)
 }
 

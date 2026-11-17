@@ -30,9 +30,12 @@ impl<'de> Deserialize<'de> for SymbolId {
 }
 
 impl SymbolId {
-	#[allow(unsafe_op_in_unsafe_fn)]
+	/// Creates a symbol ID without checking that the value is valid.
+	///
+	/// # Safety
+	/// `inp` must not be `u32::MAX`.
 	pub unsafe fn new_unchecked(inp: u32) -> Self {
-		SymbolId(NonMaxU32::new_unchecked(inp))
+		SymbolId(unsafe { NonMaxU32::new_unchecked(inp) })
 	}
 }
 impl fmt::Debug for SymbolId {
@@ -70,9 +73,7 @@ pub struct SymbolSet<'a> {
 
 impl<'a> SymbolSet<'a> {
 	pub fn new() -> Self {
-		Self {
-			..Default::default()
-		}
+		Self::default()
 	}
 	pub fn from_vars(vars: &'a [&'a str]) -> Self {
 		let mut inner: IndexSet<&str> = IndexSet::new();
@@ -81,7 +82,6 @@ impl<'a> SymbolSet<'a> {
 		}
 		Self {
 			inner,
-			..Default::default()
 		}
 	}
 	pub fn push(&mut self, data: &'a str) -> SymbolId {

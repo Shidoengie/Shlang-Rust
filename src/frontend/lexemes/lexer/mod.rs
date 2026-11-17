@@ -198,7 +198,7 @@ impl<'a> Lexer<'a> {
 			};
 			nest = self.matches_comment(nest, advanced, next);
 		}
-		self.next()
+		self.next_token()
 	}
 	fn single_comment(&mut self) -> Result {
 		loop {
@@ -207,7 +207,7 @@ impl<'a> Lexer<'a> {
 				break;
 			}
 		}
-		self.next()
+		self.next_token()
 	}
 	pub fn new(src: &'a str, file_id: FileId) -> Self {
 		Self {
@@ -277,14 +277,14 @@ impl<'a> Lexer<'a> {
 			'=' => self.multi_char_token('=', TokenType::Equal, TokenType::DoubleEqual, start),
 			'#' => self.single_comment(),
 
-			' ' | '\t' | '\r' | '\n' => self.next(),
+			' ' | '\t' | '\r' | '\n' => self.next_token(),
 			last => self.symbol_or_num(last),
 		}
 	}
 	pub fn peek(&self) -> Result {
-		self.clone().next()
+		self.clone().next_token()
 	}
-	pub fn next(&mut self) -> Result {
+	pub fn next_token(&mut self) -> Result {
 		let start = self.index;
 		let Some(last) = self.advance() else {
 			return self.make_eof_token();

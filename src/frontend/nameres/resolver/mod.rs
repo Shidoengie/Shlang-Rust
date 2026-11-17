@@ -36,14 +36,14 @@ where
 }
 pub struct NameRes<'store> {
 	scopes: Scope,
-	file_store: &'store mut FileStore,
+	_file_store: &'store mut FileStore,
 	file_id: crate::collections::FileId,
 }
 ///resolver entry points
 impl<'store> NameRes<'store> {
 	pub fn new(file_store: &'store mut FileStore) -> Self {
 		Self {
-			file_store,
+			_file_store: file_store,
 			file_id: crate::collections::FileId::ANON,
 			scopes: Scope::with_defaults(),
 		}
@@ -118,7 +118,7 @@ impl NameRes<'_> {
 			};
 			let mut info = VarBuilder::new_global(name).with_span(span);
 			if matches!(&val.item, AstNode::ClassLit(_)) {
-				info = info.as_class().as_readonly();
+				info = info.into_class().into_readonly();
 			}
 			info.modifier_span = modifier_span;
 			self.scopes.define(info);
@@ -286,10 +286,7 @@ impl NameRes<'_> {
 	fn resolve_method(&mut self, method: ast::Method) -> Result<Method> {
 		let mut func_scope = ScopeInfo::default();
 		let mut args = vec![];
-		let mut next_id = 1;
-		for arg in method.args {
-			let new_id = next_id;
-			next_id += 1;
+		for (new_id, arg) in (1..).zip(method.args) {
 			func_scope.define(VarBuilder::new(arg.item).with_span(arg.span).finish(new_id));
 			args.push(new_id);
 		}

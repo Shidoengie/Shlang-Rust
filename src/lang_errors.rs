@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display};
 
 use crate::collections::{FileId, spans::*};
 use ariadne::{Label, Report, ReportBuilder, Span as SpanTrait};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 pub struct LangSpan {
 	span: Span,
@@ -95,7 +95,7 @@ where
 	}
 	fn msg(&'_ self) -> ReportBuilder<LangSpan, ariadne::ReportKind>;
 }
-impl<'de> Serialize for dyn LangError {
+impl Serialize for dyn LangError {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where
 		S: serde::Serializer,

@@ -135,7 +135,7 @@ pub fn test_file(input: TokenStream) -> TokenStream {
 
 	let section = input.section;
 	let function = input.function;
-	let generated_tests = tests.iter().enumerate().map(|(index, (name, source))| {
+	let generated_tests = tests.iter().map(|(name, source)| {
 		let test_name = name.to_lowercase().replace(" ", "_");
 		let test_ident = format_ident!("{}_{}", section, test_name);
 		let name = LitStr::new(name, input.path.span());

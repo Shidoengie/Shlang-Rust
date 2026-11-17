@@ -50,7 +50,7 @@ impl Compiler {
 		let mut buf = vec![];
 		loop {
 			let tok = lexer
-				.next()
+				.next_token()
 				.map_err(|err| Box::new(err) as Box<dyn LangError>)?;
 			if tok.is(&TokenType::Eof) {
 				break;

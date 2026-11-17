@@ -188,7 +188,7 @@ impl Index<Span> for str {
 		&self[index.start as usize..index.end as usize]
 	}
 }
-impl<'a> IndexMut<Span> for str {
+impl IndexMut<Span> for str {
 	fn index_mut(&mut self, index: Span) -> &mut Self::Output {
 		&mut self[index.start as usize..index.end as usize]
 	}

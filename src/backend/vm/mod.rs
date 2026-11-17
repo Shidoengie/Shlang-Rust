@@ -155,7 +155,7 @@ pub struct StackVM<'a> {
 	is_finished: bool,
 	objects: ObjectHeap,
 	const_pool: Box<[Value]>,
-	symbol_pool: SymbolArray<'a>,
+	_symbol_pool: SymbolArray<'a>,
 	pub value_map: Vec<usize>,
 	pub values: Vec<Value>,
 	pub globals: Box<[Value]>,
@@ -181,7 +181,7 @@ impl<'a> StackVM<'a> {
 
 			globals: new_globals.into_boxed_slice(),
 			const_pool: bytecode.const_pool,
-			symbol_pool: bytecode.symbol_pool,
+			_symbol_pool: bytecode.symbol_pool,
 		};
 
 		let synthetic = Function {

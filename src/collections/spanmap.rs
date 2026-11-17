@@ -65,10 +65,8 @@ impl SpanMap {
 		if old_index >= mapping.len() {
 			return output_len;
 		}
-		for index in old_index..mapping.len() {
-			if let Some(mapped) = mapping[index] {
-				return mapped;
-			}
+		if let Some(mapped) = mapping.iter().skip(old_index).flatten().next() {
+			return *mapped;
 		}
 		output_len
 	}

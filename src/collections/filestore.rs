@@ -50,6 +50,10 @@ impl Debug for FileId {
 }
 impl FileId {
 	pub const ANON: Self = Self(NonMaxU32::MAX);
+	/// Creates a file ID without checking that the value is valid.
+	///
+	/// # Safety
+	/// `id` must not be `u32::MAX`.
 	pub const unsafe fn new_unchecked(id: u32) -> Self {
 		Self(unsafe { NonMaxU32::new_unchecked(id) })
 	}

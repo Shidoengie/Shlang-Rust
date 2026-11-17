@@ -52,7 +52,7 @@ impl VarBuilder {
 		}
 	}
 	#[inline(always)]
-	pub fn as_global(self) -> Self {
+	pub fn into_global(self) -> Self {
 		Self {
 			global: true,
 			..self
@@ -60,7 +60,7 @@ impl VarBuilder {
 	}
 
 	#[inline(always)]
-	pub fn as_readonly(self) -> Self {
+	pub fn into_readonly(self) -> Self {
 		Self {
 			readonly: true,
 			..self
@@ -90,7 +90,7 @@ impl VarBuilder {
 		}
 	}
 	#[inline(always)]
-	pub fn as_class(self) -> Self {
+	pub fn into_class(self) -> Self {
 		Self {
 			is_class: true,
 			..self
@@ -325,7 +325,7 @@ impl Scope {
 	}
 	pub fn enter_local_class(&mut self, name: Option<SymbolId>) -> ClassInfo {
 		let id = if let Some(name) = name {
-			self.define(VarBuilder::new(name).as_class().as_readonly())
+			self.define(VarBuilder::new(name).into_class().into_readonly())
 		} else {
 			self.current_frame_mut().define_anon_symbol()
 		};
